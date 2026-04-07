@@ -35,9 +35,7 @@ Ein moderner Fullstack Lager-Manager mit Django (Backend) und React (Frontend).
 
 ---
 
-## 📸 Screenshots
 
-*(hier kannst du später Bilder einfügen)*
 
 ---
 
