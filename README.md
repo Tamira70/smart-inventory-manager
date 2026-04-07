@@ -47,7 +47,7 @@ Ein moderner Fullstack Lager-Manager mit Django (Backend) und React (Frontend).
 ![Produkte](screenshots/products.png)
 
 ### 📥 Wareneingang
-![Goods In](screenshots/goods-in.WE.png)
+![Goods In](screenshots/goods-in-WE.png)
 
 ### 📊 Historie
 ![History](screenshots/history.png)
