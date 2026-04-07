@@ -40,4 +40,17 @@ Ein moderner Fullstack Lager-Manager mit Django (Backend) und React (Frontend).
 ---
 
 ## 🚀 Deployment
-Frontend liegt unter:
+Frontend liegt unter: /var/www/html/inventory/
+
+Backend: /opt/smart-inventory-manager/
+
+## 🧠 Roadmap
+
+Geplante Erweiterungen:
+- Dashboard mit Charts
+- Benutzerverwaltung im UI
+- Kategorien-System
+- PDF Export
+- Umstieg auf PostgreSQL
+
+
