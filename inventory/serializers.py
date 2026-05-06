@@ -1,10 +1,14 @@
-from rest_framework import serializers
 from django.db import transaction
-from .models import Product, InventoryTransaction, StockMovement
+from rest_framework import serializers
 
-from rest_framework import serializers
-from django.db import transaction
-from .models import Product, InventoryTransaction, StockMovement, UserProfile
+from .models import (
+    Product,
+    InventoryTransaction,
+    StockMovement,
+    UserProfile,
+    InventorySession,
+    InventoryCount,
+)
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
@@ -14,7 +18,10 @@ class UserProfileSerializer(serializers.ModelSerializer):
         model = UserProfile
         fields = ["username", "role"]
 
+
 class ProductSerializer(serializers.ModelSerializer):
+    is_low_stock = serializers.BooleanField(read_only=True)
+
     class Meta:
         model = Product
         fields = "__all__"
@@ -60,6 +67,7 @@ class StockMovementSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {"quantity": "Nicht genug Bestand für diesen Warenausgang."}
             )
+
         return attrs
 
     @transaction.atomic
@@ -74,4 +82,85 @@ class StockMovementSerializer(serializers.ModelSerializer):
             product.quantity -= quantity
 
         product.save()
+        return super().create(validated_data)
+
+
+class InventorySessionSerializer(serializers.ModelSerializer):
+    created_by_username = serializers.ReadOnlyField(source="created_by.username")
+    counts_total = serializers.SerializerMethodField()
+    counts_done = serializers.SerializerMethodField()
+
+    class Meta:
+        model = InventorySession
+        fields = [
+            "id",
+            "title",
+            "status",
+            "note",
+            "created_by",
+            "created_by_username",
+            "created_at",
+            "completed_at",
+            "counts_total",
+            "counts_done",
+        ]
+        read_only_fields = ["created_by", "created_at", "completed_at"]
+
+    def get_counts_total(self, obj):
+        return obj.counts.count()
+
+    def get_counts_done(self, obj):
+        return obj.counts.exclude(counted_quantity__isnull=True).count()
+
+
+class InventoryCountSerializer(serializers.ModelSerializer):
+    product_name = serializers.ReadOnlyField(source="product.name")
+    product_sku = serializers.ReadOnlyField(source="product.sku")
+    product_unit = serializers.ReadOnlyField(source="product.unit")
+    session_title = serializers.ReadOnlyField(source="session.title")
+    created_by_username = serializers.ReadOnlyField(source="created_by.username")
+    difference = serializers.SerializerMethodField()
+
+    class Meta:
+        model = InventoryCount
+        fields = [
+            "id",
+            "session",
+            "session_title",
+            "product",
+            "product_name",
+            "product_sku",
+            "product_unit",
+            "expected_quantity",
+            "counted_quantity",
+            "difference",
+            "note",
+            "corrected",
+            "correction_movement",
+            "created_by",
+            "created_by_username",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "expected_quantity",
+            "difference",
+            "corrected",
+            "correction_movement",
+            "created_by",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_difference(self, obj):
+        return obj.difference
+
+    def validate_counted_quantity(self, value):
+        if value is not None and value < 0:
+            raise serializers.ValidationError("Gezählte Menge darf nicht negativ sein.")
+        return value
+
+    def create(self, validated_data):
+        product = validated_data["product"]
+        validated_data["expected_quantity"] = product.quantity
         return super().create(validated_data)
