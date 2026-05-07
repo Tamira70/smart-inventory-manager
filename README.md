@@ -1,19 +1,15 @@
---
-
-🚧 Smart Inventory Manager v2.0 befindet sich aktuell in Entwicklung.
-
-Die neue Version erweitert das Projekt um eine ERP-ähnliche Sidebar-Navigation, Module für Einkauf, Dispo, Lager, Kundenstamm und Admin sowie einen verbesserten Inventur-Modus mit Excel-Bericht. Ziel ist eine noch praxisnähere Lager- und Prozessanwendung mit professioneller Struktur und besserer Bedienbarkeit.
-
---
-
-
-
 # 📦 Smart Inventory Manager
 
 Praxisnahe Fullstack-Lagerverwaltung zur Abbildung realer Logistik- und Inventurprozesse.  
 Das Projekt wurde mit **Django REST Framework** im Backend und **React + TypeScript** im Frontend entwickelt und produktiv auf einem eigenen Linux-Server mit **Apache Reverse Proxy** und **Gunicorn** deployed.
 
 ---
+
+🚧 Smart Inventory Manager v2.0 befindet sich aktuell in Entwicklung.
+
+Die neue Version erweitert das Projekt um eine ERP-ähnliche Sidebar-Navigation, Module für Einkauf, Dispo, Lager, Kundenstamm und Admin sowie einen verbesserten Inventur-Modus mit Excel-Bericht. Ziel ist eine noch praxisnähere Lager- und Prozessanwendung mit professioneller Struktur und besserer Bedienbarkeit.
+
+
 
 ## 🧩 Projektübersicht
 
