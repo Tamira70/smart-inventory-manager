@@ -68,6 +68,39 @@ type ProductForm = {
   unit: string;
 };
 
+type ActiveSection =
+  | "dashboard"
+  | "orders"
+  | "product"
+  | "suppliers"
+  | "stock-overview"
+  | "min-stock"
+  | "reorder"
+  | "inventory"
+  | "goods-in"
+  | "goods-out"
+  | "history"
+  | "corrections"
+  | "locations"
+  | "customers"
+  | "contacts"
+  | "addresses"
+  | "customer-notes"
+  | "admin-users"
+  | "admin-rights"
+  | "admin-locations"
+  | "admin-audit";
+
+type SidebarMenu = {
+  id: string;
+  title: string;
+  icon: string;
+  items: {
+    id: ActiveSection;
+    label: string;
+  }[];
+};
+
 const initialForm: ProductForm = {
   name: "",
   sku: "",
@@ -79,13 +112,101 @@ const initialForm: ProductForm = {
 
 const unitOptions = ["Stück", "kg", "Liter", "Box", "Palette"];
 
+const sidebarMenus: SidebarMenu[] = [
+  {
+    id: "dashboard",
+    title: "Dashboard",
+    icon: "📊",
+    items: [{ id: "dashboard", label: "Übersicht" }],
+  },
+  {
+    id: "einkauf",
+    title: "Einkauf",
+    icon: "🛒",
+    items: [
+      { id: "orders", label: "Bestellungen" },
+      { id: "product", label: "Produkte / Artikelstamm" },
+      { id: "suppliers", label: "Lieferanten" },
+      { id: "stock-overview", label: "Bestandsübersicht" },
+    ],
+  },
+  {
+    id: "dispo",
+    title: "Dispo",
+    icon: "📋",
+    items: [
+      { id: "stock-overview", label: "Bestandsübersicht" },
+      { id: "min-stock", label: "Mindestbestände" },
+      { id: "reorder", label: "Nachbestellvorschläge" },
+      { id: "inventory", label: "Inventur" },
+      { id: "history", label: "Bewegungashistorie" },
+    ],
+  },
+  {
+    id: "lager",
+    title: "Lager",
+    icon: "🏭",
+    items: [
+      { id: "goods-in", label: "Wareneingang" },
+      { id: "goods-out", label: "Warenausgang" },
+      { id: "history", label: "Bewegungshistorie" },
+      { id: "corrections", label: "Lagerkorrekturen" },
+      { id: "locations", label: "Lagerorte" },
+      { id: "stock-overview", label: "Bestandsübersicht" },
+    ],
+  },
+  {
+    id: "kundenstamm",
+    title: "Kundenstamm",
+    icon: "👥",
+    items: [
+      { id: "customers", label: "Kundenliste" },
+      { id: "contacts", label: "Ansprechpartner" },
+      { id: "addresses", label: "Lieferadressen" },
+      { id: "customer-notes", label: "Kundennotizen" },
+    ],
+  },
+  {
+    id: "admin",
+    title: "Admin",
+    icon: "⚙️",
+    items: [
+      { id: "admin-users", label: "Benutzer anlegen" },
+      { id: "admin-rights", label: "Rollen & Zugriffsrechte" },
+      { id: "admin-locations", label: "Lagerorte anlegen" },
+      { id: "admin-audit", label: "Systemprotokoll" },
+    ],
+  },
+];
+
 function App() {
   const user = getUser();
   const role = user?.role ?? "viewer";
 
-  const [activeSection, setActiveSection] = useState<
-    "product" | "goods-in" | "goods-out" | "inventory"
-  >("product");
+  const [activeSection, setActiveSection] = useState<ActiveSection>("dashboard");
+  const [expandedMenus, setExpandedMenus] = useState<string[]>([
+    "dashboard",
+    "einkauf",
+    "dispo",
+    "lager",
+  ]);
+
+  const [isCompactLayout, setIsCompactLayout] = useState(
+    window.innerWidth < 920
+  );
+
+  useEffect(() => {
+    const updateLayout = () => {
+      setIsCompactLayout(window.innerWidth < 920);
+    };
+
+    updateLayout();
+    window.addEventListener("resize", updateLayout);
+
+    return () => {
+      window.removeEventListener("resize", updateLayout);
+    };
+  }, []);
 
   const [loggedIn, setLoggedIn] = useState(isLoggedIn());
   const [products, setProducts] = useState<Product[]>([]);
@@ -143,6 +264,28 @@ function App() {
 
   const inventoryProductRef = useRef<HTMLSelectElement | null>(null);
   const inventoryCountedQuantityRef = useRef<HTMLInputElement | null>(null);
+
+  const toggleMenu = (menuId: string) => {
+    setExpandedMenus((current) =>
+      current.includes(menuId)
+        ? current.filter((id) => id !== menuId)
+        : [...current, menuId]
+    );
+  };
+
+  const selectSection = (section: ActiveSection) => {
+    setActiveSection(section);
+    setError("");
+    setSuccess("");
+
+    if (section === "min-stock") {
+      setShowLowStockOnly(true);
+    }
+
+    if (section === "stock-overview" || section === "product") {
+      setShowLowStockOnly(false);
+    }
+  };
 
   const hasPermission = (required: "admin" | "lager") => {
     if (!role) return false;
@@ -224,7 +367,8 @@ function App() {
       setInventorySessions(data);
 
       if (!selectedInventorySessionId && Array.isArray(data) && data.length > 0) {
-        const openSession = data.find((session: InventorySession) => session.status === "OPEN") ?? data[0];
+        const openSession =
+          data.find((session: InventorySession) => session.status === "OPEN") ?? data[0];
         setSelectedInventorySessionId(String(openSession.id));
       }
     } catch (err) {
@@ -283,7 +427,7 @@ function App() {
   }, [products, inventoryProductId]);
 
   const countedProductIds = useMemo(() => {
-  return new Set(inventoryCounts.map((count) => count.product));
+    return new Set(inventoryCounts.map((count) => count.product));
   }, [inventoryCounts]);
 
   const inventorySummary = useMemo(() => {
@@ -311,8 +455,9 @@ function App() {
     });
   }, [movements, movementSearch, movementTypeFilter, movementProductFilter]);
 
-  const filteredProducts = useMemo(() => {
+  const visibleProducts = useMemo(() => {
     const query = search.trim().toLowerCase();
+    const shouldShowLowStockOnly = activeSection === "min-stock" || showLowStockOnly;
 
     return products.filter((product) => {
       const matchesSearch =
@@ -320,14 +465,33 @@ function App() {
         product.sku.toLowerCase().includes(query) ||
         product.description.toLowerCase().includes(query);
 
-      const matchesLowStock = !showLowStockOnly || product.quantity <= product.min_stock;
+      const matchesLowStock = !shouldShowLowStockOnly || product.quantity <= product.min_stock;
 
       return matchesSearch && matchesLowStock;
     });
-  }, [products, search, showLowStockOnly]);
+  }, [products, search, showLowStockOnly, activeSection]);
 
   const totalProducts = products.length;
   const totalUnits = products.reduce((sum, product) => sum + product.quantity, 0);
+
+  const todayKey = new Date().toDateString();
+
+    const goodsInToday = movements.filter(
+      (movement) =>
+        movement.movement_type === "IN" &&
+        new Date(movement.created_at).toDateString() === todayKey
+    ).length;
+
+    const goodsOutToday = movements.filter(
+      (movement) =>
+        movement.movement_type === "OUT" &&
+        new Date(movement.created_at).toDateString() === todayKey
+    ).length;
+
+    const latestMovement = movements[0] ?? null;
+
+
+  const canShowProductOverview = ["product", "stock-overview", "min-stock"].includes(activeSection);
 
   const handleLogout = () => {
     clearTokens();
@@ -643,15 +807,15 @@ function App() {
     }
 
     const alreadyCounted = inventoryCounts.find(
-  (count) => count.product === Number(inventoryProductId)
-);
+      (count) => count.product === Number(inventoryProductId)
+    );
 
-if (alreadyCounted) {
-  setError(
-    "Dieses Produkt wurde in dieser Inventur bereits gezählt. Bitte nutze die vorhandene Inventurposition oder starte eine neue Inventur."
-  );
-  return;
-}
+    if (alreadyCounted) {
+      setError(
+        "Dieses Produkt wurde in dieser Inventur bereits gezählt. Bitte nutze die vorhandene Inventurposition oder starte eine neue Inventur."
+      );
+      return;
+    }
 
     if (inventoryCountedQuantity === "" || Number(inventoryCountedQuantity) < 0) {
       setError("Die gezählte Menge muss 0 oder größer sein.");
@@ -731,7 +895,10 @@ if (alreadyCounted) {
   };
 
   const handleCompleteInventorySession = async () => {
-    if (!selectedInventorySession) return;
+    if (!selectedInventorySession) {
+      setError("Bitte zuerst eine Inventur auswählen.");
+      return;
+    }
 
     const confirmed = window.confirm(
       `Inventur "${selectedInventorySession.title}" wirklich abschließen?`
@@ -755,12 +922,56 @@ if (alreadyCounted) {
       }
 
       await loadInventorySessions();
+      await loadInventoryCounts(selectedInventorySessionId);
+
       setSuccess("🏁 Inventur abgeschlossen!");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Fehler beim Abschließen der Inventur.";
       setError(message);
     } finally {
       setInventorySaving(false);
+    }
+  };
+
+  const handleExportInventoryExcel = async () => {
+    if (!selectedInventorySessionId) {
+      setError("Bitte zuerst eine Inventur auswählen.");
+      return;
+    }
+
+    try {
+      setError("");
+      setSuccess("");
+
+      const response = await apiFetch(
+        `/inventory-api/inventory-sessions/${selectedInventorySessionId}/export-excel/`
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || "Fehler beim Excel-Export.");
+      }
+
+      const blob = await response.blob();
+      const contentDisposition = response.headers.get("Content-Disposition") || "";
+      const filenameMatch = contentDisposition.match(/filename="?([^\"]+)"?/);
+      const filename =
+        filenameMatch?.[1] || `inventurbericht-${selectedInventorySessionId}.xlsx`;
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      URL.revokeObjectURL(url);
+      setSuccess("📤 Inventurbericht erfolgreich exportiert!");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Fehler beim Excel-Export.";
+      setError(message);
     }
   };
 
@@ -816,7 +1027,7 @@ if (alreadyCounted) {
         fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
       }}
     >
-      <div style={{ maxWidth: "1180px", margin: "0 auto" }}>
+      <div style={{ maxWidth: "1380px", margin: "0 auto" }}>
         <header
           style={{
             display: "flex",
@@ -844,26 +1055,20 @@ if (alreadyCounted) {
             </h1>
 
             <p style={{ marginTop: "12px", color: "#cbd5e1", maxWidth: "760px" }}>
-              Geschütztes Dashboard mit JWT-Login, Produktverwaltung, Bewegungen und Inventur-Modus.
+              Geschütztes ERP-ähnliches Dashboard mit JWT-Login, Lagerprozessen, Inventur und Rollenmodell.
             </p>
 
             <p style={{ marginTop: "8px", color: "#94a3b8" }}>
               Eingeloggt als: <strong>{user?.username}</strong> | Rolle: <strong>{role}</strong>
             </p>
 
-            {role === "viewer" && (
-              <p style={infoStyle}>🔒 Viewer-Modus aktiv: Bearbeiten und Buchungen sind deaktiviert.</p>
-            )}
+            {role === "viewer" && <p style={infoStyle}>🔒 Viewer-Modus aktiv: Bearbeiten und Buchungen sind deaktiviert.</p>}
 
             {role === "lager" && (
-              <p style={infoStyle}>
-                📦 Lager-Modus aktiv: Du kannst Wareneingang, Warenausgang und Inventur buchen.
-              </p>
+              <p style={infoStyle}>📦 Lager-Modus aktiv: Du kannst Wareneingang, Warenausgang und Inventur buchen.</p>
             )}
 
-            {role === "admin" && (
-              <p style={infoStyle}>⚙️ Admin-Modus aktiv: Du hast vollen Zugriff auf alle Funktionen.</p>
-            )}
+            {role === "admin" && <p style={infoStyle}>⚙️ Admin-Modus aktiv: Du hast vollen Zugriff auf alle Funktionen.</p>}
           </div>
 
           <button onClick={handleLogout} style={secondaryButtonStyle}>
@@ -885,683 +1090,953 @@ if (alreadyCounted) {
           <Card title="Inventur-Differenzen" value={String(inventorySummary.differences)} danger={inventorySummary.differences > 0} />
         </section>
 
-        <section style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginBottom: "28px" }}>
-          <button
-            type="button"
-            onClick={() => setActiveSection("product")}
-            disabled={!hasPermission("admin")}
-            style={hasPermission("admin") ? (activeSection === "product" ? primaryButtonStyle : secondaryButtonStyle) : disabledButtonStyle}
-            title={!hasPermission("admin") ? "Nur Admin darf Produkte anlegen" : ""}
-          >
-            Neues Produkt anlegen
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveSection("goods-in")}
-            disabled={!hasPermission("lager")}
-            style={hasPermission("lager") ? (activeSection === "goods-in" ? primaryButtonStyle : secondaryButtonStyle) : disabledButtonStyle}
-            title={!hasPermission("lager") ? "Keine Berechtigung" : ""}
-          >
-            Wareneingang buchen
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveSection("goods-out")}
-            disabled={!hasPermission("lager")}
-            style={hasPermission("lager") ? (activeSection === "goods-out" ? primaryButtonStyle : secondaryButtonStyle) : disabledButtonStyle}
-            title={!hasPermission("lager") ? "Keine Berechtigung" : ""}
-          >
-            Warenausgang buchen
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveSection("inventory")}
-            disabled={!hasPermission("lager")}
-            style={hasPermission("lager") ? (activeSection === "inventory" ? primaryButtonStyle : secondaryButtonStyle) : disabledButtonStyle}
-            title={!hasPermission("lager") ? "Keine Berechtigung" : ""}
-          >
-            Inventur-Modus
-          </button>
-        </section>
-
-        {activeSection === "product" && (
-          <section style={sectionStyle}>
-            <h2 style={sectionTitleStyle}>Neues Produkt anlegen</h2>
-
-            <form
-              onSubmit={handleSubmit}
-              style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}
-            >
-              <input
-                ref={productNameRef}
-                name="name"
-                placeholder="Produktname"
-                value={form.name}
-                onChange={handleChange}
-                onKeyDown={(e) => focusNextOnEnter(e, productSkuRef.current)}
-                style={inputStyle}
-                disabled={!hasPermission("admin")}
-              />
-
-              <input
-                ref={productSkuRef}
-                name="sku"
-                placeholder="SKU"
-                value={form.sku}
-                onChange={handleChange}
-                onKeyDown={(e) => focusNextOnEnter(e, productQuantityRef.current)}
-                style={inputStyle}
-                disabled={!hasPermission("admin")}
-              />
-
-              <input
-                ref={productQuantityRef}
-                name="quantity"
-                type="number"
-                placeholder="Bestand"
-                value={form.quantity}
-                onChange={handleChange}
-                onKeyDown={(e) => focusNextOnEnter(e, productMinStockRef.current)}
-                min="0"
-                style={inputStyle}
-                disabled={!hasPermission("admin")}
-              />
-
-              <input
-                ref={productMinStockRef}
-                name="min_stock"
-                type="number"
-                placeholder="Mindestbestand"
-                value={form.min_stock}
-                onChange={handleChange}
-                onKeyDown={(e) => focusNextOnEnter(e, productUnitRef.current)}
-                min="0"
-                style={inputStyle}
-                disabled={!hasPermission("admin")}
-              />
-
-              <select
-                ref={productUnitRef}
-                value={form.unit}
-                onChange={(e) => setForm({ ...form, unit: e.target.value })}
-                onKeyDown={(e) => focusNextOnEnter(e, productDescriptionRef.current)}
-                style={inputStyle}
-                disabled={!hasPermission("admin")}
-              >
-                {unitOptions.map((unit) => (
-                  <option key={unit} value={unit}>{unit}</option>
-                ))}
-              </select>
-
-              <textarea
-                ref={productDescriptionRef}
-                name="description"
-                placeholder="Beschreibung"
-                value={form.description}
-                onChange={handleChange}
-                style={{ ...inputStyle, minHeight: "100px", gridColumn: "1 / -1" }}
-                disabled={!hasPermission("admin")}
-              />
-
-              <button
-                type="submit"
-                disabled={saving || !hasPermission("admin")}
-                style={
-                  hasPermission("admin")
-                    ? { ...primaryButtonStyle, gridColumn: "1 / -1" }
-                    : { ...primaryButtonStyle, gridColumn: "1 / -1", opacity: 0.4, cursor: "not-allowed" }
-                }
-                title={!hasPermission("admin") ? "Keine Berechtigung" : ""}
-              >
-                {saving ? "Speichere..." : "Produkt speichern"}
-              </button>
-            </form>
-          </section>
-        )}
-
-        {activeSection === "goods-in" && (
-          <section style={sectionStyle}>
-            <h2 style={sectionTitleStyle}>📥 Wareneingang buchen</h2>
-
-            <form
-              onSubmit={handleGoodsReceipt}
-              style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}
-            >
-              <select
-                ref={goodsInProductRef}
-                value={movementProductId}
-                onChange={(e) => setMovementProductId(e.target.value)}
-                onKeyDown={(e) => focusNextOnEnter(e, goodsInQuantityRef.current)}
-                required
-                style={inputStyle}
-                disabled={!hasPermission("lager")}
-              >
-                <option value="">Produkt auswählen</option>
-                {products.map((product) => (
-                  <option key={product.id} value={product.id}>{product.name} ({product.sku})</option>
-                ))}
-              </select>
-
-              <input
-                ref={goodsInQuantityRef}
-                type="number"
-                placeholder="Menge"
-                value={movementQuantity}
-                onChange={(e) => setMovementQuantity(e.target.value)}
-                required
-                min="1"
-                style={inputStyle}
-                disabled={!hasPermission("lager")}
-              />
-
-              <input
-                type="text"
-                placeholder="Lieferschein / Referenznummer"
-                value={movementReferenceNumber}
-                onChange={(e) => setMovementReferenceNumber(e.target.value)}
-                style={inputStyle}
-                disabled={!hasPermission("lager")}
-              />
-
-              <textarea
-                placeholder="Notiz"
-                value={movementNote}
-                onChange={(e) => setMovementNote(e.target.value)}
-                style={{ ...inputStyle, minHeight: "48px", gridColumn: "1 / -1" }}
-                disabled={!hasPermission("lager")}
-              />
-
-              <div style={{ gridColumn: "1 / -1" }}>
-                <button
-                  type="submit"
-                  disabled={movementSaving || !hasPermission("lager")}
-                  style={hasPermission("lager") ? primaryButtonStyle : { ...primaryButtonStyle, opacity: 0.4, cursor: "not-allowed" }}
-                  title={!hasPermission("lager") ? "Keine Berechtigung" : ""}
-                >
-                  {movementSaving ? "Buche..." : "Wareneingang buchen"}
-                </button>
-              </div>
-            </form>
-          </section>
-        )}
-
-        {activeSection === "goods-out" && (
-          <section style={sectionStyle}>
-            <h2 style={sectionTitleStyle}>📤 Warenausgang buchen</h2>
-
-            <form
-              onSubmit={handleGoodsIssue}
-              style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}
-            >
-              <select
-                ref={goodsOutProductRef}
-                value={goodsOutProductId}
-                onChange={(e) => setGoodsOutProductId(e.target.value)}
-                onKeyDown={(e) => focusNextOnEnter(e, goodsOutQuantityRef.current)}
-                required
-                style={inputStyle}
-                disabled={!hasPermission("lager")}
-              >
-                <option value="">Produkt auswählen</option>
-                {products.map((product) => (
-                  <option key={product.id} value={product.id}>{product.name} ({product.sku})</option>
-                ))}
-              </select>
-
-              <input
-                ref={goodsOutQuantityRef}
-                type="number"
-                placeholder="Menge"
-                value={goodsOutQuantity}
-                onChange={(e) => setGoodsOutQuantity(e.target.value)}
-                required
-                min="1"
-                style={inputStyle}
-                disabled={!hasPermission("lager")}
-              />
-
-              <input
-                type="text"
-                placeholder="Referenznummer"
-                value={goodsOutReferenceNumber}
-                onChange={(e) => setGoodsOutReferenceNumber(e.target.value)}
-                style={inputStyle}
-                disabled={!hasPermission("lager")}
-              />
-
-              <textarea
-                placeholder="Notiz"
-                value={goodsOutNote}
-                onChange={(e) => setGoodsOutNote(e.target.value)}
-                style={{ ...inputStyle, minHeight: "48px", gridColumn: "1 / -1" }}
-                disabled={!hasPermission("lager")}
-              />
-
-              <div style={{ gridColumn: "1 / -1" }}>
-                <button
-                  type="submit"
-                  disabled={goodsOutSaving || !hasPermission("lager")}
-                  style={hasPermission("lager") ? primaryButtonStyle : { ...primaryButtonStyle, opacity: 0.4, cursor: "not-allowed" }}
-                  title={!hasPermission("lager") ? "Keine Berechtigung" : ""}
-                >
-                  {goodsOutSaving ? "Buche..." : "Warenausgang buchen"}
-                </button>
-              </div>
-            </form>
-          </section>
-        )}
-
-        {activeSection === "inventory" && (
-          <section style={sectionStyle}>
-            <h2 style={sectionTitleStyle}>🧾 Inventur-Modus</h2>
-
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "16px", marginBottom: "22px" }}>
-              <Card title="Positionen" value={String(inventorySummary.total)} />
-              <Card title="Gezählt" value={String(inventorySummary.done)} />
-              <Card title="Differenzen" value={String(inventorySummary.differences)} danger={inventorySummary.differences > 0} />
-              <Card title="Korrigiert" value={String(inventorySummary.corrected)} />
+        <div style={isCompactLayout ? appLayoutMobileStyle : appLayoutStyle}>
+          <aside style={isCompactLayout ? sidebarMobileStyle : sidebarStyle}>
+            <div style={sidebarHeaderStyle}>
+              <strong>Module</strong>
+              <span style={{ color: "#94a3b8", fontSize: "0.85rem" }}>ERP-Navigation</span>
             </div>
 
-            <form
-              onSubmit={handleCreateInventorySession}
-              style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px", marginBottom: "24px" }}
-            >
-              <input
-                type="text"
-                placeholder="Titel der Inventur"
-                value={inventoryTitle}
-                onChange={(e) => setInventoryTitle(e.target.value)}
-                style={inputStyle}
-                disabled={!hasPermission("lager")}
-              />
-
-              <input
-                type="text"
-                placeholder="Notiz zur Inventur"
-                value={inventoryNote}
-                onChange={(e) => setInventoryNote(e.target.value)}
-                style={inputStyle}
-                disabled={!hasPermission("lager")}
-              />
-
-              <button
-                type="submit"
-                disabled={inventorySaving || !hasPermission("lager")}
-                style={hasPermission("lager") ? primaryButtonStyle : disabledButtonStyle}
-              >
-                {inventorySaving ? "Erstelle..." : "Neue Inventur starten"}
-              </button>
-            </form>
-
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px", marginBottom: "18px" }}>
-              <select
-                value={selectedInventorySessionId}
-                onChange={(e) => setSelectedInventorySessionId(e.target.value)}
-                style={inputStyle}
-              >
-                <option value="">Inventur auswählen</option>
-                {inventorySessions.map((session) => (
-                  <option key={session.id} value={session.id}>
-                    #{session.id} {session.title} ({session.status === "OPEN" ? "Offen" : "Abgeschlossen"})
-                  </option>
-                ))}
-              </select>
-
-              <button
-                type="button"
-                onClick={() => loadInventoryCounts(selectedInventorySessionId)}
-                style={secondaryButtonStyle}
-                disabled={!selectedInventorySessionId}
-              >
-                Inventur laden
-              </button>
-
-              <button
-                type="button"
-                onClick={handleCompleteInventorySession}
-                style={secondaryButtonStyle}
-                disabled={!selectedInventorySession || selectedInventorySession.status === "COMPLETED" || !hasPermission("lager")}
-              >
-                Inventur abschließen
-              </button>
-            </div>
-
-            {selectedInventorySession && (
-              <p style={infoStyle}>
-                Aktive Inventur: <strong>{selectedInventorySession.title}</strong> | Status:{" "}
-                <strong>{selectedInventorySession.status === "OPEN" ? "Offen" : "Abgeschlossen"}</strong>
-              </p>
-            )}
-
-            <form
-              onSubmit={handleAddInventoryCount}
-              style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px", margin: "22px 0" }}
-            >
-              <select
-                ref={inventoryProductRef}
-                value={inventoryProductId}
-                onChange={(e) => setInventoryProductId(e.target.value)}
-                onKeyDown={(e) => focusNextOnEnter(e, inventoryCountedQuantityRef.current)}
-                style={inputStyle}
-                disabled={!hasPermission("lager") || !selectedInventorySessionId || selectedInventorySession?.status === "COMPLETED"}
-              >
-                <option value="">Produkt auswählen</option>
-                {products
-                .filter((product) => !countedProductIds.has(product.id))
-                .map((product) => (
-                  <option key={product.id} value={product.id}>
-                    {product.name} ({product.sku}) - Soll: {product.quantity} {product.unit}
-                  </option>
-                ))}
-              </select>
-
-              <input
-                ref={inventoryCountedQuantityRef}
-                type="number"
-                placeholder="Gezählte Menge"
-                value={inventoryCountedQuantity}
-                onChange={(e) => setInventoryCountedQuantity(e.target.value)}
-                min="0"
-                style={inputStyle}
-                disabled={!hasPermission("lager") || !selectedInventorySessionId || selectedInventorySession?.status === "COMPLETED"}
-              />
-
-              <input
-                type="text"
-                placeholder="Notiz zur Zählung"
-                value={inventoryCountNote}
-                onChange={(e) => setInventoryCountNote(e.target.value)}
-                style={inputStyle}
-                disabled={!hasPermission("lager") || !selectedInventorySessionId || selectedInventorySession?.status === "COMPLETED"}
-              />
-
-              <button
-                type="submit"
-                disabled={inventorySaving || !hasPermission("lager") || !selectedInventorySessionId || selectedInventorySession?.status === "COMPLETED"}
-                style={hasPermission("lager") ? primaryButtonStyle : disabledButtonStyle}
-              >
-                {inventorySaving ? "Speichere..." : "Zählung speichern"}
-              </button>
-            </form>
-
-            {selectedInventoryProduct && (
-              <p style={{ ...infoStyle, background: "rgba(30, 41, 59, 0.75)" }}>
-                Ausgewähltes Produkt: <strong>{selectedInventoryProduct.name}</strong> | Systembestand:{" "}
-                <strong>{selectedInventoryProduct.quantity} {selectedInventoryProduct.unit}</strong>
-              </p>
-            )}
-
-            {inventoryLoading && <p>Lade Inventur...</p>}
-
-            {!inventoryLoading && inventoryCounts.length > 0 && (
-              <div style={{ overflowX: "auto", border: "1px solid rgba(148, 163, 184, 0.18)", borderRadius: "14px" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "960px" }}>
-                  <thead>
-                    <tr style={{ background: "rgba(30, 41, 59, 0.7)", textAlign: "left" }}>
-                      <th style={tableHeadStyle}>Produkt</th>
-                      <th style={tableHeadStyle}>SKU</th>
-                      <th style={tableHeadStyle}>Soll</th>
-                      <th style={tableHeadStyle}>Ist</th>
-                      <th style={tableHeadStyle}>Differenz</th>
-                      <th style={tableHeadStyle}>Status</th>
-                      <th style={tableHeadStyle}>Notiz</th>
-                      <th style={tableHeadStyle}>Aktion</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {inventoryCounts.map((count) => {
-                      const diff = count.difference ?? 0;
-                      const hasDiff = diff !== 0;
-
-                      return (
-                        <tr
-                          key={count.id}
-                          style={{
-                            borderTop: "1px solid rgba(148, 163, 184, 0.12)",
-                            background: hasDiff ? "rgba(127,29,29,0.09)" : "rgba(22,101,52,0.08)",
-                          }}
-                        >
-                          <td style={tableCellStyle}>{count.product_name}</td>
-                          <td style={tableCellStyle}>{count.product_sku}</td>
-                          <td style={tableCellStyle}>{count.expected_quantity} {count.product_unit}</td>
-                          <td style={tableCellStyle}>{count.counted_quantity ?? "—"} {count.product_unit}</td>
-                          <td style={{ ...tableCellStyle, color: hasDiff ? "#fca5a5" : "#86efac", fontWeight: 700 }}>
-                            {count.difference === null ? "—" : count.difference > 0 ? `+${count.difference}` : count.difference}
-                          </td>
-                          <td style={tableCellStyle}>
-                            {count.corrected ? "✅ Korrigiert" : hasDiff ? "⚠️ Offen" : "✅ OK"}
-                          </td>
-                          <td style={tableCellStyle}>{count.note || "—"}</td>
-                          <td style={tableCellStyle}>
-                            <button
-                              type="button"
-                              onClick={() => handleApplyInventoryCorrection(count)}
-                              disabled={
-                                count.corrected ||
-                                count.counted_quantity === null ||
-                                !hasPermission("lager") ||
-                                selectedInventorySession?.status === "COMPLETED" ||
-                                inventoryCorrectionSavingId === count.id
-                              }
-                              style={
-                                !count.corrected && count.counted_quantity !== null && hasPermission("lager")
-                                  ? secondaryButtonStyle
-                                  : disabledButtonStyle
-                              }
-                            >
-                              {inventoryCorrectionSavingId === count.id ? "Buche..." : count.corrected ? "Erledigt" : "Korrektur buchen"}
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            {!inventoryLoading && selectedInventorySessionId && inventoryCounts.length === 0 && (
-              <p>Noch keine Inventurpositionen vorhanden.</p>
-            )}
-          </section>
-        )}
-
-        <section style={sectionStyle}>
-          <h2 style={sectionTitleStyle}>Suche & Filter</h2>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "12px", alignItems: "center" }}>
-            <input
-              type="text"
-              placeholder="Suche nach Name, SKU oder Beschreibung"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              style={inputStyle}
-            />
-
-            <label style={{ display: "flex", alignItems: "center", gap: "8px", color: "#e5e7eb", whiteSpace: "nowrap" }}>
-              <input
-                type="checkbox"
-                checked={showLowStockOnly}
-                onChange={(e) => setShowLowStockOnly(e.target.checked)}
-              />
-              Nur Niedriger Lagerbestand
-            </label>
-          </div>
-        </section>
-
-        {loading && <p>Lade Produkte...</p>}
-        {error && <p style={errorStyle}>Fehler: {error}</p>}
-        {success && <p style={successStyle}>{success}</p>}
-
-        {!loading && !error && filteredProducts.length === 0 && (
-          <p>Keine Produkte passen zur aktuellen Suche oder zum Filter.</p>
-        )}
-
-        {!loading && !error && filteredProducts.length > 0 && (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "16px" }}>
-            {filteredProducts.map((product) => {
-              const isLowStock = product.quantity <= product.min_stock;
+            {sidebarMenus.map((menu) => {
+              const isExpanded = expandedMenus.includes(menu.id);
 
               return (
-                <article
-                  key={product.id}
-                  style={{
-                    background: isLowStock ? "rgba(127, 29, 29, 0.18)" : "rgba(15, 23, 42, 0.78)",
-                    border: isLowStock ? "1px solid rgba(248, 113, 113, 0.35)" : "1px solid rgba(148, 163, 184, 0.18)",
-                    borderRadius: "20px",
-                    padding: "18px",
-                    boxShadow: "0 18px 40px rgba(0,0,0,0.22)",
-                  }}
-                >
-                  <h3 style={{ margin: "0 0 6px 0", color: "#f8fafc" }}>{product.name}</h3>
+                <div key={menu.id} style={sidebarGroupStyle}>
+                  <button type="button" onClick={() => toggleMenu(menu.id)} style={sidebarGroupButtonStyle}>
+                    <span>
+                      {menu.icon} {menu.title}
+                    </span>
+                    <span>{isExpanded ? "▾" : "▸"}</span>
+                  </button>
 
-                  <p style={{ margin: "0 0 10px 0", color: "#93c5fd" }}>{product.sku}</p>
-
-                  <div style={{ color: "#cbd5e1", lineHeight: 1.6 }}>
-                    <div>Bestand: {product.quantity} {product.unit}</div>
-                    <div>Mindestbestand: {product.min_stock}</div>
-                    {product.description && <div>Beschreibung: {product.description}</div>}
-                  </div>
-
-                  <div style={{ display: "flex", gap: "10px", marginTop: "16px" }}>
-                    <button
-                      type="button"
-                      onClick={() => hasPermission("admin") && handleEdit(product)}
-                      disabled={!hasPermission("admin")}
-                      style={hasPermission("admin") ? secondaryButtonStyle : disabledButtonStyle}
-                      title={!hasPermission("admin") ? "Keine Berechtigung" : ""}
-                    >
-                      Bearbeiten
-                    </button>
-                  </div>
-                </article>
+                  {isExpanded && (
+                    <div style={sidebarItemListStyle}>
+                      {menu.items.map((item) => (
+                        <button
+                          key={`${menu.id}-${item.id}`}
+                          type="button"
+                          onClick={() => selectSection(item.id)}
+                          style={activeSection === item.id ? sidebarItemActiveStyle : sidebarItemStyle}
+                        >
+                          {item.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               );
             })}
-          </div>
-        )}
+          </aside>
 
-        <section style={sectionStyle}>
-          <h2 style={sectionTitleStyle}>Bewegungshistorie</h2>
+          <main style={contentAreaStyle}>
+            {activeSection === "dashboard" && (
+            <section style={sectionStyle}>
+              <h2 style={sectionTitleStyle}>📊 Dashboard Übersicht</h2>
 
-          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "16px" }}>
-            <button type="button" onClick={exportMovementsToCsv} style={secondaryButtonStyle}>
-              CSV exportieren
-            </button>
-          </div>
+              <p style={infoStyle}>
+                Zentrale Übersicht über Lagerbestände, kritische Artikel, Tagesbewegungen
+                und Inventurstatus.
+              </p>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 220px 260px", gap: "12px", marginBottom: "18px", alignItems: "center" }}>
-            <input
-              type="text"
-              placeholder="Suche nach Produkt, Referenz oder Notiz"
-              value={movementSearch}
-              onChange={(e) => setMovementSearch(e.target.value)}
-              style={inputStyle}
-            />
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                  gap: "16px",
+                  marginTop: "20px",
+                }}
+              >
+                <Card title="Produkte gesamt" value={String(totalProducts)} />
+                <Card title="Bestand gesamt" value={String(totalUnits)} />
+                <Card
+                  title="Niedriger Bestand"
+                  value={String(lowStockProducts.length)}
+                  danger={lowStockProducts.length > 0}
+                />
+                <Card
+                  title="Inventur-Differenzen"
+                  value={String(inventorySummary.differences)}
+                  danger={inventorySummary.differences > 0}
+                />
+                <Card title="Wareneingänge heute" value={String(goodsInToday)} />
+                <Card title="Warenausgänge heute" value={String(goodsOutToday)} />
+              </div>
 
-            <select
-              value={movementTypeFilter}
-              onChange={(e) => setMovementTypeFilter(e.target.value as "" | "IN" | "OUT")}
-              style={inputStyle}
-            >
-              <option value="">Alle Bewegungen</option>
-              <option value="IN">Nur Wareneingang</option>
-              <option value="OUT">Nur Warenausgang</option>
-            </select>
+              <div style={{ marginTop: "22px" }}>
+                <h3 style={{ color: "#bfdbfe", marginBottom: "10px" }}>
+                  Letzte Lagerbewegung
+                </h3>
 
-            <select
-              value={movementProductFilter}
-              onChange={(e) => setMovementProductFilter(e.target.value)}
-              style={inputStyle}
-            >
-              <option value="">Alle Produkte</option>
-              {[...new Set(products.map((product) => product.name))].map((productName) => (
-                <option key={productName} value={productName}>{productName}</option>
-              ))}
-            </select>
-          </div>
-
-          {movementsLoading && <p>Lade Bewegungen...</p>}
-
-          {!movementsLoading && filteredMovements.length === 0 && <p>Keine Bewegungen gefunden.</p>}
-
-          {!movementsLoading && filteredMovements.length > 0 && (
-            <div style={{ overflowX: "auto", border: "1px solid rgba(148, 163, 184, 0.18)", borderRadius: "14px" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "900px" }}>
-                <thead>
-                  <tr style={{ background: "rgba(30, 41, 59, 0.7)", textAlign: "left" }}>
-                    <th style={tableHeadStyle}>Datum</th>
-                    <th style={tableHeadStyle}>Produkt</th>
-                    <th style={tableHeadStyle}>Typ</th>
-                    <th style={tableHeadStyle}>Menge</th>
-                    <th style={tableHeadStyle}>Referenz</th>
-                    <th style={tableHeadStyle}>Notiz</th>
-                    <th style={tableHeadStyle}>Benutzer</th>
-                    <th style={tableHeadStyle}>Aktion</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {filteredMovements.map((movement, index) => {
-                    const isIn = movement.movement_type === "IN";
-                    const isLatest = index === 0;
-
-                    return (
-                      <tr
-                        key={movement.id}
-                        style={{
-                          borderTop: "1px solid rgba(148, 163, 184, 0.12)",
-                          background: isIn ? "rgba(22,101,52,0.08)" : "rgba(127,29,29,0.08)",
-                          transition: "0.2s",
-                        }}
-                        onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.05)")}
-                        onMouseLeave={(e) =>
-                          (e.currentTarget.style.background = isIn ? "rgba(22,101,52,0.08)" : "rgba(127,29,29,0.08)")
-                        }
-                      >
-                        <td style={tableCellStyle}>{new Date(movement.created_at).toLocaleString("de-DE")}</td>
-                        <td style={tableCellStyle}>{movement.product_name}</td>
-                        <td style={tableCellStyle}>
-                          <span style={{ color: isIn ? "#86efac" : "#fca5a5", fontWeight: 700 }}>
-                            {isIn ? "Wareneingang" : "Warenausgang"}
-                          </span>
-                        </td>
-                        <td style={tableCellStyle}>{movement.movement_type === "OUT" ? `-${movement.quantity}` : movement.quantity}</td>
-                        <td style={{ ...tableCellStyle, color: movement.reference_number ? "#e5e7eb" : "#64748b" }}>
-                          {movement.reference_number || "—"}
-                        </td>
-                        <td style={{ ...tableCellStyle, color: movement.note ? "#e5e7eb" : "#64748b" }}>
-                          {movement.note || "—"}
-                        </td>
-                        <td style={{ ...tableCellStyle, color: movement.created_by_username ? "#e5e7eb" : "#64748b" }}>
-                          {movement.created_by_username || "—"}
-                        </td>
-                        <td style={tableCellStyle}>
-                          {isLatest && (
-                            <button
-                              type="button"
-                              onClick={() => hasPermission("admin") && handleUndoMovement(movement)}
-                              disabled={!hasPermission("admin")}
-                              style={hasPermission("admin") ? secondaryButtonStyle : disabledButtonStyle}
-                              title={!hasPermission("admin") ? "Keine Berechtigung" : ""}
-                            >
-                              Rückgängig
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                {latestMovement ? (
+                  <div style={infoStyle}>
+                    <strong>{latestMovement.product_name}</strong>
+                    <br />
+                    Typ:{" "}
+                    <strong>
+                      {latestMovement.movement_type === "IN"
+                        ? "Wareneingang"
+                        : "Warenausgang"}
+                    </strong>
+                    <br />
+                    Menge: <strong>{latestMovement.quantity}</strong>
+                    <br />
+                    Datum:{" "}
+                    <strong>
+                      {new Date(latestMovement.created_at).toLocaleString("de-DE")}
+                    </strong>
+                  </div>
+                ) : (
+                  <p style={infoStyle}>Noch keine Lagerbewegungen vorhanden.</p>
+                )}
+              </div>
+            </section>
           )}
-        </section>
+
+            {activeSection === "orders" && (
+              <PlaceholderSection
+                title="🛒 Bestellungen"
+                text="Hier können später Einkaufsbestellungen, offene Bestellmengen und Liefertermine verwaltet werden."
+              />
+            )}
+
+            {activeSection === "suppliers" && (
+              <PlaceholderSection
+                title="🚚 Lieferanten"
+                text="Hier können später Lieferantenstammdaten, Ansprechpartner und Lieferbedingungen gepflegt werden."
+              />
+            )}
+
+            {activeSection === "reorder" && (
+              <PlaceholderSection
+                title="📋 Nachbestellvorschläge"
+                text="Hier können später automatische Nachbestellvorschläge auf Basis von Mindestbeständen angezeigt werden."
+              />
+            )}
+
+            {activeSection === "corrections" && (
+              <PlaceholderSection
+                title="🔧 Lagerkorrekturen"
+                text="Hier können später manuelle Lagerkorrekturen mit Begründung und Audit-Log gebucht werden."
+              />
+            )}
+
+            {activeSection === "locations" && (
+              <PlaceholderSection
+                title="📍 Lagerorte"
+                text="Hier können später Lagerorte, Regale und Fächer verwaltet werden."
+              />
+            )}
+
+            {activeSection === "customers" && (
+              <PlaceholderSection
+                title="👥 Kundenliste"
+                text="Hier kann später ein Kundenstamm mit Kundendaten, Kundennummern und Status entstehen."
+              />
+            )}
+
+            {activeSection === "contacts" && (
+              <PlaceholderSection title="☎️ Ansprechpartner" text="Hier können später Ansprechpartner je Kunde verwaltet werden." />
+            )}
+
+            {activeSection === "addresses" && (
+              <PlaceholderSection title="📦 Lieferadressen" text="Hier können später abweichende Lieferadressen je Kunde gepflegt werden." />
+            )}
+
+            {activeSection === "customer-notes" && (
+              <PlaceholderSection title="📝 Kundennotizen" text="Hier können später Notizen, Hinweise und interne Kundeninformationen gepflegt werden." />
+            )}
+
+            {activeSection === "admin-users" && (
+              <PlaceholderSection
+                title="👤 Benutzer anlegen"
+                text="Hier kann später eine Benutzerverwaltung im Frontend entstehen. Aktuell erfolgt dies über Django Admin."
+              />
+            )}
+
+            {activeSection === "admin-rights" && (
+              <PlaceholderSection
+                title="🔐 Rollen & Zugriffsrechte"
+                text="Hier können später Modulrechte für Einkauf, Dispo, Lager und Kundenstamm gepflegt werden."
+              />
+            )}
+
+            {activeSection === "admin-locations" && (
+              <PlaceholderSection title="📍 Lagerorte anlegen" text="Hier können später neue Lagerorte, Regale und Fächer administriert werden." />
+            )}
+
+            {activeSection === "admin-audit" && (
+              <PlaceholderSection
+                title="🧾 Systemprotokoll"
+                text="Hier kann später nachvollzogen werden, welcher Benutzer welche Änderung durchgeführt hat."
+              />
+            )}
+
+            {activeSection === "product" && (
+              <section style={sectionStyle}>
+                <h2 style={sectionTitleStyle}>Produkte / Artikelstamm</h2>
+
+                <form
+                  onSubmit={handleSubmit}
+                  style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}
+                >
+                  <input
+                    ref={productNameRef}
+                    name="name"
+                    placeholder="Produktname"
+                    value={form.name}
+                    onChange={handleChange}
+                    onKeyDown={(e) => focusNextOnEnter(e, productSkuRef.current)}
+                    style={inputStyle}
+                    disabled={!hasPermission("admin")}
+                  />
+
+                  <input
+                    ref={productSkuRef}
+                    name="sku"
+                    placeholder="SKU"
+                    value={form.sku}
+                    onChange={handleChange}
+                    onKeyDown={(e) => focusNextOnEnter(e, productQuantityRef.current)}
+                    style={inputStyle}
+                    disabled={!hasPermission("admin")}
+                  />
+
+                  <input
+                    ref={productQuantityRef}
+                    name="quantity"
+                    type="number"
+                    placeholder="Bestand"
+                    value={form.quantity}
+                    onChange={handleChange}
+                    onKeyDown={(e) => focusNextOnEnter(e, productMinStockRef.current)}
+                    min="0"
+                    style={inputStyle}
+                    disabled={!hasPermission("admin")}
+                  />
+
+                  <input
+                    ref={productMinStockRef}
+                    name="min_stock"
+                    type="number"
+                    placeholder="Mindestbestand"
+                    value={form.min_stock}
+                    onChange={handleChange}
+                    onKeyDown={(e) => focusNextOnEnter(e, productUnitRef.current)}
+                    min="0"
+                    style={inputStyle}
+                    disabled={!hasPermission("admin")}
+                  />
+
+                  <select
+                    ref={productUnitRef}
+                    value={form.unit}
+                    onChange={(e) => setForm({ ...form, unit: e.target.value })}
+                    onKeyDown={(e) => focusNextOnEnter(e, productDescriptionRef.current)}
+                    style={inputStyle}
+                    disabled={!hasPermission("admin")}
+                  >
+                    {unitOptions.map((unit) => (
+                      <option key={unit} value={unit}>{unit}</option>
+                    ))}
+                  </select>
+
+                  <textarea
+                    ref={productDescriptionRef}
+                    name="description"
+                    placeholder="Beschreibung"
+                    value={form.description}
+                    onChange={handleChange}
+                    style={{ ...inputStyle, minHeight: "100px", gridColumn: "1 / -1" }}
+                    disabled={!hasPermission("admin")}
+                  />
+
+                  <button
+                    type="submit"
+                    disabled={saving || !hasPermission("admin")}
+                    style={
+                      hasPermission("admin")
+                        ? { ...primaryButtonStyle, gridColumn: "1 / -1" }
+                        : { ...primaryButtonStyle, gridColumn: "1 / -1", opacity: 0.4, cursor: "not-allowed" }
+                    }
+                    title={!hasPermission("admin") ? "Keine Berechtigung" : ""}
+                  >
+                    {saving ? "Speichere..." : editingId ? "Produkt aktualisieren" : "Produkt speichern"}
+                  </button>
+                </form>
+              </section>
+            )}
+
+            {activeSection === "goods-in" && (
+              <section style={sectionStyle}>
+                <h2 style={sectionTitleStyle}>📥 Wareneingang buchen</h2>
+
+                <form
+                  onSubmit={handleGoodsReceipt}
+                  style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}
+                >
+                  <select
+                    ref={goodsInProductRef}
+                    value={movementProductId}
+                    onChange={(e) => setMovementProductId(e.target.value)}
+                    onKeyDown={(e) => focusNextOnEnter(e, goodsInQuantityRef.current)}
+                    required
+                    style={inputStyle}
+                    disabled={!hasPermission("lager")}
+                  >
+                    <option value="">Produkt auswählen</option>
+                    {products.map((product) => (
+                      <option key={product.id} value={product.id}>{product.name} ({product.sku})</option>
+                    ))}
+                  </select>
+
+                  <input
+                    ref={goodsInQuantityRef}
+                    type="number"
+                    placeholder="Menge"
+                    value={movementQuantity}
+                    onChange={(e) => setMovementQuantity(e.target.value)}
+                    required
+                    min="1"
+                    style={inputStyle}
+                    disabled={!hasPermission("lager")}
+                  />
+
+                  <input
+                    type="text"
+                    placeholder="Lieferschein / Referenznummer"
+                    value={movementReferenceNumber}
+                    onChange={(e) => setMovementReferenceNumber(e.target.value)}
+                    style={inputStyle}
+                    disabled={!hasPermission("lager")}
+                  />
+
+                  <textarea
+                    placeholder="Notiz"
+                    value={movementNote}
+                    onChange={(e) => setMovementNote(e.target.value)}
+                    style={{ ...inputStyle, minHeight: "48px", gridColumn: "1 / -1" }}
+                    disabled={!hasPermission("lager")}
+                  />
+
+                  <div style={{ gridColumn: "1 / -1" }}>
+                    <button
+                      type="submit"
+                      disabled={movementSaving || !hasPermission("lager")}
+                      style={hasPermission("lager") ? primaryButtonStyle : { ...primaryButtonStyle, opacity: 0.4, cursor: "not-allowed" }}
+                      title={!hasPermission("lager") ? "Keine Berechtigung" : ""}
+                    >
+                      {movementSaving ? "Buche..." : "Wareneingang buchen"}
+                    </button>
+                  </div>
+                </form>
+              </section>
+            )}
+
+            {activeSection === "goods-out" && (
+              <section style={sectionStyle}>
+                <h2 style={sectionTitleStyle}>📤 Warenausgang buchen</h2>
+
+                <form
+                  onSubmit={handleGoodsIssue}
+                  style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}
+                >
+                  <select
+                    ref={goodsOutProductRef}
+                    value={goodsOutProductId}
+                    onChange={(e) => setGoodsOutProductId(e.target.value)}
+                    onKeyDown={(e) => focusNextOnEnter(e, goodsOutQuantityRef.current)}
+                    required
+                    style={inputStyle}
+                    disabled={!hasPermission("lager")}
+                  >
+                    <option value="">Produkt auswählen</option>
+                    {products.map((product) => (
+                      <option key={product.id} value={product.id}>{product.name} ({product.sku})</option>
+                    ))}
+                  </select>
+
+                  <input
+                    ref={goodsOutQuantityRef}
+                    type="number"
+                    placeholder="Menge"
+                    value={goodsOutQuantity}
+                    onChange={(e) => setGoodsOutQuantity(e.target.value)}
+                    required
+                    min="1"
+                    style={inputStyle}
+                    disabled={!hasPermission("lager")}
+                  />
+
+                  <input
+                    type="text"
+                    placeholder="Referenznummer"
+                    value={goodsOutReferenceNumber}
+                    onChange={(e) => setGoodsOutReferenceNumber(e.target.value)}
+                    style={inputStyle}
+                    disabled={!hasPermission("lager")}
+                  />
+
+                  <textarea
+                    placeholder="Notiz"
+                    value={goodsOutNote}
+                    onChange={(e) => setGoodsOutNote(e.target.value)}
+                    style={{ ...inputStyle, minHeight: "48px", gridColumn: "1 / -1" }}
+                    disabled={!hasPermission("lager")}
+                  />
+
+                  <div style={{ gridColumn: "1 / -1" }}>
+                    <button
+                      type="submit"
+                      disabled={goodsOutSaving || !hasPermission("lager")}
+                      style={hasPermission("lager") ? primaryButtonStyle : { ...primaryButtonStyle, opacity: 0.4, cursor: "not-allowed" }}
+                      title={!hasPermission("lager") ? "Keine Berechtigung" : ""}
+                    >
+                      {goodsOutSaving ? "Buche..." : "Warenausgang buchen"}
+                    </button>
+                  </div>
+                </form>
+              </section>
+            )}
+
+            {activeSection === "inventory" && (
+              <section style={sectionStyle}>
+                <h2 style={sectionTitleStyle}>🧾 Inventur-Modus</h2>
+
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "16px", marginBottom: "22px" }}>
+                  <Card title="Positionen" value={String(inventorySummary.total)} />
+                  <Card title="Gezählt" value={String(inventorySummary.done)} />
+                  <Card title="Differenzen" value={String(inventorySummary.differences)} danger={inventorySummary.differences > 0} />
+                  <Card title="Korrigiert" value={String(inventorySummary.corrected)} />
+                </div>
+
+                <form
+                  onSubmit={handleCreateInventorySession}
+                  style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px", marginBottom: "24px" }}
+                >
+                  <input
+                    type="text"
+                    placeholder="Titel der Inventur"
+                    value={inventoryTitle}
+                    onChange={(e) => setInventoryTitle(e.target.value)}
+                    style={inputStyle}
+                    disabled={!hasPermission("lager")}
+                  />
+
+                  <input
+                    type="text"
+                    placeholder="Notiz zur Inventur"
+                    value={inventoryNote}
+                    onChange={(e) => setInventoryNote(e.target.value)}
+                    style={inputStyle}
+                    disabled={!hasPermission("lager")}
+                  />
+
+                  <button
+                    type="submit"
+                    disabled={inventorySaving || !hasPermission("lager")}
+                    style={hasPermission("lager") ? primaryButtonStyle : disabledButtonStyle}
+                  >
+                    {inventorySaving ? "Erstelle..." : "Neue Inventur starten"}
+                  </button>
+                </form>
+
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px", marginBottom: "18px" }}>
+                  <select
+                    value={selectedInventorySessionId}
+                    onChange={(e) => setSelectedInventorySessionId(e.target.value)}
+                    style={inputStyle}
+                  >
+                    <option value="">Inventur auswählen</option>
+                    {inventorySessions.map((session) => (
+                      <option key={session.id} value={session.id}>
+                        #{session.id} {session.title} ({session.status === "OPEN" ? "Offen" : "Abgeschlossen"})
+                      </option>
+                    ))}
+                  </select>
+
+                  <button type="button" onClick={() => loadInventoryCounts(selectedInventorySessionId)} style={secondaryButtonStyle} disabled={!selectedInventorySessionId}>
+                    Inventur laden
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleCompleteInventorySession}
+                    style={secondaryButtonStyle}
+                    disabled={!selectedInventorySession || selectedInventorySession.status === "COMPLETED" || !hasPermission("lager")}
+                  >
+                    Inventur abschließen
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleExportInventoryExcel}
+                    style={secondaryButtonStyle}
+                    disabled={!selectedInventorySessionId}
+                  >
+                    📤 Excel-Bericht exportieren
+                  </button>
+                </div>
+
+                {selectedInventorySession && (
+                  <p style={infoStyle}>
+                    Aktive Inventur: <strong>{selectedInventorySession.title}</strong> | Status:{" "}
+                    <strong>{selectedInventorySession.status === "OPEN" ? "Offen" : "Abgeschlossen"}</strong>
+                  </p>
+                )}
+
+                <form
+                  onSubmit={handleAddInventoryCount}
+                  style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px", margin: "22px 0" }}
+                >
+                  <select
+                    ref={inventoryProductRef}
+                    value={inventoryProductId}
+                    onChange={(e) => setInventoryProductId(e.target.value)}
+                    onKeyDown={(e) => focusNextOnEnter(e, inventoryCountedQuantityRef.current)}
+                    style={inputStyle}
+                    disabled={!hasPermission("lager") || !selectedInventorySessionId || selectedInventorySession?.status === "COMPLETED"}
+                  >
+                    <option value="">Produkt auswählen</option>
+                    {products
+                      .filter((product) => !countedProductIds.has(product.id))
+                      .map((product) => (
+                        <option key={product.id} value={product.id}>
+                          {product.name} ({product.sku}) - Soll: {product.quantity} {product.unit}
+                        </option>
+                      ))}
+                  </select>
+
+                  <input
+                    ref={inventoryCountedQuantityRef}
+                    type="number"
+                    placeholder="Gezählte Menge"
+                    value={inventoryCountedQuantity}
+                    onChange={(e) => setInventoryCountedQuantity(e.target.value)}
+                    min="0"
+                    style={inputStyle}
+                    disabled={!hasPermission("lager") || !selectedInventorySessionId || selectedInventorySession?.status === "COMPLETED"}
+                  />
+
+                  <input
+                    type="text"
+                    placeholder="Notiz zur Zählung"
+                    value={inventoryCountNote}
+                    onChange={(e) => setInventoryCountNote(e.target.value)}
+                    style={inputStyle}
+                    disabled={!hasPermission("lager") || !selectedInventorySessionId || selectedInventorySession?.status === "COMPLETED"}
+                  />
+
+                  <button
+                    type="submit"
+                    disabled={inventorySaving || !hasPermission("lager") || !selectedInventorySessionId || selectedInventorySession?.status === "COMPLETED"}
+                    style={hasPermission("lager") ? primaryButtonStyle : disabledButtonStyle}
+                  >
+                    {inventorySaving ? "Speichere..." : "Zählung speichern"}
+                  </button>
+                </form>
+
+                {selectedInventoryProduct && (
+                  <p style={{ ...infoStyle, background: "rgba(30, 41, 59, 0.75)" }}>
+                    Ausgewähltes Produkt: <strong>{selectedInventoryProduct.name}</strong> | Systembestand:{" "}
+                    <strong>{selectedInventoryProduct.quantity} {selectedInventoryProduct.unit}</strong>
+                  </p>
+                )}
+
+                {inventoryLoading && <p>Lade Inventur...</p>}
+
+                {!inventoryLoading && inventoryCounts.length > 0 && (
+                  <InventoryCountTable
+                    inventoryCounts={inventoryCounts}
+                    selectedInventorySession={selectedInventorySession}
+                    inventoryCorrectionSavingId={inventoryCorrectionSavingId}
+                    hasPermission={hasPermission}
+                    handleApplyInventoryCorrection={handleApplyInventoryCorrection}
+                  />
+                )}
+
+                {!inventoryLoading && selectedInventorySessionId && inventoryCounts.length === 0 && <p>Noch keine Inventurpositionen vorhanden.</p>}
+              </section>
+            )}
+
+            {canShowProductOverview && (
+              <>
+                <section style={sectionStyle}>
+                  <h2 style={sectionTitleStyle}>
+                    {activeSection === "min-stock" ? "⚠️ Mindestbestände" : "Bestandsübersicht"}
+                  </h2>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "12px", alignItems: "center" }}>
+                    <input
+                      type="text"
+                      placeholder="Suche nach Name, SKU oder Beschreibung"
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      style={inputStyle}
+                    />
+
+                    <label style={{ display: "flex", alignItems: "center", gap: "8px", color: "#e5e7eb", whiteSpace: "nowrap" }}>
+                      <input
+                        type="checkbox"
+                        checked={showLowStockOnly || activeSection === "min-stock"}
+                        onChange={(e) => setShowLowStockOnly(e.target.checked)}
+                        disabled={activeSection === "min-stock"}
+                      />
+                      Nur niedriger Lagerbestand
+                    </label>
+                  </div>
+                </section>
+
+                {loading && <p>Lade Produkte...</p>}
+                {error && <p style={errorStyle}>Fehler: {error}</p>}
+                {success && <p style={successStyle}>{success}</p>}
+
+                {!loading && !error && visibleProducts.length === 0 && <p>Keine Produkte passen zur aktuellen Suche oder zum Filter.</p>}
+
+                {!loading && !error && visibleProducts.length > 0 && (
+                  <ProductGrid
+                    products={visibleProducts}
+                    hasPermission={hasPermission}
+                    handleEdit={handleEdit}
+                  />
+                )}
+              </>
+            )}
+
+            {activeSection === "history" && (
+              <HistorySection
+                movementsLoading={movementsLoading}
+                filteredMovements={filteredMovements}
+                movementSearch={movementSearch}
+                setMovementSearch={setMovementSearch}
+                movementTypeFilter={movementTypeFilter}
+                setMovementTypeFilter={setMovementTypeFilter}
+                movementProductFilter={movementProductFilter}
+                setMovementProductFilter={setMovementProductFilter}
+                products={products}
+                exportMovementsToCsv={exportMovementsToCsv}
+                hasPermission={hasPermission}
+                handleUndoMovement={handleUndoMovement}
+              />
+            )}
+          </main>
+        </div>
       </div>
     </div>
+  );
+}
+
+      function PlaceholderSection({
+        title,
+        text,
+      }: {
+        title: string;
+        text: string;
+      }) {
+        return (
+          <section style={sectionStyle}>
+            <div style={placeholderHeaderStyle}>
+              <h2 style={{ ...sectionTitleStyle, marginBottom: 0 }}>{title}</h2>
+
+              <span style={placeholderBadgeStyle}>
+                Modul vorbereitet
+              </span>
+            </div>
+
+            <p style={infoStyle}>{text}</p>
+
+            <div style={placeholderBoxStyle}>
+              <strong>Geplanter Ausbau</strong>
+              <p style={{ marginTop: "8px", color: "#cbd5e1" }}>
+                Dieser Bereich ist bereits in der ERP-Navigation vorbereitet und kann
+                später mit eigenen Datenmodellen, Formularen, Tabellen, Rollenrechten
+                und Exportfunktionen erweitert werden.
+              </p>
+            </div>
+          </section>
+        );
+      }
+
+function ProductGrid({
+  products,
+  hasPermission,
+  handleEdit,
+}: {
+  products: Product[];
+  hasPermission: (required: "admin" | "lager") => boolean;
+  handleEdit: (product: Product) => void;
+}) {
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "16px" }}>
+      {products.map((product) => {
+        const isLowStock = product.quantity <= product.min_stock;
+
+        return (
+          <article
+            key={product.id}
+            style={{
+              background: isLowStock ? "rgba(127, 29, 29, 0.18)" : "rgba(15, 23, 42, 0.78)",
+              border: isLowStock ? "1px solid rgba(248, 113, 113, 0.35)" : "1px solid rgba(148, 163, 184, 0.18)",
+              borderRadius: "20px",
+              padding: "18px",
+              boxShadow: "0 18px 40px rgba(0,0,0,0.22)",
+            }}
+          >
+            <h3 style={{ margin: "0 0 6px 0", color: "#f8fafc" }}>{product.name}</h3>
+            <p style={{ margin: "0 0 10px 0", color: "#93c5fd" }}>{product.sku}</p>
+
+            <div style={{ color: "#cbd5e1", lineHeight: 1.6 }}>
+              <div>Bestand: {product.quantity} {product.unit}</div>
+              <div>Mindestbestand: {product.min_stock}</div>
+              {product.description && <div>Beschreibung: {product.description}</div>}
+            </div>
+
+            <div style={{ display: "flex", gap: "10px", marginTop: "16px" }}>
+              <button
+                type="button"
+                onClick={() => hasPermission("admin") && handleEdit(product)}
+                disabled={!hasPermission("admin")}
+                style={hasPermission("admin") ? secondaryButtonStyle : disabledButtonStyle}
+                title={!hasPermission("admin") ? "Keine Berechtigung" : ""}
+              >
+                Bearbeiten
+              </button>
+            </div>
+          </article>
+        );
+      })}
+    </div>
+  );
+}
+
+function InventoryCountTable({
+  inventoryCounts,
+  selectedInventorySession,
+  inventoryCorrectionSavingId,
+  hasPermission,
+  handleApplyInventoryCorrection,
+}: {
+  inventoryCounts: InventoryCount[];
+  selectedInventorySession: InventorySession | null;
+  inventoryCorrectionSavingId: number | null;
+  hasPermission: (required: "admin" | "lager") => boolean;
+  handleApplyInventoryCorrection: (count: InventoryCount) => void;
+}) {
+  return (
+    <div style={{ overflowX: "auto", border: "1px solid rgba(148, 163, 184, 0.18)", borderRadius: "14px" }}>
+      <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "960px" }}>
+        <thead>
+          <tr style={{ background: "rgba(30, 41, 59, 0.7)", textAlign: "left" }}>
+            <th style={tableHeadStyle}>Produkt</th>
+            <th style={tableHeadStyle}>SKU</th>
+            <th style={tableHeadStyle}>Soll</th>
+            <th style={tableHeadStyle}>Ist</th>
+            <th style={tableHeadStyle}>Differenz</th>
+            <th style={tableHeadStyle}>Status</th>
+            <th style={tableHeadStyle}>Notiz</th>
+            <th style={tableHeadStyle}>Aktion</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {inventoryCounts.map((count) => {
+            const diff = count.difference ?? 0;
+            const hasDiff = diff !== 0;
+
+            return (
+              <tr
+                key={count.id}
+                style={{
+                  borderTop: "1px solid rgba(148, 163, 184, 0.12)",
+                  background: hasDiff ? "rgba(127,29,29,0.09)" : "rgba(22,101,52,0.08)",
+                }}
+              >
+                <td style={tableCellStyle}>{count.product_name}</td>
+                <td style={tableCellStyle}>{count.product_sku}</td>
+                <td style={tableCellStyle}>{count.expected_quantity} {count.product_unit}</td>
+                <td style={tableCellStyle}>{count.counted_quantity ?? "—"} {count.product_unit}</td>
+                <td style={{ ...tableCellStyle, color: hasDiff ? "#fca5a5" : "#86efac", fontWeight: 700 }}>
+                  {count.difference === null ? "—" : count.difference > 0 ? `+${count.difference}` : count.difference}
+                </td>
+                <td style={tableCellStyle}>{count.corrected ? "✅ Korrigiert" : hasDiff ? "⚠️ Offen" : "✅ OK"}</td>
+                <td style={tableCellStyle}>{count.note || "—"}</td>
+                <td style={tableCellStyle}>
+                  <button
+                    type="button"
+                    onClick={() => handleApplyInventoryCorrection(count)}
+                    disabled={
+                      count.corrected ||
+                      count.counted_quantity === null ||
+                      !hasPermission("lager") ||
+                      selectedInventorySession?.status === "COMPLETED" ||
+                      inventoryCorrectionSavingId === count.id
+                    }
+                    style={
+                      !count.corrected && count.counted_quantity !== null && hasPermission("lager")
+                        ? secondaryButtonStyle
+                        : disabledButtonStyle
+                    }
+                  >
+                    {inventoryCorrectionSavingId === count.id ? "Buche..." : count.corrected ? "Erledigt" : "Korrektur buchen"}
+                  </button>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function HistorySection({
+  movementsLoading,
+  filteredMovements,
+  movementSearch,
+  setMovementSearch,
+  movementTypeFilter,
+  setMovementTypeFilter,
+  movementProductFilter,
+  setMovementProductFilter,
+  products,
+  exportMovementsToCsv,
+  hasPermission,
+  handleUndoMovement,
+}: {
+  movementsLoading: boolean;
+  filteredMovements: StockMovement[];
+  movementSearch: string;
+  setMovementSearch: (value: string) => void;
+  movementTypeFilter: "" | "IN" | "OUT";
+  setMovementTypeFilter: (value: "" | "IN" | "OUT") => void;
+  movementProductFilter: string;
+  setMovementProductFilter: (value: string) => void;
+  products: Product[];
+  exportMovementsToCsv: () => void;
+  hasPermission: (required: "admin" | "lager") => boolean;
+  handleUndoMovement: (movement: StockMovement) => void;
+}) {
+  return (
+    <section style={sectionStyle}>
+      <h2 style={sectionTitleStyle}>Bewegungshistorie</h2>
+
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "16px" }}>
+        <button type="button" onClick={exportMovementsToCsv} style={secondaryButtonStyle}>
+          CSV exportieren
+        </button>
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+          gap: "12px",
+          marginBottom: "18px",
+          alignItems: "center",
+        }}
+      >
+        <input
+          type="text"
+          placeholder="Suche nach Produkt, Referenz oder Notiz"
+          value={movementSearch}
+          onChange={(e) => setMovementSearch(e.target.value)}
+          style={inputStyle}
+        />
+
+        <select
+          value={movementTypeFilter}
+          onChange={(e) => setMovementTypeFilter(e.target.value as "" | "IN" | "OUT")}
+          style={inputStyle}
+        >
+          <option value="">Alle Bewegungen</option>
+          <option value="IN">Nur Wareneingang</option>
+          <option value="OUT">Nur Warenausgang</option>
+        </select>
+
+        <select
+          value={movementProductFilter}
+          onChange={(e) => setMovementProductFilter(e.target.value)}
+          style={inputStyle}
+        >
+          <option value="">Alle Produkte</option>
+          {[...new Set(products.map((product) => product.name))].map((productName) => (
+            <option key={productName} value={productName}>{productName}</option>
+          ))}
+        </select>
+      </div>
+
+      {movementsLoading && <p>Lade Bewegungen...</p>}
+      {!movementsLoading && filteredMovements.length === 0 && <p>Keine Bewegungen gefunden.</p>}
+
+      {!movementsLoading && filteredMovements.length > 0 && (
+        <div style={{ overflowX: "auto", border: "1px solid rgba(148, 163, 184, 0.18)", borderRadius: "14px" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "900px" }}>
+            <thead>
+              <tr style={{ background: "rgba(30, 41, 59, 0.7)", textAlign: "left" }}>
+                <th style={tableHeadStyle}>Datum</th>
+                <th style={tableHeadStyle}>Produkt</th>
+                <th style={tableHeadStyle}>Typ</th>
+                <th style={tableHeadStyle}>Menge</th>
+                <th style={tableHeadStyle}>Referenz</th>
+                <th style={tableHeadStyle}>Notiz</th>
+                <th style={tableHeadStyle}>Benutzer</th>
+                <th style={tableHeadStyle}>Aktion</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {filteredMovements.map((movement, index) => {
+                const isIn = movement.movement_type === "IN";
+                const isLatest = index === 0;
+
+                return (
+                  <tr
+                    key={movement.id}
+                    style={{
+                      borderTop: "1px solid rgba(148, 163, 184, 0.12)",
+                      background: isIn ? "rgba(22,101,52,0.08)" : "rgba(127,29,29,0.08)",
+                      transition: "0.2s",
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.05)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = isIn ? "rgba(22,101,52,0.08)" : "rgba(127,29,29,0.08)")}
+                  >
+                    <td style={tableCellStyle}>{new Date(movement.created_at).toLocaleString("de-DE")}</td>
+                    <td style={tableCellStyle}>{movement.product_name}</td>
+                    <td style={tableCellStyle}>
+                      <span style={{ color: isIn ? "#86efac" : "#fca5a5", fontWeight: 700 }}>
+                        {isIn ? "Wareneingang" : "Warenausgang"}
+                      </span>
+                    </td>
+                    <td style={tableCellStyle}>{movement.movement_type === "OUT" ? `-${movement.quantity}` : movement.quantity}</td>
+                    <td style={{ ...tableCellStyle, color: movement.reference_number ? "#e5e7eb" : "#64748b" }}>
+                      {movement.reference_number || "—"}
+                    </td>
+                    <td style={{ ...tableCellStyle, color: movement.note ? "#e5e7eb" : "#64748b" }}>
+                      {movement.note || "—"}
+                    </td>
+                    <td style={{ ...tableCellStyle, color: movement.created_by_username ? "#e5e7eb" : "#64748b" }}>
+                      {movement.created_by_username || "—"}
+                    </td>
+                    <td style={tableCellStyle}>
+                      {isLatest && (
+                        <button
+                          type="button"
+                          onClick={() => hasPermission("admin") && handleUndoMovement(movement)}
+                          disabled={!hasPermission("admin")}
+                          style={hasPermission("admin") ? secondaryButtonStyle : disabledButtonStyle}
+                          title={!hasPermission("admin") ? "Keine Berechtigung" : ""}
+                        >
+                          Rückgängig
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -1676,4 +2151,120 @@ const successStyle: React.CSSProperties = {
   marginBottom: "16px",
 };
 
+const appLayoutStyle: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "290px 1fr",
+  gap: "22px",
+  alignItems: "start",
+};
+
+const sidebarStyle: React.CSSProperties = {
+  position: "sticky",
+  top: "24px",
+  background: "rgba(15, 23, 42, 0.88)",
+  border: "1px solid rgba(148, 163, 184, 0.2)",
+  borderRadius: "20px",
+  padding: "16px",
+  boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
+};
+
+const sidebarHeaderStyle: React.CSSProperties = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  marginBottom: "14px",
+  color: "#f8fafc",
+};
+
+const sidebarGroupStyle: React.CSSProperties = {
+  marginBottom: "10px",
+};
+
+const sidebarGroupButtonStyle: React.CSSProperties = {
+  width: "100%",
+  border: "1px solid rgba(148, 163, 184, 0.18)",
+  borderRadius: "12px",
+  padding: "11px 12px",
+  background: "rgba(30, 41, 59, 0.82)",
+  color: "#e5e7eb",
+  cursor: "pointer",
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  fontWeight: 700,
+};
+
+const sidebarItemListStyle: React.CSSProperties = {
+  display: "grid",
+  gap: "6px",
+  marginTop: "8px",
+  paddingLeft: "10px",
+};
+
+const sidebarItemStyle: React.CSSProperties = {
+  border: "none",
+  borderRadius: "10px",
+  padding: "9px 10px",
+  background: "transparent",
+  color: "#94a3b8",
+  cursor: "pointer",
+  textAlign: "left",
+};
+
+const sidebarItemActiveStyle: React.CSSProperties = {
+  ...sidebarItemStyle,
+  background: "rgba(37, 99, 235, 0.22)",
+  color: "#bfdbfe",
+  fontWeight: 700,
+};
+
+const contentAreaStyle: React.CSSProperties = {
+  minWidth: 0,
+};
+
 export default App;
+
+const appLayoutMobileStyle: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "1fr",
+  gap: "18px",
+  alignItems: "start",
+};
+
+const sidebarMobileStyle: React.CSSProperties = {
+  background: "rgba(15, 23, 42, 0.88)",
+  border: "1px solid rgba(148, 163, 184, 0.2)",
+  borderRadius: "20px",
+  padding: "16px",
+  boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
+};
+
+const placeholderHeaderStyle: React.CSSProperties = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  gap: "12px",
+  flexWrap: "wrap",
+  marginBottom: "16px",
+};
+
+const placeholderBadgeStyle: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  padding: "7px 10px",
+  borderRadius: "999px",
+  background: "rgba(59, 130, 246, 0.15)",
+  border: "1px solid rgba(96, 165, 250, 0.28)",
+  color: "#bfdbfe",
+  fontSize: "0.85rem",
+  fontWeight: 700,
+};
+
+const placeholderBoxStyle: React.CSSProperties = {
+  marginTop: "16px",
+  padding: "16px",
+  borderRadius: "14px",
+  background: "rgba(30, 41, 59, 0.72)",
+  border: "1px solid rgba(148, 163, 184, 0.16)",
+  color: "#e5e7eb",
+};
