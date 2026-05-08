@@ -130,8 +130,10 @@ type PurchaseOrderDraft = {
   sku: string;
   quantity: number;
   unit: string;
-  status: "DRAFT";
+  status: "DRAFT" | "APPROVED";
   createdAt: string;
+  approvedAt?: string;
+  orderNumber?: string;
 };
 
 const initialForm: ProductForm = {
@@ -564,15 +566,26 @@ function App() {
     setActiveSection("orders");
   };
 
-  const handleRemovePurchaseOrderDraft = (draftId: number) => {
-    setPurchaseOrderDrafts((current) =>
-      current.filter((draft) => draft.id !== draftId)
-    );
+  const handleApprovePurchaseOrderDraft = (draftId: number) => {
+  setPurchaseOrderDrafts((current) =>
+    current.map((draft) => {
+      if (draft.id !== draftId) return draft;
 
-    setSuccess("🗑️ Bestellentwurf entfernt.");
-  };
+      if (draft.status === "APPROVED") return draft;
 
-  const handleLogout = () => {
+      return {
+        ...draft,
+        status: "APPROVED",
+        approvedAt: new Date().toISOString(),
+        orderNumber: `PO-${new Date().getFullYear()}-${draft.id}`,
+            };
+          })
+        );
+
+        setSuccess("✅ Bestellung wurde freigegeben.");
+      };
+
+const handleLogout = () => {
     clearTokens();
     setLoggedIn(false);
     setProducts([]);
@@ -1100,10 +1113,11 @@ function App() {
             )}
 
             {activeSection === "orders" && (
-              <OrdersSection
-                drafts={purchaseOrderDrafts}
-                onRemoveDraft={handleRemovePurchaseOrderDraft}
-              />
+            <OrdersSection
+            drafts={purchaseOrderDrafts}
+            onRemoveDraft={handleApprovePurchaseOrderDraft}
+            onApproveDraft={handleApprovePurchaseOrderDraft}
+             />
             )}
             {activeSection === "suppliers" && <PlaceholderSection title="🚚 Lieferanten" text="Hier können später Lieferantenstammdaten, Ansprechpartner und Lieferbedingungen gepflegt werden." />}
             {activeSection === "reorder" && (
@@ -1278,24 +1292,31 @@ function App() {
 function OrdersSection({
   drafts,
   onRemoveDraft,
+  onApproveDraft,
 }: {
   drafts: PurchaseOrderDraft[];
   onRemoveDraft: (draftId: number) => void;
+  onApproveDraft: (draftId: number) => void;
 }) {
   const totalQuantity = drafts.reduce((sum, draft) => sum + draft.quantity, 0);
+
+  const approvedCount = drafts.filter(
+    (draft) => draft.status === "APPROVED"
+  ).length;
 
   return (
     <section style={sectionStyle}>
       <h2 style={sectionTitleStyle}>🛒 Bestellungen</h2>
 
       <p style={infoStyle}>
-        Vorbereitete Bestellentwürfe aus den Nachbestellvorschlägen. Diese Daten
-        werden aktuell lokal im Browser gespeichert und können später als eigenes
-        Bestellmodul mit Backend-Anbindung erweitert werden.
+        Vorbereitete Bestellentwürfe aus den Nachbestellvorschlägen. Entwürfe
+        können im Einkauf freigegeben werden und erhalten anschließend eine
+        automatische Bestellnummer.
       </p>
 
       <div style={dashboardGridStyle}>
-        <Card title="Bestellentwürfe" value={String(drafts.length)} />
+        <Card title="Bestellungen gesamt" value={String(drafts.length)} />
+        <Card title="Freigegeben" value={String(approvedCount)} />
         <Card title="Gesamtmenge" value={String(totalQuantity)} />
       </div>
 
@@ -1309,44 +1330,91 @@ function OrdersSection({
           <table style={dataTableStyle}>
             <thead>
               <tr style={tableHeaderRowStyle}>
+                <th style={tableHeadStyle}>Bestellnummer</th>
                 <th style={tableHeadStyle}>Produkt</th>
                 <th style={tableHeadStyle}>SKU</th>
                 <th style={tableHeadStyle}>Menge</th>
                 <th style={tableHeadStyle}>Einheit</th>
                 <th style={tableHeadStyle}>Status</th>
                 <th style={tableHeadStyle}>Erstellt am</th>
+                <th style={tableHeadStyle}>Freigegeben am</th>
                 <th style={tableHeadStyle}>Aktion</th>
               </tr>
             </thead>
 
             <tbody>
-              {drafts.map((draft) => (
-                <tr
-                  key={draft.id}
-                  style={{
-                    borderTop: "1px solid rgba(148, 163, 184, 0.12)",
-                    background: "rgba(30, 41, 59, 0.35)",
-                  }}
-                >
-                  <td style={tableCellStyle}>{draft.productName}</td>
-                  <td style={tableCellStyle}>{draft.sku}</td>
-                  <td style={tableCellStyle}>{draft.quantity}</td>
-                  <td style={tableCellStyle}>{draft.unit}</td>
-                  <td style={tableCellStyle}>📝 Entwurf</td>
-                  <td style={tableCellStyle}>
-                    {new Date(draft.createdAt).toLocaleString("de-DE")}
-                  </td>
-                  <td style={tableCellStyle}>
-                    <button
-                      type="button"
-                      onClick={() => onRemoveDraft(draft.id)}
-                      style={secondaryButtonStyle}
-                    >
-                      Entfernen
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {drafts.map((draft) => {
+                const isApproved = draft.status === "APPROVED";
+
+                return (
+                  <tr
+                    key={draft.id}
+                    style={{
+                      borderTop: "1px solid rgba(148, 163, 184, 0.12)",
+                      background: isApproved
+                        ? "rgba(22,101,52,0.08)"
+                        : "rgba(30, 41, 59, 0.35)",
+                    }}
+                  >
+                    <td style={tableCellStyle}>
+                      {draft.orderNumber ?? "—"}
+                    </td>
+
+                    <td style={tableCellStyle}>{draft.productName}</td>
+
+                    <td style={tableCellStyle}>{draft.sku}</td>
+
+                    <td style={tableCellStyle}>{draft.quantity}</td>
+
+                    <td style={tableCellStyle}>{draft.unit}</td>
+
+                    <td style={tableCellStyle}>
+                      {isApproved ? "✅ Freigegeben" : "📝 Entwurf"}
+                    </td>
+
+                    <td style={tableCellStyle}>
+                      {new Date(draft.createdAt).toLocaleString("de-DE")}
+                    </td>
+
+                    <td style={tableCellStyle}>
+                      {draft.approvedAt
+                        ? new Date(draft.approvedAt).toLocaleString("de-DE")
+                        : "—"}
+                    </td>
+
+                    <td style={tableCellStyle}>
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: "8px",
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => onApproveDraft(draft.id)}
+                          disabled={isApproved}
+                          style={
+                            isApproved
+                              ? disabledButtonStyle
+                              : primaryButtonStyle
+                          }
+                        >
+                          {isApproved ? "Freigegeben" : "Freigeben"}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => onRemoveDraft(draft.id)}
+                          style={secondaryButtonStyle}
+                        >
+                          Entfernen
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -2022,7 +2090,7 @@ const appLayoutStyle: CSSProperties = {
 
 const sidebarStyle: CSSProperties = {
   position: "fixed",
-  top: "180px",
+  top: "60px",
   left: "50px",
   width: "300px",
   maxHeight: "calc(100vh - 110px)",
