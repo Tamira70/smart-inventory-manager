@@ -352,13 +352,11 @@ const selectSection = (section: ActiveSection) => {
     return false;
   };
 
-  const canAccessSection = (section: ActiveSection) => {
+const canAccessSection = (section: ActiveSection) => {
   if (role === "admin") return true;
 
-  // Viewer darf alles anschauen, aber nichts bearbeiten/buchen.
   if (role === "viewer") return true;
 
-  // Lager darf nur Lagerfunktionen und Dashboard sehen.
   if (role === "lager") {
     return [
       "dashboard",
