@@ -225,9 +225,21 @@ function App() {
     "dispo",
     "lager",
   ]);
-  const [isCompactLayout, setIsCompactLayout] = useState<boolean>(
-    window.innerWidth < 920
-  );
+  const [windowWidth, setWindowWidth] = useState<number>(window.innerWidth);
+
+useEffect(() => {
+  const updateLayout = () => {
+    setWindowWidth(window.innerWidth);
+  };
+
+  updateLayout();
+  window.addEventListener("resize", updateLayout);
+
+  return () => window.removeEventListener("resize", updateLayout);
+}, []);
+
+const isMobileLayout = windowWidth < 760;
+const isCompactLayout = windowWidth < 1180;
 
   const [purchaseOrderDrafts, setPurchaseOrderDrafts] = useState<
     PurchaseOrderDraft[]
@@ -313,15 +325,7 @@ function App() {
 
   const inventoryProductRef = useRef<HTMLSelectElement | null>(null);
   const inventoryCountedQuantityRef = useRef<HTMLInputElement | null>(null);
-
-  useEffect(() => {
-    const updateLayout = () => setIsCompactLayout(window.innerWidth < 920);
-    updateLayout();
-    window.addEventListener("resize", updateLayout);
-    return () => window.removeEventListener("resize", updateLayout);
-  }, []);
-
-  const toggleMenu = (menuId: string) => {
+const toggleMenu = (menuId: string) => {
     setExpandedMenus((current) =>
       current.includes(menuId)
         ? current.filter((id) => id !== menuId)
@@ -351,6 +355,8 @@ const selectSection = (section: ActiveSection) => {
     if (required === "lager") return role === "admin" || role === "lager";
     return false;
   };
+  const isReadOnlyRole = role === "viewer";
+  const canWrite = !isReadOnlyRole;
 
 const canAccessSection = (section: ActiveSection) => {
   if (role === "admin") return true;
@@ -580,6 +586,13 @@ const visibleSidebarMenus = useMemo(() => {
   const canShowProductOverview = ["product", "stock-overview", "min-stock"].includes(activeSection);
 
   const handleCreatePurchaseOrderDraft = (product: ReorderSuggestion) => {
+    if (!canWrite) {
+      setError(
+        "Nur-Lese-Modus: Du kannst Nachbestellvorschläge ansehen, aber keine Bestellung vorbereiten."
+      );
+      return;
+    }
+
     const alreadySent = purchaseOrderDrafts.some(
       (draft) => draft.productId === product.id
     );
@@ -608,26 +621,43 @@ const visibleSidebarMenus = useMemo(() => {
     setActiveSection("orders");
   };
 
+  const handleRemovePurchaseOrderDraft = (draftId: number) => {
+    if (!canWrite) {
+      setError("Nur-Lese-Modus: Du kannst Bestellungen ansehen, aber nicht entfernen.");
+      return;
+    }
+
+    setPurchaseOrderDrafts((current) =>
+      current.filter((draft) => draft.id !== draftId)
+    );
+
+    setSuccess("🗑️ Bestellentwurf entfernt.");
+  };
+
   const handleApprovePurchaseOrderDraft = (draftId: number) => {
-  setPurchaseOrderDrafts((current) =>
-    current.map((draft) => {
-      if (draft.id !== draftId) return draft;
+    if (!canWrite) {
+      setError("Nur-Lese-Modus: Du kannst Bestellungen ansehen, aber nicht freigeben.");
+      return;
+    }
 
-      if (draft.status === "APPROVED") return draft;
+    setPurchaseOrderDrafts((current) =>
+      current.map((draft) => {
+        if (draft.id !== draftId) return draft;
+        if (draft.status === "APPROVED") return draft;
 
-      return {
-        ...draft,
-        status: "APPROVED",
-        approvedAt: new Date().toISOString(),
-        orderNumber: `PO-${new Date().getFullYear()}-${draft.id}`,
-            };
-          })
-        );
+        return {
+          ...draft,
+          status: "APPROVED",
+          approvedAt: new Date().toISOString(),
+          orderNumber: `PO-${new Date().getFullYear()}-${draft.id}`,
+        };
+      })
+    );
 
-        setSuccess("✅ Bestellung wurde freigegeben.");
-      };
+    setSuccess("✅ Bestellung wurde freigegeben.");
+  };
 
-const handleLogout = () => {
+  const handleLogout = () => {
     clearTokens();
     setLoggedIn(false);
     setProducts([]);
@@ -677,6 +707,11 @@ const handleLogout = () => {
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
+
+    if (!hasPermission("admin")) {
+      setError("Nur-Lese-Modus: Du kannst Produkte ansehen, aber nicht speichern.");
+      return;
+    }
     setSaving(true);
     setError("");
     setSuccess("");
@@ -758,6 +793,11 @@ const handleLogout = () => {
 
   const handleGoodsReceipt = async (event: FormEvent) => {
     event.preventDefault();
+
+    if (!hasPermission("lager")) {
+      setError("Nur-Lese-Modus: Du kannst Wareneingänge ansehen, aber nicht buchen.");
+      return;
+    }
     setMovementSaving(true);
     setError("");
     setSuccess("");
@@ -810,6 +850,11 @@ const handleLogout = () => {
 
   const handleGoodsIssue = async (event: FormEvent) => {
     event.preventDefault();
+
+    if (!hasPermission("lager")) {
+      setError("Nur-Lese-Modus: Du kannst Warenausgänge ansehen, aber nicht buchen.");
+      return;
+    }
     setGoodsOutSaving(true);
     setError("");
     setSuccess("");
@@ -856,6 +901,11 @@ const handleLogout = () => {
 
   const handleCreateInventorySession = async (event: FormEvent) => {
     event.preventDefault();
+
+    if (!hasPermission("lager")) {
+      setError("Nur-Lese-Modus: Du kannst Inventuren ansehen, aber keine Inventur starten.");
+      return;
+    }
     if (!inventoryTitle.trim()) {
       setError("Bitte einen Titel für die Inventur eintragen.");
       return;
@@ -889,6 +939,11 @@ const handleLogout = () => {
 
   const handleAddInventoryCount = async (event: FormEvent) => {
     event.preventDefault();
+
+    if (!hasPermission("lager")) {
+      setError("Nur-Lese-Modus: Du kannst Inventuren ansehen, aber keine Zählung speichern.");
+      return;
+    }
     if (!selectedInventorySessionId) {
       setError("Bitte zuerst eine Inventur-Runde auswählen oder erstellen.");
       return;
@@ -941,6 +996,11 @@ const handleLogout = () => {
   };
 
   const handleApplyInventoryCorrection = async (count: InventoryCount) => {
+    if (!hasPermission("lager")) {
+      setError("Nur-Lese-Modus: Du kannst Inventurkorrekturen ansehen, aber nicht buchen.");
+      return;
+    }
+
     if (count.corrected) return;
     const confirmed = window.confirm(
       `Korrektur für "${count.product_name}" buchen?\n\nSoll: ${count.expected_quantity}\nIst: ${count.counted_quantity}\nDifferenz: ${count.difference}`
@@ -969,6 +1029,11 @@ const handleLogout = () => {
   };
 
   const handleCompleteInventorySession = async () => {
+    if (!hasPermission("lager")) {
+      setError("Nur-Lese-Modus: Du kannst Inventuren ansehen, aber nicht abschließen.");
+      return;
+    }
+
     if (!selectedInventorySession) {
       setError("Bitte zuerst eine Inventur auswählen.");
       return;
@@ -1055,14 +1120,14 @@ const handleLogout = () => {
 
   if (!loggedIn) {
     return (
-      <div style={pageStyle}>
+      <div style={isMobileLayout ? pageStyleMobile : pageStyle}>
         <LoginForm onLoginSuccess={() => setLoggedIn(true)} />
       </div>
     );
   }
 
   return (
-    <div style={pageStyle}>
+    <div style={isMobileLayout ? pageStyleMobile : pageStyle}>
       <div style={pageShellStyle}>
         <div style={isCompactLayout ? appLayoutMobileStyle : appLayoutStyle}>
           <aside style={isCompactLayout ? sidebarMobileStyle : sidebarStyle}>
@@ -1098,7 +1163,7 @@ const handleLogout = () => {
             })}
           </aside>
 
-          <main style={contentAreaStyle}>
+          <main style={isCompactLayout ? contentAreaMobileStyle : contentAreaStyle}>
             <header style={headerStyle}>
               <div>
                 <p style={eyebrowStyle}>Portfolio Project</p>
@@ -1156,18 +1221,20 @@ const handleLogout = () => {
 
             {activeSection === "orders" && (
             <OrdersSection
-            drafts={purchaseOrderDrafts}
-            onRemoveDraft={handleApprovePurchaseOrderDraft}
-            onApproveDraft={handleApprovePurchaseOrderDraft}
-             />
+              drafts={purchaseOrderDrafts}
+              canWrite={canWrite}
+              onRemoveDraft={handleRemovePurchaseOrderDraft}
+              onApproveDraft={handleApprovePurchaseOrderDraft}
+            />
             )}
             {activeSection === "suppliers" && <PlaceholderSection title="🚚 Lieferanten" text="Hier können später Lieferantenstammdaten, Ansprechpartner und Lieferbedingungen gepflegt werden." />}
             {activeSection === "reorder" && (
               <ReorderSection
-                suggestions={reorderSuggestions}
-                draftedProductIds={draftedProductIds}
-                onCreateOrderDraft={handleCreatePurchaseOrderDraft}
-              />
+              suggestions={reorderSuggestions}
+              draftedProductIds={draftedProductIds}
+              canWrite={canWrite}
+              onCreateOrderDraft={handleCreatePurchaseOrderDraft}
+            />
             )}
             {activeSection === "corrections" && <PlaceholderSection title="🔧 Lagerkorrekturen" text="Hier können später manuelle Lagerkorrekturen mit Begründung und Audit-Log gebucht werden." />}
             {activeSection === "locations" && <PlaceholderSection title="📍 Lagerorte" text="Hier können später Lagerorte, Regale und Fächer verwaltet werden." />}
@@ -1333,18 +1400,17 @@ const handleLogout = () => {
 
 function OrdersSection({
   drafts,
+  canWrite,
   onRemoveDraft,
   onApproveDraft,
 }: {
   drafts: PurchaseOrderDraft[];
+  canWrite: boolean;
   onRemoveDraft: (draftId: number) => void;
   onApproveDraft: (draftId: number) => void;
 }) {
   const totalQuantity = drafts.reduce((sum, draft) => sum + draft.quantity, 0);
-
-  const approvedCount = drafts.filter(
-    (draft) => draft.status === "APPROVED"
-  ).length;
+  const approvedCount = drafts.filter((draft) => draft.status === "APPROVED").length;
 
   return (
     <section style={sectionStyle}>
@@ -1398,187 +1464,42 @@ function OrdersSection({
                         : "rgba(30, 41, 59, 0.35)",
                     }}
                   >
-                    <td style={tableCellStyle}>
-                      {draft.orderNumber ?? "—"}
-                    </td>
-
+                    <td style={tableCellStyle}>{draft.orderNumber ?? "—"}</td>
                     <td style={tableCellStyle}>{draft.productName}</td>
-
                     <td style={tableCellStyle}>{draft.sku}</td>
-
                     <td style={tableCellStyle}>{draft.quantity}</td>
-
                     <td style={tableCellStyle}>{draft.unit}</td>
-
                     <td style={tableCellStyle}>
                       {isApproved ? "✅ Freigegeben" : "📝 Entwurf"}
                     </td>
-
                     <td style={tableCellStyle}>
                       {new Date(draft.createdAt).toLocaleString("de-DE")}
                     </td>
-
                     <td style={tableCellStyle}>
                       {draft.approvedAt
                         ? new Date(draft.approvedAt).toLocaleString("de-DE")
                         : "—"}
                     </td>
-
                     <td style={tableCellStyle}>
-                      <div
-                        style={{
-                          display: "flex",
-                          gap: "8px",
-                          flexWrap: "wrap",
-                        }}
-                      >
+                      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
                         <button
                           type="button"
                           onClick={() => onApproveDraft(draft.id)}
-                          disabled={isApproved}
-                          style={
-                            isApproved
-                              ? disabledButtonStyle
-                              : primaryButtonStyle
-                          }
+                          disabled={!canWrite || isApproved}
+                          style={!canWrite || isApproved ? disabledButtonStyle : primaryButtonStyle}
                         >
-                          {isApproved ? "Freigegeben" : "Freigeben"}
+                          {isApproved ? "Freigegeben" : canWrite ? "Freigeben" : "Nur ansehen"}
                         </button>
 
                         <button
                           type="button"
                           onClick={() => onRemoveDraft(draft.id)}
-                          style={secondaryButtonStyle}
+                          disabled={!canWrite}
+                          style={canWrite ? secondaryButtonStyle : disabledButtonStyle}
                         >
-                          Entfernen
+                          {canWrite ? "Entfernen" : "Nur ansehen"}
                         </button>
                       </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </section>
-  );
-}
-
-function ReorderSection({
-  suggestions,
-  draftedProductIds,
-  onCreateOrderDraft,
-}: {
-  suggestions: ReorderSuggestion[];
-  draftedProductIds: Set<number>;
-  onCreateOrderDraft: (product: ReorderSuggestion) => void;
-}) {
-  const totalSuggestedQuantity = suggestions.reduce(
-    (sum, product) => sum + product.suggestedQuantity,
-    0
-  );
-
-  return (
-    <section style={sectionStyle}>
-      <h2 style={sectionTitleStyle}>📋 Nachbestellvorschläge</h2>
-
-      <p style={infoStyle}>
-        Automatische Vorschläge auf Basis von Mindestbeständen. Produkte mit
-        Bestand kleiner oder gleich Mindestbestand werden hier als Nachbestellung
-        angezeigt.
-      </p>
-
-      <div style={dashboardGridStyle}>
-        <Card
-          title="Artikel zur Nachbestellung"
-          value={String(suggestions.length)}
-          danger={suggestions.length > 0}
-        />
-        <Card
-          title="Vorgeschlagene Gesamtmenge"
-          value={String(totalSuggestedQuantity)}
-          danger={suggestions.length > 0}
-        />
-      </div>
-
-      {suggestions.length === 0 ? (
-        <p style={successStyle}>
-          ✅ Aktuell gibt es keine Nachbestellvorschläge. Alle Bestände liegen
-          über dem Mindestbestand.
-        </p>
-      ) : (
-        <div style={{ ...tableWrapStyle, marginTop: "22px" }}>
-          <table style={dataTableStyle}>
-            <thead>
-              <tr style={tableHeaderRowStyle}>
-                <th style={tableHeadStyle}>Produkt</th>
-                <th style={tableHeadStyle}>SKU</th>
-                <th style={tableHeadStyle}>Aktueller Bestand</th>
-                <th style={tableHeadStyle}>Mindestbestand</th>
-                <th style={tableHeadStyle}>Zielbestand</th>
-                <th style={tableHeadStyle}>Vorschlag</th>
-                <th style={tableHeadStyle}>Einheit</th>
-                <th style={tableHeadStyle}>Status</th>
-                <th style={tableHeadStyle}>Aktion</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {suggestions.map((product) => {
-                const isSentToPurchasing = draftedProductIds.has(product.id);
-
-                return (
-                  <tr
-                    key={product.id}
-                    style={{
-                      borderTop: "1px solid rgba(148, 163, 184, 0.12)",
-                      background: isSentToPurchasing
-                        ? "rgba(22,101,52,0.08)"
-                        : "rgba(127,29,29,0.08)",
-                    }}
-                  >
-                    <td style={tableCellStyle}>{product.name}</td>
-                    <td style={tableCellStyle}>{product.sku}</td>
-                    <td style={tableCellStyle}>
-                      {product.quantity} {product.unit}
-                    </td>
-                    <td style={tableCellStyle}>
-                      {product.min_stock} {product.unit}
-                    </td>
-                    <td style={tableCellStyle}>
-                      {product.targetStock} {product.unit}
-                    </td>
-                    <td
-                      style={{
-                        ...tableCellStyle,
-                        color: "#e76262",
-                        fontWeight: 700,
-                      }}
-                    >
-                      +{product.suggestedQuantity} {product.unit}
-                    </td>
-                    <td style={tableCellStyle}>{product.unit}</td>
-                    <td style={tableCellStyle}>
-                      {isSentToPurchasing
-                        ? "📨 An Einkauf gesendet"
-                        : "⚠️ Nachbestellen"}
-                    </td>
-                    <td style={tableCellStyle}>
-                      <button
-                        type="button"
-                        onClick={() => onCreateOrderDraft(product)}
-                        disabled={isSentToPurchasing}
-                        style={
-                          isSentToPurchasing
-                            ? disabledButtonStyle
-                            : secondaryButtonStyle
-                        }
-                      >
-                        {isSentToPurchasing
-                          ? "An Einkauf gesendet"
-                          : "Bestellung vorbereiten"}
-                      </button>
                     </td>
                   </tr>
                 );
@@ -1660,6 +1581,119 @@ function ProductFormSection({
           {saving ? "Speichere..." : editingId ? "Produkt aktualisieren" : "Produkt speichern"}
         </button>
       </form>
+    </section>
+  );
+}
+
+function ReorderSection({
+  suggestions,
+  draftedProductIds,
+  canWrite,
+  onCreateOrderDraft,
+}: {
+  suggestions: ReorderSuggestion[];
+  draftedProductIds: Set<number>;
+  canWrite: boolean;
+  onCreateOrderDraft: (product: ReorderSuggestion) => void;
+}) {
+  const totalSuggestedQuantity = suggestions.reduce(
+    (sum, product) => sum + product.suggestedQuantity,
+    0
+  );
+
+  return (
+    <section style={sectionStyle}>
+      <h2 style={sectionTitleStyle}>📋 Nachbestellvorschläge</h2>
+
+      <p style={infoStyle}>
+        Automatische Vorschläge auf Basis von Mindestbeständen. Produkte mit
+        Bestand kleiner oder gleich Mindestbestand werden hier als Nachbestellung
+        angezeigt.
+      </p>
+
+      <div style={dashboardGridStyle}>
+        <Card
+          title="Artikel zur Nachbestellung"
+          value={String(suggestions.length)}
+          danger={suggestions.length > 0}
+        />
+
+        <Card
+          title="Vorgeschlagene Gesamtmenge"
+          value={String(totalSuggestedQuantity)}
+          danger={suggestions.length > 0}
+        />
+      </div>
+
+      {suggestions.length === 0 ? (
+        <p style={successStyle}>
+          ✅ Aktuell gibt es keine Nachbestellvorschläge. Alle Bestände liegen
+          über dem Mindestbestand.
+        </p>
+      ) : (
+        <div style={{ ...tableWrapStyle, marginTop: "22px" }}>
+          <table style={dataTableStyle}>
+            <thead>
+              <tr style={tableHeaderRowStyle}>
+                <th style={tableHeadStyle}>Produkt</th>
+                <th style={tableHeadStyle}>SKU</th>
+                <th style={tableHeadStyle}>Aktueller Bestand</th>
+                <th style={tableHeadStyle}>Mindestbestand</th>
+                <th style={tableHeadStyle}>Zielbestand</th>
+                <th style={tableHeadStyle}>Vorschlag</th>
+                <th style={tableHeadStyle}>Einheit</th>
+                <th style={tableHeadStyle}>Status</th>
+                <th style={tableHeadStyle}>Aktion</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {suggestions.map((product) => {
+                const isSentToPurchasing = draftedProductIds.has(product.id);
+
+                return (
+                  <tr
+                    key={product.id}
+                    style={{
+                      borderTop: "1px solid rgba(148, 163, 184, 0.12)",
+                      background: isSentToPurchasing
+                        ? "rgba(22,101,52,0.08)"
+                        : "rgba(127,29,29,0.08)",
+                    }}
+                  >
+                    <td style={tableCellStyle}>{product.name}</td>
+                    <td style={tableCellStyle}>{product.sku}</td>
+                    <td style={tableCellStyle}>{product.quantity} {product.unit}</td>
+                    <td style={tableCellStyle}>{product.min_stock} {product.unit}</td>
+                    <td style={tableCellStyle}>{product.targetStock} {product.unit}</td>
+                    <td style={{ ...tableCellStyle, color: "#e76262", fontWeight: 700 }}>
+                      +{product.suggestedQuantity} {product.unit}
+                    </td>
+                    <td style={tableCellStyle}>{product.unit}</td>
+                    <td style={tableCellStyle}>
+                      {isSentToPurchasing ? "📨 An Einkauf gesendet" : "⚠️ Nachbestellen"}
+                    </td>
+                    <td style={tableCellStyle}>
+                      <button
+                        type="button"
+                        onClick={() => onCreateOrderDraft(product)}
+                        disabled={isSentToPurchasing || !canWrite}
+                        style={isSentToPurchasing || !canWrite ? disabledButtonStyle : secondaryButtonStyle}
+                      >
+                        {isSentToPurchasing
+                          ? "An Einkauf gesendet"
+                          : canWrite
+                          ? "Bestellung vorbereiten"
+                          : "Nur ansehen"}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </section>
   );
 }
@@ -2116,19 +2150,23 @@ const pageStyle: CSSProperties = {
   background: "linear-gradient(180deg, #0f172a 0%, #111827 45%, #0b1120 100%)",
   color: "#e5e7eb",
   padding: "32px 20px",
-  fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+  fontFamily:
+    'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+};
+
+const pageStyleMobile: CSSProperties = {
+  ...pageStyle,
+  padding: "18px 12px",
 };
 
 const pageShellStyle: CSSProperties = {
-  width: "min(1600px, calc(100vw - 32px))",
+  width: "min(1600px, 100%)",
   margin: "0 auto",
 };
 
 const appLayoutStyle: CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "1080px minmax(0, 1fr)",
-  gap: "28px",
-  alignItems: "start",
+  display: "block",
+  width: "100%",
 };
 
 const sidebarStyle: CSSProperties = {
@@ -2149,6 +2187,12 @@ const sidebarStyle: CSSProperties = {
 
 const contentAreaStyle: CSSProperties = {
   minWidth: 0,
+  width: "calc(100% - 60px)",
+  marginLeft: "50px",
+};
+
+const contentAreaMobileStyle: CSSProperties = {
+  minWidth: 0,
   width: "100%",
 };
 
@@ -2159,18 +2203,20 @@ const appLayoutMobileStyle: CSSProperties = {
   alignItems: "start",
 };
 
+
 const sidebarMobileStyle: CSSProperties = {
   position: "relative",
   width: "100%",
   maxHeight: "none",
   overflowY: "visible",
-  background: "rgba(15, 23, 42, 0.88)",
-  border: "1px solid rgba(148, 163, 184, 0.2)",
+  background: "rgba(25, 31, 48, 0.92)",
+  border: "1px solid rgba(29, 110, 224, 0.22)",
   borderRadius: "20px",
-  padding: "16px",
+  padding: "14px",
   boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
   boxSizing: "border-box",
 };
+
 
 const headerStyle: CSSProperties = {
   display: "flex",
@@ -2179,6 +2225,7 @@ const headerStyle: CSSProperties = {
   gap: "16px",
   marginBottom: "28px",
   width: "100%",
+  flexWrap: "wrap",
 };
 
 const eyebrowStyle: CSSProperties = {
@@ -2204,7 +2251,7 @@ const subtitleStyle: CSSProperties = {
 
 const topStatsGridStyle: CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
   gap: "16px",
   marginBottom: "28px",
   width: "100%",
@@ -2212,7 +2259,7 @@ const topStatsGridStyle: CSSProperties = {
 
 const dashboardGridStyle: CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
   gap: "16px",
   marginTop: "20px",
   width: "100%",
