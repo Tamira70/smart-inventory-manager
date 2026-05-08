@@ -118,6 +118,22 @@ type InventorySummary = {
   corrected: number;
 };
 
+type ReorderSuggestion = Product & {
+  targetStock: number;
+  suggestedQuantity: number;
+};
+
+type PurchaseOrderDraft = {
+  id: number;
+  productId: number;
+  productName: string;
+  sku: string;
+  quantity: number;
+  unit: string;
+  status: "DRAFT";
+  createdAt: string;
+};
+
 const initialForm: ProductForm = {
   name: "",
   sku: "",
@@ -210,6 +226,33 @@ function App() {
   const [isCompactLayout, setIsCompactLayout] = useState<boolean>(
     window.innerWidth < 920
   );
+
+  const [purchaseOrderDrafts, setPurchaseOrderDrafts] = useState<
+    PurchaseOrderDraft[]
+  >(() => {
+    const stored = window.localStorage.getItem(
+      "smartInventoryPurchaseOrderDrafts"
+    );
+
+    if (!stored) return [];
+
+    try {
+      return JSON.parse(stored) as PurchaseOrderDraft[];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      "smartInventoryPurchaseOrderDrafts",
+      JSON.stringify(purchaseOrderDrafts)
+    );
+  }, [purchaseOrderDrafts]);
+
+  const draftedProductIds = useMemo(() => {
+    return new Set(purchaseOrderDrafts.map((draft) => draft.productId));
+  }, [purchaseOrderDrafts]);
 
   const [loggedIn, setLoggedIn] = useState(isLoggedIn());
   const [products, setProducts] = useState<Product[]>([]);
@@ -414,6 +457,26 @@ function App() {
     [products]
   );
 
+  const reorderSuggestions = useMemo<ReorderSuggestion[]>(() => {
+    return products
+      .filter((product) => product.quantity <= product.min_stock)
+      .map((product) => {
+        const targetStock = Math.max(
+          product.min_stock * 2,
+          product.min_stock + 1,
+          1
+        );
+
+        const suggestedQuantity = Math.max(targetStock - product.quantity, 1);
+
+        return {
+          ...product,
+          targetStock,
+          suggestedQuantity,
+        };
+      });
+  }, [products]);
+
   const selectedInventorySession = useMemo(() => {
     return inventorySessions.find((session) => String(session.id) === selectedInventorySessionId) ?? null;
   }, [inventorySessions, selectedInventorySessionId]);
@@ -471,6 +534,43 @@ function App() {
   ).length;
   const latestMovement = movements[0] ?? null;
   const canShowProductOverview = ["product", "stock-overview", "min-stock"].includes(activeSection);
+
+  const handleCreatePurchaseOrderDraft = (product: ReorderSuggestion) => {
+    const alreadySent = purchaseOrderDrafts.some(
+      (draft) => draft.productId === product.id
+    );
+
+    if (alreadySent) {
+      setSuccess(`ℹ️ ${product.name} wurde bereits an den Einkauf gesendet.`);
+      setActiveSection("orders");
+      return;
+    }
+
+    setPurchaseOrderDrafts((current) => [
+      {
+        id: Date.now(),
+        productId: product.id,
+        productName: product.name,
+        sku: product.sku,
+        quantity: product.suggestedQuantity,
+        unit: product.unit,
+        status: "DRAFT",
+        createdAt: new Date().toISOString(),
+      },
+      ...current,
+    ]);
+
+    setSuccess(`📨 ${product.name} wurde an den Einkauf gesendet.`);
+    setActiveSection("orders");
+  };
+
+  const handleRemovePurchaseOrderDraft = (draftId: number) => {
+    setPurchaseOrderDrafts((current) =>
+      current.filter((draft) => draft.id !== draftId)
+    );
+
+    setSuccess("🗑️ Bestellentwurf entfernt.");
+  };
 
   const handleLogout = () => {
     clearTokens();
@@ -999,9 +1099,20 @@ function App() {
               </section>
             )}
 
-            {activeSection === "orders" && <PlaceholderSection title="🛒 Bestellungen" text="Hier können später Einkaufsbestellungen, offene Bestellmengen und Liefertermine verwaltet werden." />}
+            {activeSection === "orders" && (
+              <OrdersSection
+                drafts={purchaseOrderDrafts}
+                onRemoveDraft={handleRemovePurchaseOrderDraft}
+              />
+            )}
             {activeSection === "suppliers" && <PlaceholderSection title="🚚 Lieferanten" text="Hier können später Lieferantenstammdaten, Ansprechpartner und Lieferbedingungen gepflegt werden." />}
-            {activeSection === "reorder" && <PlaceholderSection title="📋 Nachbestellvorschläge" text="Hier können später automatische Nachbestellvorschläge auf Basis von Mindestbeständen angezeigt werden." />}
+            {activeSection === "reorder" && (
+              <ReorderSection
+                suggestions={reorderSuggestions}
+                draftedProductIds={draftedProductIds}
+                onCreateOrderDraft={handleCreatePurchaseOrderDraft}
+              />
+            )}
             {activeSection === "corrections" && <PlaceholderSection title="🔧 Lagerkorrekturen" text="Hier können später manuelle Lagerkorrekturen mit Begründung und Audit-Log gebucht werden." />}
             {activeSection === "locations" && <PlaceholderSection title="📍 Lagerorte" text="Hier können später Lagerorte, Regale und Fächer verwaltet werden." />}
             {activeSection === "customers" && <PlaceholderSection title="👥 Kundenliste" text="Hier kann später ein Kundenstamm mit Kundendaten, Kundennummern und Status entstehen." />}
@@ -1161,6 +1272,212 @@ function App() {
         </div>
       </div>
     </div>
+  );
+}
+
+function OrdersSection({
+  drafts,
+  onRemoveDraft,
+}: {
+  drafts: PurchaseOrderDraft[];
+  onRemoveDraft: (draftId: number) => void;
+}) {
+  const totalQuantity = drafts.reduce((sum, draft) => sum + draft.quantity, 0);
+
+  return (
+    <section style={sectionStyle}>
+      <h2 style={sectionTitleStyle}>🛒 Bestellungen</h2>
+
+      <p style={infoStyle}>
+        Vorbereitete Bestellentwürfe aus den Nachbestellvorschlägen. Diese Daten
+        werden aktuell lokal im Browser gespeichert und können später als eigenes
+        Bestellmodul mit Backend-Anbindung erweitert werden.
+      </p>
+
+      <div style={dashboardGridStyle}>
+        <Card title="Bestellentwürfe" value={String(drafts.length)} />
+        <Card title="Gesamtmenge" value={String(totalQuantity)} />
+      </div>
+
+      {drafts.length === 0 ? (
+        <p style={successStyle}>
+          ✅ Aktuell sind keine Bestellentwürfe vorhanden. Über Dispo →
+          Nachbestellvorschläge kannst du neue Entwürfe vorbereiten.
+        </p>
+      ) : (
+        <div style={{ ...tableWrapStyle, marginTop: "22px" }}>
+          <table style={dataTableStyle}>
+            <thead>
+              <tr style={tableHeaderRowStyle}>
+                <th style={tableHeadStyle}>Produkt</th>
+                <th style={tableHeadStyle}>SKU</th>
+                <th style={tableHeadStyle}>Menge</th>
+                <th style={tableHeadStyle}>Einheit</th>
+                <th style={tableHeadStyle}>Status</th>
+                <th style={tableHeadStyle}>Erstellt am</th>
+                <th style={tableHeadStyle}>Aktion</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {drafts.map((draft) => (
+                <tr
+                  key={draft.id}
+                  style={{
+                    borderTop: "1px solid rgba(148, 163, 184, 0.12)",
+                    background: "rgba(30, 41, 59, 0.35)",
+                  }}
+                >
+                  <td style={tableCellStyle}>{draft.productName}</td>
+                  <td style={tableCellStyle}>{draft.sku}</td>
+                  <td style={tableCellStyle}>{draft.quantity}</td>
+                  <td style={tableCellStyle}>{draft.unit}</td>
+                  <td style={tableCellStyle}>📝 Entwurf</td>
+                  <td style={tableCellStyle}>
+                    {new Date(draft.createdAt).toLocaleString("de-DE")}
+                  </td>
+                  <td style={tableCellStyle}>
+                    <button
+                      type="button"
+                      onClick={() => onRemoveDraft(draft.id)}
+                      style={secondaryButtonStyle}
+                    >
+                      Entfernen
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function ReorderSection({
+  suggestions,
+  draftedProductIds,
+  onCreateOrderDraft,
+}: {
+  suggestions: ReorderSuggestion[];
+  draftedProductIds: Set<number>;
+  onCreateOrderDraft: (product: ReorderSuggestion) => void;
+}) {
+  const totalSuggestedQuantity = suggestions.reduce(
+    (sum, product) => sum + product.suggestedQuantity,
+    0
+  );
+
+  return (
+    <section style={sectionStyle}>
+      <h2 style={sectionTitleStyle}>📋 Nachbestellvorschläge</h2>
+
+      <p style={infoStyle}>
+        Automatische Vorschläge auf Basis von Mindestbeständen. Produkte mit
+        Bestand kleiner oder gleich Mindestbestand werden hier als Nachbestellung
+        angezeigt.
+      </p>
+
+      <div style={dashboardGridStyle}>
+        <Card
+          title="Artikel zur Nachbestellung"
+          value={String(suggestions.length)}
+          danger={suggestions.length > 0}
+        />
+        <Card
+          title="Vorgeschlagene Gesamtmenge"
+          value={String(totalSuggestedQuantity)}
+          danger={suggestions.length > 0}
+        />
+      </div>
+
+      {suggestions.length === 0 ? (
+        <p style={successStyle}>
+          ✅ Aktuell gibt es keine Nachbestellvorschläge. Alle Bestände liegen
+          über dem Mindestbestand.
+        </p>
+      ) : (
+        <div style={{ ...tableWrapStyle, marginTop: "22px" }}>
+          <table style={dataTableStyle}>
+            <thead>
+              <tr style={tableHeaderRowStyle}>
+                <th style={tableHeadStyle}>Produkt</th>
+                <th style={tableHeadStyle}>SKU</th>
+                <th style={tableHeadStyle}>Aktueller Bestand</th>
+                <th style={tableHeadStyle}>Mindestbestand</th>
+                <th style={tableHeadStyle}>Zielbestand</th>
+                <th style={tableHeadStyle}>Vorschlag</th>
+                <th style={tableHeadStyle}>Einheit</th>
+                <th style={tableHeadStyle}>Status</th>
+                <th style={tableHeadStyle}>Aktion</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {suggestions.map((product) => {
+                const isSentToPurchasing = draftedProductIds.has(product.id);
+
+                return (
+                  <tr
+                    key={product.id}
+                    style={{
+                      borderTop: "1px solid rgba(148, 163, 184, 0.12)",
+                      background: isSentToPurchasing
+                        ? "rgba(22,101,52,0.08)"
+                        : "rgba(127,29,29,0.08)",
+                    }}
+                  >
+                    <td style={tableCellStyle}>{product.name}</td>
+                    <td style={tableCellStyle}>{product.sku}</td>
+                    <td style={tableCellStyle}>
+                      {product.quantity} {product.unit}
+                    </td>
+                    <td style={tableCellStyle}>
+                      {product.min_stock} {product.unit}
+                    </td>
+                    <td style={tableCellStyle}>
+                      {product.targetStock} {product.unit}
+                    </td>
+                    <td
+                      style={{
+                        ...tableCellStyle,
+                        color: "#e76262",
+                        fontWeight: 700,
+                      }}
+                    >
+                      +{product.suggestedQuantity} {product.unit}
+                    </td>
+                    <td style={tableCellStyle}>{product.unit}</td>
+                    <td style={tableCellStyle}>
+                      {isSentToPurchasing
+                        ? "📨 An Einkauf gesendet"
+                        : "⚠️ Nachbestellen"}
+                    </td>
+                    <td style={tableCellStyle}>
+                      <button
+                        type="button"
+                        onClick={() => onCreateOrderDraft(product)}
+                        disabled={isSentToPurchasing}
+                        style={
+                          isSentToPurchasing
+                            ? disabledButtonStyle
+                            : secondaryButtonStyle
+                        }
+                      >
+                        {isSentToPurchasing
+                          ? "An Einkauf gesendet"
+                          : "Bestellung vorbereiten"}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
   );
 }
 
