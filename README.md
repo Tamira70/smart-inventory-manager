@@ -36,7 +36,7 @@ Die Anwendung orientiert sich an realen Abläufen aus der Logistik:
 
 ```text
 Benutzername: recruiter
-Passwort: demo123456
+Passwort: demo123!
 Rolle: Viewer
 ```
 
@@ -44,7 +44,7 @@ Rolle: Viewer
 
 ```text
 Benutzername: lager-demo
-Passwort: demo123456
+Passwort: demo123!
 Rolle: Lager
 ```
 
