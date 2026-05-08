@@ -329,23 +329,67 @@ function App() {
     );
   };
 
-  const selectSection = (section: ActiveSection) => {
-    setActiveSection(section);
-    setError("");
-    setSuccess("");
+const selectSection = (section: ActiveSection) => {
+  if (!canAccessSection(section)) {
+    setError("Für diesen Bereich hast du keine Berechtigung.");
+    return;
+  }
 
-    if (section === "min-stock") setShowLowStockOnly(true);
-    if (section === "stock-overview" || section === "product") {
-      setShowLowStockOnly(false);
-    }
-  };
+  setActiveSection(section);
+  setError("");
+  setSuccess("");
 
+  if (section === "min-stock") setShowLowStockOnly(true);
+
+  if (section === "stock-overview" || section === "product") {
+    setShowLowStockOnly(false);
+  }
+};
   const hasPermission = (required: PermissionRole) => {
     if (!role) return false;
     if (required === "admin") return role === "admin";
     if (required === "lager") return role === "admin" || role === "lager";
     return false;
   };
+
+  const canAccessSection = (section: ActiveSection) => {
+  if (role === "admin") return true;
+
+  // Viewer darf alles anschauen, aber nichts bearbeiten/buchen.
+  if (role === "viewer") return true;
+
+  // Lager darf nur Lagerfunktionen und Dashboard sehen.
+  if (role === "lager") {
+    return [
+      "dashboard",
+      "goods-in",
+      "goods-out",
+      "history",
+      "corrections",
+      "locations",
+      "stock-overview",
+    ].includes(section);
+  }
+
+  return section === "dashboard";
+};
+
+const visibleSidebarMenus = useMemo(() => {
+  if (role === "admin" || role === "viewer") {
+    return sidebarMenus;
+  }
+
+  if (role === "lager") {
+    return sidebarMenus
+      .filter((menu) => menu.id === "dashboard" || menu.id === "lager")
+      .map((menu) => ({
+        ...menu,
+        items: menu.items.filter((item) => canAccessSection(item.id)),
+      }));
+  }
+
+  return sidebarMenus.filter((menu) => menu.id === "dashboard");
+}, [role]);
 
   useEffect(() => {
     if (activeSection === "product") productNameRef.current?.focus();
@@ -1029,7 +1073,7 @@ const handleLogout = () => {
               <span style={{ color: "#94a3b8", fontSize: "0.85rem" }}>ERP-Navigation</span>
             </div>
 
-            {sidebarMenus.map((menu) => {
+            {visibleSidebarMenus.map((menu) => {
               const isExpanded = expandedMenus.includes(menu.id);
               return (
                 <div key={menu.id} style={sidebarGroupStyle}>
@@ -2068,6 +2112,7 @@ function Card({
 }
 
 
+
 const pageStyle: CSSProperties = {
   minHeight: "100vh",
   background: "linear-gradient(180deg, #0f172a 0%, #111827 45%, #0b1120 100%)",
@@ -2090,7 +2135,7 @@ const appLayoutStyle: CSSProperties = {
 
 const sidebarStyle: CSSProperties = {
   position: "fixed",
-  top: "60px",
+  top: "180px",
   left: "50px",
   width: "300px",
   maxHeight: "calc(100vh - 110px)",
