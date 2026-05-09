@@ -2152,6 +2152,8 @@ const pageStyle: CSSProperties = {
   padding: "32px 20px",
   fontFamily:
     'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+  overflowX: "hidden",
+  boxSizing: "border-box",
 };
 
 const pageStyleMobile: CSSProperties = {
@@ -2160,8 +2162,9 @@ const pageStyleMobile: CSSProperties = {
 };
 
 const pageShellStyle: CSSProperties = {
-  width: "min(1600px, 100%)",
-  margin: "0 auto",
+  width: "100%",
+  maxWidth: "none",
+  margin: "0",
 };
 
 const appLayoutStyle: CSSProperties = {
@@ -2171,10 +2174,10 @@ const appLayoutStyle: CSSProperties = {
 
 const sidebarStyle: CSSProperties = {
   position: "fixed",
-  top: "180px",
+  top: "100px",
   left: "50px",
   width: "300px",
-  maxHeight: "calc(100vh - 110px)",
+  maxHeight: "calc(100vh - 220px)",
   overflowY: "auto",
   background: "rgba(25, 31, 48, 0.92)",
   border: "1px solid rgba(29, 110, 224, 0.22)",
@@ -2187,13 +2190,18 @@ const sidebarStyle: CSSProperties = {
 
 const contentAreaStyle: CSSProperties = {
   minWidth: 0,
-  width: "calc(100% - 60px)",
-  marginLeft: "50px",
+  width: "calc(100vw - 440px)",
+  marginLeft: "380px",
+  maxWidth: "none",
+  boxSizing: "border-box",
 };
 
 const contentAreaMobileStyle: CSSProperties = {
   minWidth: 0,
   width: "100%",
+  marginLeft: 0,
+  maxWidth: "none",
+  boxSizing: "border-box",
 };
 
 const appLayoutMobileStyle: CSSProperties = {
@@ -2201,11 +2209,14 @@ const appLayoutMobileStyle: CSSProperties = {
   gridTemplateColumns: "1fr",
   gap: "18px",
   alignItems: "start",
+  width: "100%",
 };
 
 
 const sidebarMobileStyle: CSSProperties = {
   position: "relative",
+  top: "auto",
+  left: "auto",
   width: "100%",
   maxHeight: "none",
   overflowY: "visible",
@@ -2226,6 +2237,7 @@ const headerStyle: CSSProperties = {
   marginBottom: "28px",
   width: "100%",
   flexWrap: "wrap",
+  boxSizing: "border-box",
 };
 
 const eyebrowStyle: CSSProperties = {
@@ -2251,7 +2263,7 @@ const subtitleStyle: CSSProperties = {
 
 const topStatsGridStyle: CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
   gap: "16px",
   marginBottom: "28px",
   width: "100%",
@@ -2259,7 +2271,7 @@ const topStatsGridStyle: CSSProperties = {
 
 const dashboardGridStyle: CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
   gap: "16px",
   marginTop: "20px",
   width: "100%",
@@ -2269,6 +2281,7 @@ const formGridStyle: CSSProperties = {
   display: "grid",
   gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
   gap: "12px",
+  width: "100%",
 };
 
 const filterGridStyle: CSSProperties = {
@@ -2277,12 +2290,14 @@ const filterGridStyle: CSSProperties = {
   gap: "12px",
   marginBottom: "18px",
   alignItems: "center",
+  width: "100%",
 };
 
 const productGridStyle: CSSProperties = {
   display: "grid",
   gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
   gap: "16px",
+  width: "100%",
 };
 
 const checkboxLabelStyle: CSSProperties = {
