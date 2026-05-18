@@ -51,6 +51,18 @@ function LoginForm({ onLoginSuccess }: LoginFormProps) {
     setError("");
   };
 
+  const fillEinkaufDemo = () => {
+    setUsername("einkauf-demo");
+    setPassword("demo123456");
+    setError("");
+  };
+
+  const fillDispoDemo = () => {
+    setUsername("dispo-demo");
+    setPassword("demo123456");
+    setError("");
+  };
+
   const fillLagerDemo = () => {
     setUsername("lager-demo");
     setPassword("demo123!");
@@ -117,6 +129,22 @@ function LoginForm({ onLoginSuccess }: LoginFormProps) {
 
         <button
           type="button"
+          onClick={fillEinkaufDemo}
+          style={secondaryButtonStyle}
+        >
+          🛒 Einkauf-Demo laden
+        </button>
+
+        <button
+          type="button"
+          onClick={fillDispoDemo}
+          style={secondaryButtonStyle}
+        >
+          📋 Dispo-Demo laden
+        </button>
+
+        <button
+          type="button"
           onClick={fillLagerDemo}
           style={secondaryButtonStyle}
         >
@@ -135,8 +163,16 @@ function LoginForm({ onLoginSuccess }: LoginFormProps) {
         <p style={{ margin: "0 0 6px 0" }}>
           <strong>Recruiter:</strong> Nur Lesezugriff
         </p>
+              <p style={{ margin: "0 0 6px 0" }}>
+          <strong>Lager-Demo:</strong> Zugriff auf Lagerfunktionen
+        </p>
+
+        <p style={{ margin: "0 0 6px 0" }}>
+          <strong>Einkauf-Demo:</strong> Zugriff auf Einkauf und Kundenstamm
+        </p>
+
         <p style={{ margin: 0 }}>
-          <strong>Lager-Demo:</strong> Testzugang für Buchungen und Produkte
+          <strong>Dispo-Demo:</strong> Zugriff auf Dispo, Bestände und Nachbestellvorschläge
         </p>
       </div>
 

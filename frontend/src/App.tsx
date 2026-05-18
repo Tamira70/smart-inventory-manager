@@ -20,6 +20,36 @@ type Product = {
   quantity: number;
   min_stock: number;
   unit: string;
+  storage_location?: number | null;
+  storage_location_code?: string | null;
+  storage_location_name?: string | null;
+  storage_location_label?: string | null;
+};
+
+type StorageLocation = {
+  id: number;
+  code: string;
+  name: string;
+  zone: string;
+  aisle: string;
+  rack: string;
+  shelf: string;
+  description: string;
+  is_active: boolean;
+  product_count: number;
+  created_at: string;
+  updated_at: string;
+};
+
+type StorageLocationForm = {
+  code: string;
+  name: string;
+  zone: string;
+  aisle: string;
+  rack: string;
+  shelf: string;
+  description: string;
+  is_active: boolean;
 };
 
 type StockMovement = {
@@ -74,6 +104,7 @@ type ProductForm = {
   quantity: string;
   min_stock: string;
   unit: string;
+  storage_location: string;
 };
 
 type ActiveSection =
@@ -143,6 +174,18 @@ const initialForm: ProductForm = {
   quantity: "",
   min_stock: "",
   unit: "Stück",
+  storage_location: "",
+};
+
+const initialStorageLocationForm: StorageLocationForm = {
+  code: "",
+  name: "",
+  zone: "",
+  aisle: "",
+  rack: "",
+  shelf: "",
+  description: "",
+  is_active: true,
 };
 
 const unitOptions = ["Stück", "kg", "Liter", "Box", "Palette"];
@@ -218,7 +261,8 @@ function App() {
   const user = getUser();
   const role = user?.role ?? "viewer";
 
-  const [activeSection, setActiveSection] = useState<ActiveSection>("dashboard");
+
+const [activeSection, setActiveSection] = useState<ActiveSection>("dashboard");
   const [expandedMenus, setExpandedMenus] = useState<string[]>([
     "dashboard",
     "einkauf",
@@ -273,6 +317,12 @@ const isCompactLayout = windowWidth < 1180;
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [movementsLoading, setMovementsLoading] = useState(false);
   const [movementProductFilter, setMovementProductFilter] = useState("");
+
+  const [storageLocations, setStorageLocations] = useState<StorageLocation[]>([]);
+  const [storageLocationsLoading, setStorageLocationsLoading] = useState(false);
+  const [storageLocationSaving, setStorageLocationSaving] = useState(false);
+  const [storageLocationForm, setStorageLocationForm] =
+    useState<StorageLocationForm>(initialStorageLocationForm);
 
   const [inventorySessions, setInventorySessions] = useState<InventorySession[]>([]);
   const [inventoryCounts, setInventoryCounts] = useState<InventoryCount[]>([]);
@@ -361,8 +411,10 @@ const selectSection = (section: ActiveSection) => {
 const canAccessSection = (section: ActiveSection) => {
   if (role === "admin") return true;
 
+  // Viewer / Recruiter darf alles ansehen, aber nichts schreiben.
   if (role === "viewer") return true;
 
+  // Lager: operative Lagerbereiche.
   if (role === "lager") {
     return [
       "dashboard",
@@ -372,6 +424,33 @@ const canAccessSection = (section: ActiveSection) => {
       "corrections",
       "locations",
       "stock-overview",
+    ].includes(section);
+  }
+
+  // Einkauf: Einkauf + Kundenstamm + Bestände.
+  if (role === "einkauf") {
+    return [
+      "dashboard",
+      "orders",
+      "product",
+      "suppliers",
+      "stock-overview",
+      "customers",
+      "contacts",
+      "addresses",
+      "customer-notes",
+    ].includes(section);
+  }
+
+  // Dispo: Disposition, Bestände, Inventur, Bewegungshistorie.
+  if (role === "dispo") {
+    return [
+      "dashboard",
+      "stock-overview",
+      "min-stock",
+      "reorder",
+      "inventory",
+      "history",
     ].includes(section);
   }
 
@@ -386,6 +465,29 @@ const visibleSidebarMenus = useMemo(() => {
   if (role === "lager") {
     return sidebarMenus
       .filter((menu) => menu.id === "dashboard" || menu.id === "lager")
+      .map((menu) => ({
+        ...menu,
+        items: menu.items.filter((item) => canAccessSection(item.id)),
+      }));
+  }
+
+  if (role === "einkauf") {
+    return sidebarMenus
+      .filter(
+        (menu) =>
+          menu.id === "dashboard" ||
+          menu.id === "einkauf" ||
+          menu.id === "kundenstamm"
+      )
+      .map((menu) => ({
+        ...menu,
+        items: menu.items.filter((item) => canAccessSection(item.id)),
+      }));
+  }
+
+  if (role === "dispo") {
+    return sidebarMenus
+      .filter((menu) => menu.id === "dashboard" || menu.id === "dispo")
       .map((menu) => ({
         ...menu,
         items: menu.items.filter((item) => canAccessSection(item.id)),
@@ -436,6 +538,24 @@ const visibleSidebarMenus = useMemo(() => {
       setLoading(false);
     }
   };
+
+  const loadStorageLocations = async () => {
+    try {
+      setStorageLocationsLoading(true);
+
+      const response = await apiFetch("/inventory-api/storage-locations/");
+      const data = (await response.json()) as StorageLocation[];
+
+      setStorageLocations(data);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Fehler beim Laden der Lagerorte.";
+      setError(message);
+    } finally {
+      setStorageLocationsLoading(false);
+    }
+  };
+
 
   const loadMovements = async () => {
     try {
@@ -489,12 +609,13 @@ const visibleSidebarMenus = useMemo(() => {
   };
 
   useEffect(() => {
-    if (loggedIn) {
-      void loadProducts();
-      void loadMovements();
-      void loadInventorySessions();
+  if (loggedIn) {
+    void loadProducts();
+    void loadMovements();
+    void loadInventorySessions();
+    void loadStorageLocations();
     }
-  }, [loggedIn]);
+    }, [loggedIn]);
 
   useEffect(() => {
     if (loggedIn && selectedInventorySessionId) {
@@ -685,13 +806,16 @@ const visibleSidebarMenus = useMemo(() => {
     setActiveSection("product");
     setEditingId(product.id);
     setForm({
-      name: product.name,
-      sku: product.sku,
-      description: product.description,
-      quantity: String(product.quantity),
-      min_stock: String(product.min_stock),
-      unit: product.unit,
-    });
+    name: product.name,
+    sku: product.sku,
+    description: product.description,
+    quantity: String(product.quantity),
+    min_stock: String(product.min_stock),
+    unit: product.unit,
+    storage_location: product.storage_location
+      ? String(product.storage_location)
+      : "",
+  });
     window.scrollTo({ top: 0, behavior: "smooth" });
     setTimeout(() => productNameRef.current?.focus(), 0);
   };
@@ -722,13 +846,17 @@ const visibleSidebarMenus = useMemo(() => {
       return;
     }
     const payload = {
-      name: form.name,
-      sku: form.sku,
-      description: form.description,
-      quantity: Number(form.quantity),
-      min_stock: Number(form.min_stock),
-      unit: form.unit,
+    name: form.name,
+    sku: form.sku,
+    description: form.description,
+    quantity: Number(form.quantity),
+    min_stock: Number(form.min_stock),
+    unit: form.unit,
+    storage_location: form.storage_location
+      ? Number(form.storage_location)
+      : null,
     };
+
     try {
       const response = await apiFetch(
         editingId === null ? "/inventory-api/products/" : `/inventory-api/products/${editingId}/`,
@@ -897,6 +1025,69 @@ const visibleSidebarMenus = useMemo(() => {
     } finally {
       setGoodsOutSaving(false);
     }
+  };
+
+  const handleStorageLocationChange = (
+      event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    ) => {
+      const { name, value } = event.target;
+
+      setStorageLocationForm((current) => ({
+        ...current,
+        [name]: value,
+      }));
+    };
+
+    const handleCreateStorageLocation = async (event: FormEvent) => {
+      event.preventDefault();
+
+      if (!hasPermission("admin")) {
+        setError("Nur Admins dürfen Lagerorte anlegen.");
+        return;
+      }
+
+      if (!storageLocationForm.code.trim()) {
+        setError("Bitte einen Lagerort-Code eintragen.");
+        return;
+      }
+
+      if (!storageLocationForm.name.trim()) {
+        setError("Bitte einen Namen für den Lagerort eintragen.");
+        return;
+      }
+
+      try {
+        setStorageLocationSaving(true);
+        setError("");
+        setSuccess("");
+
+        const response = await apiFetch("/inventory-api/storage-locations/", {
+          method: "POST",
+          body: JSON.stringify(storageLocationForm),
+        });
+
+       if (!response.ok) {
+        const errorData = await response.json();
+
+        if (errorData.code) {
+          throw new Error("Dieser Lagerort-Code existiert bereits. Bitte einen anderen Code verwenden.");
+        }
+
+        throw new Error(JSON.stringify(errorData));
+      }
+        setStorageLocationForm(initialStorageLocationForm);
+        await loadStorageLocations();
+
+        setSuccess("📍 Lagerort erfolgreich angelegt.");
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Fehler beim Anlegen des Lagerorts.";
+        setError(message);
+      } finally {
+        setStorageLocationSaving(false);
+      }
+
+
   };
 
   const handleCreateInventorySession = async (event: FormEvent) => {
@@ -1237,33 +1428,74 @@ const visibleSidebarMenus = useMemo(() => {
             />
             )}
             {activeSection === "corrections" && <PlaceholderSection title="🔧 Lagerkorrekturen" text="Hier können später manuelle Lagerkorrekturen mit Begründung und Audit-Log gebucht werden." />}
-            {activeSection === "locations" && <PlaceholderSection title="📍 Lagerorte" text="Hier können später Lagerorte, Regale und Fächer verwaltet werden." />}
+        
+          {activeSection === "locations" && (
+          <StorageLocationsSection
+          title="📍 Lagerorte"
+          locations={storageLocations}
+          loading={storageLocationsLoading}
+          form={storageLocationForm}
+          saving={storageLocationSaving}
+          canManage={hasPermission("admin")}
+          onChange={handleStorageLocationChange}
+          onToggleActive={(checked) =>
+            setStorageLocationForm((current) => ({
+              ...current,
+              is_active: checked,
+            }))
+          }
+          onSubmit={handleCreateStorageLocation}
+        />
+      )}
+
+
+
             {activeSection === "customers" && <PlaceholderSection title="👥 Kundenliste" text="Hier kann später ein Kundenstamm mit Kundendaten, Kundennummern und Status entstehen." />}
             {activeSection === "contacts" && <PlaceholderSection title="☎️ Ansprechpartner" text="Hier können später Ansprechpartner je Kunde verwaltet werden." />}
             {activeSection === "addresses" && <PlaceholderSection title="📦 Lieferadressen" text="Hier können später abweichende Lieferadressen je Kunde gepflegt werden." />}
             {activeSection === "customer-notes" && <PlaceholderSection title="📝 Kundennotizen" text="Hier können später Notizen, Hinweise und interne Kundeninformationen gepflegt werden." />}
             {activeSection === "admin-users" && <PlaceholderSection title="👤 Benutzer anlegen" text="Hier kann später eine Benutzerverwaltung im Frontend entstehen. Aktuell erfolgt dies über Django Admin." />}
             {activeSection === "admin-rights" && <PlaceholderSection title="🔐 Rollen & Zugriffsrechte" text="Hier können später Modulrechte für Einkauf, Dispo, Lager und Kundenstamm gepflegt werden." />}
-            {activeSection === "admin-locations" && <PlaceholderSection title="📍 Lagerorte anlegen" text="Hier können später neue Lagerorte, Regale und Fächer administriert werden." />}
+            {activeSection === "admin-locations" && (
+              <StorageLocationsSection
+                title="📍 Lagerorte anlegen"
+                locations={storageLocations}
+                loading={storageLocationsLoading}
+                form={storageLocationForm}
+                saving={storageLocationSaving}
+                canManage={hasPermission("admin")}
+                onChange={handleStorageLocationChange}
+                onToggleActive={(checked) =>
+                  setStorageLocationForm((current) => ({
+                    ...current,
+                    is_active: checked,
+                  }))
+                }
+                onSubmit={handleCreateStorageLocation}
+              />
+            )}
+
+
             {activeSection === "admin-audit" && <PlaceholderSection title="🧾 Systemprotokoll" text="Hier kann später nachvollzogen werden, welcher Benutzer welche Änderung durchgeführt hat." />}
 
             {activeSection === "product" && (
-              <ProductFormSection
-                form={form}
-                editingId={editingId}
-                saving={saving}
-                hasPermission={hasPermission}
-                handleSubmit={handleSubmit}
-                handleChange={handleChange}
-                setForm={setForm}
-                productNameRef={productNameRef}
-                productSkuRef={productSkuRef}
-                productQuantityRef={productQuantityRef}
-                productMinStockRef={productMinStockRef}
-                productUnitRef={productUnitRef}
-                productDescriptionRef={productDescriptionRef}
-                focusNextOnEnter={focusNextOnEnter}
-              />
+             <ProductFormSection
+              form={form}
+              editingId={editingId}
+              saving={saving}
+              hasPermission={hasPermission}
+              handleSubmit={handleSubmit}
+              handleChange={handleChange}
+              setForm={setForm}
+              storageLocations={storageLocations}
+              productNameRef={productNameRef}
+              productSkuRef={productSkuRef}
+              productQuantityRef={productQuantityRef}
+              productMinStockRef={productMinStockRef}
+              productUnitRef={productUnitRef}
+              productDescriptionRef={productDescriptionRef}
+              focusNextOnEnter={focusNextOnEnter}
+            />
             )}
 
             {activeSection === "goods-in" && (
@@ -1531,6 +1763,189 @@ function PlaceholderSection({ title, text }: { title: string; text: string }) {
   );
 }
 
+function StorageLocationsSection({
+  title,
+  locations,
+  loading,
+  form,
+  saving,
+  canManage,
+  onChange,
+  onToggleActive,
+  onSubmit,
+}: {
+  title: string;
+  locations: StorageLocation[];
+  loading: boolean;
+  form: StorageLocationForm;
+  saving: boolean;
+  canManage: boolean;
+  onChange: (
+    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => void;
+  onToggleActive: (checked: boolean) => void;
+  onSubmit: (event: FormEvent) => void;
+}) {
+  const activeLocations = locations.filter((location) => location.is_active);
+
+  return (
+    <section style={sectionStyle}>
+      <h2 style={sectionTitleStyle}>{title}</h2>
+
+      <p style={infoStyle}>
+        Verwaltung von Lagerorten, Regalen und Fächern. Produkte können später
+        einem Lagerort zugeordnet werden.
+      </p>
+
+      <div style={dashboardGridStyle}>
+        <Card title="Lagerorte gesamt" value={String(locations.length)} />
+        <Card title="Aktive Lagerorte" value={String(activeLocations.length)} />
+      </div>
+
+      {canManage && (
+        <form
+          onSubmit={onSubmit}
+          style={{ ...formGridStyle, marginTop: "22px", marginBottom: "24px" }}
+        >
+          <input
+            name="code"
+            placeholder="Code z. B. A-R2-F4"
+            value={form.code}
+            onChange={onChange}
+            style={inputStyle}
+          />
+
+          <input
+            name="name"
+            placeholder="Name z. B. Lager A"
+            value={form.name}
+            onChange={onChange}
+            style={inputStyle}
+          />
+
+          <input
+            name="zone"
+            placeholder="Zone"
+            value={form.zone}
+            onChange={onChange}
+            style={inputStyle}
+          />
+
+          <input
+            name="aisle"
+            placeholder="Gang"
+            value={form.aisle}
+            onChange={onChange}
+            style={inputStyle}
+          />
+
+          <input
+            name="rack"
+            placeholder="Regal"
+            value={form.rack}
+            onChange={onChange}
+            style={inputStyle}
+          />
+
+          <input
+            name="shelf"
+            placeholder="Fach"
+            value={form.shelf}
+            onChange={onChange}
+            style={inputStyle}
+          />
+
+          <textarea
+            name="description"
+            placeholder="Beschreibung"
+            value={form.description}
+            onChange={onChange}
+            style={{
+              ...inputStyle,
+              minHeight: "80px",
+              gridColumn: "1 / -1",
+            }}
+          />
+
+          <label style={checkboxLabelStyle}>
+            <input
+              type="checkbox"
+              checked={form.is_active}
+              onChange={(event) => onToggleActive(event.target.checked)}
+            />
+            Aktiv
+          </label>
+
+          <button
+            type="submit"
+            disabled={saving}
+            style={primaryButtonStyle}
+          >
+            {saving ? "Speichere..." : "Lagerort anlegen"}
+          </button>
+        </form>
+      )}
+
+      {!canManage && (
+        <p style={infoStyle}>
+          Nur-Lese-Modus: Lagerorte können angesehen, aber nicht angelegt oder
+          bearbeitet werden.
+        </p>
+      )}
+
+      {loading && <p>Lade Lagerorte...</p>}
+
+      {!loading && locations.length === 0 && (
+        <p>Noch keine Lagerorte vorhanden.</p>
+      )}
+
+      {!loading && locations.length > 0 && (
+        <div style={{ ...tableWrapStyle, marginTop: "22px" }}>
+          <table style={dataTableStyle}>
+            <thead>
+              <tr style={tableHeaderRowStyle}>
+                <th style={tableHeadStyle}>Code</th>
+                <th style={tableHeadStyle}>Name</th>
+                <th style={tableHeadStyle}>Zone</th>
+                <th style={tableHeadStyle}>Gang</th>
+                <th style={tableHeadStyle}>Regal</th>
+                <th style={tableHeadStyle}>Fach</th>
+                <th style={tableHeadStyle}>Produkte</th>
+                <th style={tableHeadStyle}>Status</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {locations.map((location) => (
+                <tr
+                  key={location.id}
+                  style={{
+                    borderTop: "1px solid rgba(148, 163, 184, 0.12)",
+                    background: location.is_active
+                      ? "rgba(22,101,52,0.08)"
+                      : "rgba(127,29,29,0.08)",
+                  }}
+                >
+                  <td style={tableCellStyle}>{location.code}</td>
+                  <td style={tableCellStyle}>{location.name}</td>
+                  <td style={tableCellStyle}>{location.zone || "—"}</td>
+                  <td style={tableCellStyle}>{location.aisle || "—"}</td>
+                  <td style={tableCellStyle}>{location.rack || "—"}</td>
+                  <td style={tableCellStyle}>{location.shelf || "—"}</td>
+                  <td style={tableCellStyle}>{location.product_count}</td>
+                  <td style={tableCellStyle}>
+                    {location.is_active ? "✅ Aktiv" : "⛔ Inaktiv"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function ProductFormSection({
   form,
   editingId,
@@ -1539,6 +1954,7 @@ function ProductFormSection({
   handleSubmit,
   handleChange,
   setForm,
+  storageLocations,
   productNameRef,
   productSkuRef,
   productQuantityRef,
@@ -1552,8 +1968,11 @@ function ProductFormSection({
   saving: boolean;
   hasPermission: (required: PermissionRole) => boolean;
   handleSubmit: (event: FormEvent) => void;
-  handleChange: (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
+  handleChange: (
+    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => void;
   setForm: Dispatch<SetStateAction<ProductForm>>;
+  storageLocations: StorageLocation[];
   productNameRef: RefObject<HTMLInputElement | null>;
   productSkuRef: RefObject<HTMLInputElement | null>;
   productQuantityRef: RefObject<HTMLInputElement | null>;
@@ -1561,7 +1980,9 @@ function ProductFormSection({
   productUnitRef: RefObject<HTMLSelectElement | null>;
   productDescriptionRef: RefObject<HTMLTextAreaElement | null>;
   focusNextOnEnter: (
-    event: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
+    event: KeyboardEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >,
     next?: HTMLElement | null
   ) => void;
 }) {
@@ -1576,6 +1997,27 @@ function ProductFormSection({
         <select ref={productUnitRef} value={form.unit} onChange={(event) => setForm({ ...form, unit: event.target.value })} onKeyDown={(event) => focusNextOnEnter(event, productDescriptionRef.current)} style={inputStyle} disabled={!hasPermission("admin")}>
           {unitOptions.map((unit) => <option key={unit} value={unit}>{unit}</option>)}
         </select>
+
+        <select
+          value={form.storage_location}
+          onChange={(event) =>
+            setForm({ ...form, storage_location: event.target.value })
+          }
+          style={inputStyle}
+          disabled={!hasPermission("admin")}
+        >
+          <option value="">Kein Lagerort</option>
+          {storageLocations
+            .filter((location) => location.is_active)
+            .map((location) => (
+              <option key={location.id} value={location.id}>
+                {location.code} - {location.name}
+                {location.rack ? ` / Regal ${location.rack}` : ""}
+                {location.shelf ? ` / Fach ${location.shelf}` : ""}
+              </option>
+            ))}
+        </select>
+
         <textarea ref={productDescriptionRef} name="description" placeholder="Beschreibung" value={form.description} onChange={handleChange} style={{ ...inputStyle, minHeight: "100px", gridColumn: "1 / -1" }} disabled={!hasPermission("admin")} />
         <button type="submit" disabled={saving || !hasPermission("admin")} style={hasPermission("admin") ? { ...primaryButtonStyle, gridColumn: "1 / -1" } : { ...primaryButtonStyle, gridColumn: "1 / -1", opacity: 0.4, cursor: "not-allowed" }}>
           {saving ? "Speichere..." : editingId ? "Produkt aktualisieren" : "Produkt speichern"}
@@ -1953,6 +2395,7 @@ function ProductGrid({
             <div style={{ color: "#cbd5e1", lineHeight: 1.6 }}>
               <div>Bestand: {product.quantity} {product.unit}</div>
               <div>Mindestbestand: {product.min_stock}</div>
+              <div>Lagerort: {product.storage_location_label || "Kein Lagerort"}</div>
               {product.description && <div>Beschreibung: {product.description}</div>}
             </div>
             <div style={{ display: "flex", gap: "10px", marginTop: "16px" }}>

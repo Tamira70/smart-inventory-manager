@@ -5,6 +5,38 @@ from django.dispatch import receiver
 from django.utils import timezone
 
 
+class StorageLocation(models.Model):
+    code = models.CharField(max_length=50, unique=True)
+    name = models.CharField(max_length=120)
+    zone = models.CharField(max_length=80, blank=True)
+    aisle = models.CharField(max_length=50, blank=True)
+    rack = models.CharField(max_length=50, blank=True)
+    shelf = models.CharField(max_length=50, blank=True)
+    description = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        parts = [self.code, self.name]
+
+        details = []
+        if self.zone:
+            details.append(f"Zone {self.zone}")
+        if self.aisle:
+            details.append(f"Gang {self.aisle}")
+        if self.rack:
+            details.append(f"Regal {self.rack}")
+        if self.shelf:
+            details.append(f"Fach {self.shelf}")
+
+        if details:
+            parts.append(" / ".join(details))
+
+        return " - ".join(parts)
+
+
 class Product(models.Model):
     name = models.CharField(max_length=255)
     sku = models.CharField(max_length=100, unique=True)
@@ -12,6 +44,14 @@ class Product(models.Model):
     quantity = models.IntegerField(default=0)
     min_stock = models.IntegerField(default=0)
     unit = models.CharField(max_length=50, default="Stück")
+
+    storage_location = models.ForeignKey(
+        StorageLocation,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="products",
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -22,7 +62,6 @@ class Product(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.sku})"
-
 
 class InventoryTransaction(models.Model):
     TRANSACTION_TYPE = [
@@ -135,20 +174,21 @@ class UserProfile(models.Model):
     ROLE_CHOICES = [
         ("admin", "Admin"),
         ("lager", "Lager"),
+        ("einkauf", "Einkauf"),
+        ("dispo", "Dispo"),
         ("viewer", "Viewer"),
     ]
 
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default="viewer")
+
+    role = models.CharField(
+        max_length=20,
+        choices=ROLE_CHOICES,
+        default="viewer",
+    )
 
     def __str__(self):
         return f"{self.user.username} ({self.role})"
-
-
-@receiver(post_save, sender=User)
-def create_user_profile(sender, instance, created, **kwargs):
-    if created:
-        UserProfile.objects.get_or_create(user=instance)
 
 
 @receiver(post_save, sender=User)
