@@ -18,6 +18,7 @@ from .models import (
     StockMovement,
     InventorySession,
     InventoryCount,
+    StorageLocation,
 )
 from .serializers import (
     ProductSerializer,
@@ -25,8 +26,10 @@ from .serializers import (
     StockMovementSerializer,
     InventorySessionSerializer,
     InventoryCountSerializer,
+    StorageLocationSerializer,
 )
 from .permissions import IsAdmin, IsLagerOrAdmin
+
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
@@ -43,8 +46,19 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         return data
 
 
+
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
+
+
+class StorageLocationViewSet(viewsets.ModelViewSet):
+    queryset = StorageLocation.objects.all().order_by("code")
+    serializer_class = StorageLocationSerializer
+
+    def get_permissions(self):
+        if self.request.method in ["GET", "HEAD", "OPTIONS"]:
+            return [IsAuthenticated()]
+        return [IsAuthenticated(), IsAdmin()]
 
 
 class ProductViewSet(viewsets.ModelViewSet):
@@ -403,3 +417,4 @@ class InventoryCountViewSet(viewsets.ModelViewSet):
 
         serializer = self.get_serializer(inventory_count)
         return Response(serializer.data)
+    

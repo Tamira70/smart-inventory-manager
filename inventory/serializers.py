@@ -8,6 +8,7 @@ from .models import (
     UserProfile,
     InventorySession,
     InventoryCount,
+    StorageLocation,
 )
 
 
@@ -17,6 +18,31 @@ class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
         fields = ["username", "role"]
+
+
+class StorageLocationSerializer(serializers.ModelSerializer):
+    product_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = StorageLocation
+        fields = [
+            "id",
+            "code",
+            "name",
+            "zone",
+            "aisle",
+            "rack",
+            "shelf",
+            "description",
+            "is_active",
+            "product_count",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["created_at", "updated_at", "product_count"]
+
+    def get_product_count(self, obj):
+        return obj.products.count()
 
 
 class ProductSerializer(serializers.ModelSerializer):

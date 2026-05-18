@@ -9,6 +9,7 @@ from .views import (
     StockMovementViewSet,
     InventorySessionViewSet,
     InventoryCountViewSet,
+    StorageLocationViewSet,
 )
 
 router = DefaultRouter()
@@ -17,6 +18,7 @@ router.register(r"transactions", InventoryTransactionViewSet, basename="transact
 router.register(r"stock-movements", StockMovementViewSet, basename="stock-movement")
 router.register(r"inventory-sessions", InventorySessionViewSet, basename="inventory-session")
 router.register(r"inventory-counts", InventoryCountViewSet, basename="inventory-count")
+router.register(r"storage-locations", StorageLocationViewSet, basename="storage-location")
 
 urlpatterns = [
     path("login/", CustomTokenObtainPairView.as_view(), name="token_obtain_pair"),
