@@ -292,6 +292,32 @@ class CustomerNote(models.Model):
         return f"{self.customer.name} - {self.title}"
 
 
+
+class AuditLog(models.Model):
+    ACTION_CHOICES = [
+        ("CREATE", "Erstellt"),
+        ("UPDATE", "Geändert"),
+        ("DELETE", "Gelöscht"),
+        ("LOGIN", "Login"),
+        ("SYSTEM", "System"),
+    ]
+
+    area = models.CharField(max_length=120, default="System")
+    action = models.CharField(max_length=20, choices=ACTION_CHOICES)
+    object_type = models.CharField(max_length=120, blank=True)
+    object_id = models.CharField(max_length=120, blank=True)
+    message = models.TextField()
+    metadata = models.JSONField(default=dict, blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.area} - {self.action} - {self.created_at:%d.%m.%Y %H:%M}"
+
+
 class UserProfile(models.Model):
     ROLE_CHOICES = [
         ("admin", "Admin"),

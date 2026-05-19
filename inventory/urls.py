@@ -15,6 +15,8 @@ from .views import (
     CustomerContactViewSet,
     DeliveryAddressViewSet,
     CustomerNoteViewSet,
+    AdminUserViewSet,
+    AuditLogViewSet,
 )
 
 router = DefaultRouter()
@@ -30,6 +32,8 @@ router.register(r"customer-contacts", CustomerContactViewSet, basename="customer
 router.register(r"delivery-addresses", DeliveryAddressViewSet, basename="delivery-address")
 router.register(r"customer-notes", CustomerNoteViewSet, basename="customer-note")
 
+router.register(r"admin-users", AdminUserViewSet, basename="admin-user")
+router.register(r"audit-logs", AuditLogViewSet, basename="audit-log")
 urlpatterns = [
     path("login/", CustomTokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),

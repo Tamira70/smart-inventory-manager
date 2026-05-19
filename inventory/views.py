@@ -1,3 +1,4 @@
+from django.contrib.auth.models import User
 from django.http import HttpResponse
 from django.utils.text import slugify
 from openpyxl import Workbook
@@ -24,6 +25,7 @@ from .models import (
     CustomerContact,
     DeliveryAddress,
     CustomerNote,
+    AuditLog,
 )
 from .serializers import (
     ProductSerializer,
@@ -38,6 +40,8 @@ from .serializers import (
     CustomerContactSerializer,
     DeliveryAddressSerializer,
     CustomerNoteSerializer,
+    AdminUserSerializer,
+    AuditLogSerializer,
 )
 from .permissions import IsAdmin, IsLagerOrAdmin, IsEinkaufOrAdmin
 
@@ -135,6 +139,49 @@ class CustomerNoteViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
+
+
+
+class AdminUserViewSet(viewsets.ModelViewSet):
+    queryset = User.objects.select_related("userprofile").order_by("username")
+    serializer_class = AdminUserSerializer
+
+    def get_permissions(self):
+        return [IsAuthenticated(), IsAdmin()]
+
+    def perform_create(self, serializer):
+        created_user = serializer.save()
+
+        AuditLog.objects.create(
+            area="Benutzerverwaltung",
+            action="CREATE",
+            object_type="User",
+            object_id=str(created_user.id),
+            message=f"Benutzer {created_user.username} wurde angelegt.",
+            created_by=self.request.user,
+            metadata={"username": created_user.username},
+        )
+
+    def perform_update(self, serializer):
+        updated_user = serializer.save()
+
+        AuditLog.objects.create(
+            area="Benutzerverwaltung",
+            action="UPDATE",
+            object_type="User",
+            object_id=str(updated_user.id),
+            message=f"Benutzer {updated_user.username} wurde geändert.",
+            created_by=self.request.user,
+            metadata={"username": updated_user.username},
+        )
+
+
+class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = AuditLog.objects.select_related("created_by").order_by("-created_at")
+    serializer_class = AuditLogSerializer
+
+    def get_permissions(self):
+        return [IsAuthenticated(), IsAdmin()]
 
 
 class ProductViewSet(viewsets.ModelViewSet):

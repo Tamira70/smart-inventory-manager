@@ -1,3 +1,4 @@
+from django.contrib.auth.models import User
 from django.db import transaction
 from rest_framework import serializers
 
@@ -15,6 +16,8 @@ from .models import (
     CustomerContact,
     DeliveryAddress,
     CustomerNote,
+    AuditLog,
+    UserProfile,
 )
 
 
@@ -190,6 +193,109 @@ class CustomerNoteSerializer(serializers.ModelSerializer):
             "customer_name",
             "created_at",
             "updated_at",
+        ]
+
+
+
+class AdminUserSerializer(serializers.ModelSerializer):
+    role = serializers.ChoiceField(
+        choices=UserProfile.ROLE_CHOICES,
+        required=False,
+        default="viewer",
+    )
+    password = serializers.CharField(
+        write_only=True,
+        required=False,
+        allow_blank=True,
+    )
+
+    class Meta:
+        model = User
+        fields = [
+            "id",
+            "username",
+            "email",
+            "first_name",
+            "last_name",
+            "is_active",
+            "is_staff",
+            "date_joined",
+            "role",
+            "password",
+        ]
+        read_only_fields = ["id", "date_joined", "is_staff"]
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        profile = getattr(instance, "userprofile", None)
+        data["role"] = profile.role if profile else "viewer"
+        return data
+
+    def create(self, validated_data):
+        role = validated_data.pop("role", "viewer")
+        password = validated_data.pop("password", "")
+
+        user = User(**validated_data)
+        user.is_staff = role == "admin"
+
+        if password:
+            user.set_password(password)
+        else:
+            user.set_unusable_password()
+
+        user.save()
+
+        profile, _ = UserProfile.objects.get_or_create(user=user)
+        profile.role = role
+        profile.save()
+
+        return user
+
+    def update(self, instance, validated_data):
+        role = validated_data.pop("role", None)
+        password = validated_data.pop("password", None)
+
+        for field, value in validated_data.items():
+            setattr(instance, field, value)
+
+        if role is not None:
+            instance.is_staff = role == "admin"
+            profile, _ = UserProfile.objects.get_or_create(user=instance)
+            profile.role = role
+            profile.save()
+
+        if password:
+            instance.set_password(password)
+
+        instance.save()
+        return instance
+
+
+class AuditLogSerializer(serializers.ModelSerializer):
+    created_by_username = serializers.CharField(
+        source="created_by.username",
+        read_only=True,
+    )
+
+    class Meta:
+        model = AuditLog
+        fields = [
+            "id",
+            "area",
+            "action",
+            "object_type",
+            "object_id",
+            "message",
+            "metadata",
+            "created_by",
+            "created_by_username",
+            "created_at",
+        ]
+        read_only_fields = [
+            "id",
+            "created_by",
+            "created_by_username",
+            "created_at",
         ]
 
 
