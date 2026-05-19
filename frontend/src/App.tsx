@@ -414,6 +414,12 @@ const isCompactLayout = windowWidth < 1180;
   const [goodsOutNote, setGoodsOutNote] = useState("");
   const [goodsOutSaving, setGoodsOutSaving] = useState(false);
 
+  const [correctionProductId, setCorrectionProductId] = useState("");
+  const [correctionTargetQuantity, setCorrectionTargetQuantity] = useState("");
+  const [correctionReference, setCorrectionReference] = useState("");
+  const [correctionReason, setCorrectionReason] = useState("");
+  const [correctionSaving, setCorrectionSaving] = useState(false);
+
   const productNameRef = useRef<HTMLInputElement | null>(null);
   const productSkuRef = useRef<HTMLInputElement | null>(null);
   const productQuantityRef = useRef<HTMLInputElement | null>(null);
@@ -482,19 +488,20 @@ const canAccessSection = (section: ActiveSection) => {
   }
 
   // Einkauf: Einkauf + Kundenstamm + Bestände.
-  if (role === "einkauf") {
-    return [
-      "dashboard",
-      "orders",
-      "product",
-      "suppliers",
-      "stock-overview",
-      "customers",
-      "contacts",
-      "addresses",
-      "customer-notes",
-    ].includes(section);
-  }
+if (role === "einkauf") {
+  return [
+    "dashboard",
+    "orders",
+    "product",
+    "suppliers",
+    "stock-overview",
+    "customers",
+    "contacts",
+    "addresses",
+    "customer-notes",
+    "corrections",
+  ].includes(section);
+}
 
   // Dispo: Disposition, Bestände, Inventur, Bewegungshistorie.
   if (role === "dispo") {
@@ -524,20 +531,20 @@ const visibleSidebarMenus = useMemo(() => {
         items: menu.items.filter((item) => canAccessSection(item.id)),
       }));
   }
-
-  if (role === "einkauf") {
-    return sidebarMenus
-      .filter(
-        (menu) =>
-          menu.id === "dashboard" ||
-          menu.id === "einkauf" ||
-          menu.id === "kundenstamm"
-      )
-      .map((menu) => ({
-        ...menu,
-        items: menu.items.filter((item) => canAccessSection(item.id)),
-      }));
-  }
+if (role === "einkauf") {
+  return sidebarMenus
+    .filter(
+      (menu) =>
+        menu.id === "dashboard" ||
+        menu.id === "einkauf" ||
+        menu.id === "kundenstamm" ||
+        menu.id === "lager"
+    )
+    .map((menu) => ({
+      ...menu,
+      items: menu.items.filter((item) => canAccessSection(item.id)),
+    }));
+}
 
   if (role === "dispo") {
     return sidebarMenus
@@ -728,6 +735,10 @@ const visibleSidebarMenus = useMemo(() => {
     return products.find((product) => String(product.id) === inventoryProductId) ?? null;
   }, [products, inventoryProductId]);
 
+  const selectedCorrectionProduct = useMemo(() => {
+    return products.find((product) => String(product.id) === correctionProductId) ?? null;
+  }, [products, correctionProductId]);
+
   const countedProductIds = useMemo(() => {
     return new Set(inventoryCounts.map((count) => count.product));
   }, [inventoryCounts]);
@@ -776,6 +787,15 @@ const visibleSidebarMenus = useMemo(() => {
     (movement) => movement.movement_type === "OUT" && new Date(movement.created_at).toDateString() === todayKey
   ).length;
   const latestMovement = movements[0] ?? null;
+  const correctionMovements = useMemo(() => {
+    return movements.filter((movement) => {
+      const reference = (movement.reference_number ?? "").toLowerCase();
+      const note = (movement.note ?? "").toLowerCase();
+
+      return reference.startsWith("korr") || note.includes("lagerkorrektur");
+    });
+  }, [movements]);
+
   const canShowProductOverview = ["product", "stock-overview", "min-stock"].includes(activeSection);
 
   const handleSupplierChange = (
@@ -1226,6 +1246,91 @@ const visibleSidebarMenus = useMemo(() => {
 
   };
 
+  const handleStockCorrection = async (event: FormEvent) => {
+    event.preventDefault();
+
+    if (!hasPermission("lager")) {
+      setError("Nur-Lese-Modus: Du kannst Lagerkorrekturen ansehen, aber nicht buchen.");
+      return;
+    }
+
+    if (!selectedCorrectionProduct) {
+      setError("Bitte ein Produkt für die Lagerkorrektur auswählen.");
+      return;
+    }
+
+    if (correctionTargetQuantity === "" || Number(correctionTargetQuantity) < 0) {
+      setError("Der Zielbestand muss 0 oder größer sein.");
+      return;
+    }
+
+    if (!correctionReason.trim()) {
+      setError("Bitte eine Begründung für die Lagerkorrektur eintragen.");
+      return;
+    }
+
+    const targetQuantity = Number(correctionTargetQuantity);
+    const currentQuantity = selectedCorrectionProduct.quantity;
+    const difference = targetQuantity - currentQuantity;
+
+    if (difference === 0) {
+      setError("Keine Lagerkorrektur notwendig: Zielbestand entspricht dem aktuellen Bestand.");
+      return;
+    }
+
+    const movementType = difference > 0 ? "IN" : "OUT";
+    const movementQuantity = Math.abs(difference);
+
+    const confirmed = window.confirm(
+      `Lagerkorrektur für "${selectedCorrectionProduct.name}" buchen?\n\nAktueller Bestand: ${currentQuantity}\nZielbestand: ${targetQuantity}\nDifferenz: ${difference > 0 ? "+" : ""}${difference}`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setCorrectionSaving(true);
+      setError("");
+      setSuccess("");
+
+      const response = await apiFetch("/inventory-api/stock-movements/", {
+        method: "POST",
+        body: JSON.stringify({
+          product: selectedCorrectionProduct.id,
+          movement_type: movementType,
+          quantity: movementQuantity,
+          reference_number:
+            correctionReference.trim() ||
+            `KORR-${new Date().toISOString().slice(0, 10)}-${selectedCorrectionProduct.id}`,
+          note:
+            `Lagerkorrektur: ${correctionReason.trim()}. ` +
+            `Systembestand ${currentQuantity}, Zielbestand ${targetQuantity}, ` +
+            `Differenz ${difference > 0 ? "+" : ""}${difference}.`,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(JSON.stringify(errorData));
+      }
+
+      setCorrectionProductId("");
+      setCorrectionTargetQuantity("");
+      setCorrectionReference("");
+      setCorrectionReason("");
+
+      await loadProducts();
+      await loadMovements();
+
+      setSuccess("🔧 Lagerkorrektur erfolgreich gebucht.");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Fehler beim Buchen der Lagerkorrektur.";
+      setError(message);
+    } finally {
+      setCorrectionSaving(false);
+    }
+  };
+
   const handleCreateInventorySession = async (event: FormEvent) => {
     event.preventDefault();
 
@@ -1579,7 +1684,24 @@ const visibleSidebarMenus = useMemo(() => {
               onCreateOrderDraft={handleCreatePurchaseOrderDraft}
             />
             )}
-            {activeSection === "corrections" && <PlaceholderSection title="🔧 Lagerkorrekturen" text="Hier können später manuelle Lagerkorrekturen mit Begründung und Audit-Log gebucht werden." />}
+            {activeSection === "corrections" && (
+              <StockCorrectionsSection
+                products={products}
+                selectedProduct={selectedCorrectionProduct}
+                correctionProductId={correctionProductId}
+                setCorrectionProductId={setCorrectionProductId}
+                correctionTargetQuantity={correctionTargetQuantity}
+                setCorrectionTargetQuantity={setCorrectionTargetQuantity}
+                correctionReference={correctionReference}
+                setCorrectionReference={setCorrectionReference}
+                correctionReason={correctionReason}
+                setCorrectionReason={setCorrectionReason}
+                correctionSaving={correctionSaving}
+                correctionMovements={correctionMovements}
+                canManage={hasPermission("lager")}
+                onSubmit={handleStockCorrection}
+              />
+            )}
         
           {activeSection === "locations" && (
           <StorageLocationsSection
@@ -1884,6 +2006,195 @@ function OrdersSection({
                           {canWrite ? "Entfernen" : "Nur ansehen"}
                         </button>
                       </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function StockCorrectionsSection({
+  products,
+  selectedProduct,
+  correctionProductId,
+  setCorrectionProductId,
+  correctionTargetQuantity,
+  setCorrectionTargetQuantity,
+  correctionReference,
+  setCorrectionReference,
+  correctionReason,
+  setCorrectionReason,
+  correctionSaving,
+  correctionMovements,
+  canManage,
+  onSubmit,
+}: {
+  products: Product[];
+  selectedProduct: Product | null;
+  correctionProductId: string;
+  setCorrectionProductId: (value: string) => void;
+  correctionTargetQuantity: string;
+  setCorrectionTargetQuantity: (value: string) => void;
+  correctionReference: string;
+  setCorrectionReference: (value: string) => void;
+  correctionReason: string;
+  setCorrectionReason: (value: string) => void;
+  correctionSaving: boolean;
+  correctionMovements: StockMovement[];
+  canManage: boolean;
+  onSubmit: (event: FormEvent) => void;
+}) {
+  const targetQuantity =
+    correctionTargetQuantity === "" ? null : Number(correctionTargetQuantity);
+
+  const difference =
+    selectedProduct && targetQuantity !== null
+      ? targetQuantity - selectedProduct.quantity
+      : null;
+
+  return (
+    <section style={sectionStyle}>
+      <h2 style={sectionTitleStyle}>🔧 Lagerkorrekturen</h2>
+
+      <p style={infoStyle}>
+        Manuelle Lagerkorrekturen mit Begründung und Bewegungshistorie. Die
+        Korrektur wird als Wareneingang oder Warenausgang gebucht und bleibt in
+        der Historie nachvollziehbar.
+      </p>
+
+      <div style={dashboardGridStyle}>
+        <Card title="Korrekturbuchungen" value={String(correctionMovements.length)} />
+        <Card
+          title="Aktuelle Differenz"
+          value={difference === null ? "—" : difference > 0 ? `+${difference}` : String(difference)}
+          danger={difference !== null && difference !== 0}
+        />
+      </div>
+
+      {canManage ? (
+        <form
+          onSubmit={onSubmit}
+          style={{ ...formGridStyle, marginTop: "22px", marginBottom: "24px" }}
+        >
+          <select
+            value={correctionProductId}
+            onChange={(event) => setCorrectionProductId(event.target.value)}
+            style={inputStyle}
+          >
+            <option value="">Produkt auswählen</option>
+            {products.map((product) => (
+              <option key={product.id} value={product.id}>
+                {product.name} ({product.sku}) - aktuell: {product.quantity} {product.unit}
+              </option>
+            ))}
+          </select>
+
+          <input
+            type="number"
+            min="0"
+            placeholder="Neuer Zielbestand"
+            value={correctionTargetQuantity}
+            onChange={(event) => setCorrectionTargetQuantity(event.target.value)}
+            style={inputStyle}
+          />
+
+          <input
+            type="text"
+            placeholder="Referenz z. B. KORR-2026-001"
+            value={correctionReference}
+            onChange={(event) => setCorrectionReference(event.target.value)}
+            style={inputStyle}
+          />
+
+          <textarea
+            placeholder="Begründung der Lagerkorrektur"
+            value={correctionReason}
+            onChange={(event) => setCorrectionReason(event.target.value)}
+            style={{
+              ...inputStyle,
+              minHeight: "80px",
+              gridColumn: "1 / -1",
+            }}
+          />
+
+          {selectedProduct && (
+            <p style={{ ...infoStyle, gridColumn: "1 / -1" }}>
+              Produkt: <strong>{selectedProduct.name}</strong> | Aktueller Bestand:{" "}
+              <strong>{selectedProduct.quantity} {selectedProduct.unit}</strong>
+              {difference !== null && (
+                <>
+                  {" "} | Differenz:{" "}
+                  <strong>{difference > 0 ? `+${difference}` : difference}</strong>
+                </>
+              )}
+            </p>
+          )}
+
+          <button
+            type="submit"
+            disabled={correctionSaving}
+            style={primaryButtonStyle}
+          >
+            {correctionSaving ? "Buche..." : "Lagerkorrektur buchen"}
+          </button>
+        </form>
+      ) : (
+        <p style={infoStyle}>
+          Nur-Lese-Modus: Lagerkorrekturen können angesehen, aber nicht gebucht
+          werden.
+        </p>
+      )}
+
+      {correctionMovements.length === 0 ? (
+        <p>Noch keine Lagerkorrekturen vorhanden.</p>
+      ) : (
+        <div style={{ ...tableWrapStyle, marginTop: "22px" }}>
+          <table style={dataTableStyle}>
+            <thead>
+              <tr style={tableHeaderRowStyle}>
+                <th style={tableHeadStyle}>Datum</th>
+                <th style={tableHeadStyle}>Produkt</th>
+                <th style={tableHeadStyle}>Typ</th>
+                <th style={tableHeadStyle}>Menge</th>
+                <th style={tableHeadStyle}>Referenz</th>
+                <th style={tableHeadStyle}>Begründung</th>
+                <th style={tableHeadStyle}>Benutzer</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {correctionMovements.map((movement) => {
+                const isIn = movement.movement_type === "IN";
+
+                return (
+                  <tr
+                    key={movement.id}
+                    style={{
+                      borderTop: "1px solid rgba(148, 163, 184, 0.12)",
+                      background: isIn
+                        ? "rgba(22,101,52,0.08)"
+                        : "rgba(127,29,29,0.08)",
+                    }}
+                  >
+                    <td style={tableCellStyle}>
+                      {new Date(movement.created_at).toLocaleString("de-DE")}
+                    </td>
+                    <td style={tableCellStyle}>{movement.product_name}</td>
+                    <td style={tableCellStyle}>
+                      {isIn ? "Bestandserhöhung" : "Bestandsreduzierung"}
+                    </td>
+                    <td style={tableCellStyle}>
+                      {isIn ? "+" : "-"}{movement.quantity}
+                    </td>
+                    <td style={tableCellStyle}>{movement.reference_number || "—"}</td>
+                    <td style={tableCellStyle}>{movement.note || "—"}</td>
+                    <td style={tableCellStyle}>
+                      {movement.created_by_username || "—"}
                     </td>
                   </tr>
                 );
