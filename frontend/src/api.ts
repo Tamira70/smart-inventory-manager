@@ -9,6 +9,25 @@ const API_BASE_URL = "";
 
 let refreshPromise: Promise<string> | null = null;
 
+async function readJsonOrThrow(response: Response) {
+  const contentType = response.headers.get("content-type") || "";
+  const text = await response.clone().text();
+
+  if (!text) {
+    return null;
+  }
+
+  if (!contentType.includes("application/json")) {
+    throw new Error(
+      `Server hat kein JSON geliefert. Status: ${
+        response.status
+      }. Antwort beginnt mit: ${text.slice(0, 120)}`
+    );
+  }
+
+  return JSON.parse(text);
+}
+
 async function refreshAccessToken(): Promise<string> {
   const refresh = getRefreshToken();
 
@@ -16,7 +35,7 @@ async function refreshAccessToken(): Promise<string> {
     throw new Error("Kein Refresh-Token vorhanden.");
   }
 
-  const response = await fetch(`${API_BASE_URL}/inventory-api/refresh/`, {
+  const response = await fetch(`${API_BASE_URL}/inventory-api/token/refresh/`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -24,13 +43,13 @@ async function refreshAccessToken(): Promise<string> {
     body: JSON.stringify({ refresh }),
   });
 
+  const data = await readJsonOrThrow(response);
+
   if (!response.ok) {
     throw new Error("Token-Refresh fehlgeschlagen.");
   }
 
-  const data = await response.json();
-
-  if (!data.access) {
+  if (!data?.access) {
     throw new Error("Kein neuer Access-Token zurückgegeben.");
   }
 
@@ -73,22 +92,24 @@ export async function apiFetch(
 
   let response = await makeRequest(token);
 
-  if (response.status !== 401) {
-    return response;
-  }
+  if (response.status === 401) {
+    try {
+      token = await getValidAccessTokenAfterRefresh();
+      response = await makeRequest(token);
 
-  try {
-    token = await getValidAccessTokenAfterRefresh();
-    response = await makeRequest(token);
-
-    if (response.status === 401) {
+      if (response.status === 401) {
+        clearTokens();
+        throw new Error("Sitzung abgelaufen. Bitte erneut einloggen.");
+      }
+    } catch {
       clearTokens();
       throw new Error("Sitzung abgelaufen. Bitte erneut einloggen.");
     }
-
-    return response;
-  } catch {
-    clearTokens();
-    throw new Error("Sitzung abgelaufen. Bitte erneut einloggen.");
   }
+
+  if (!response.ok) {
+    await readJsonOrThrow(response);
+  }
+
+  return response;
 }

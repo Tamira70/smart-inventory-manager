@@ -7,8 +7,36 @@ from .models import (
     UserProfile,
     InventorySession,
     InventoryCount,
+    StorageLocation,
+    Supplier,
+    Customer,
+    CustomerContact,
+    DeliveryAddress,
+    CustomerNote,
 )
 
+@admin.register(Supplier)
+class SupplierAdmin(admin.ModelAdmin):
+    list_display = (
+        "name",
+        "supplier_number",
+        "contact_person",
+        "email",
+        "phone",
+        "city",
+        "is_active",
+        "updated_at",
+    )
+    search_fields = (
+        "name",
+        "supplier_number",
+        "contact_person",
+        "email",
+        "phone",
+        "city",
+    )
+    list_filter = ("is_active", "country", "city")
+    readonly_fields = ("created_at", "updated_at")
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
@@ -91,3 +119,80 @@ class UserProfileAdmin(admin.ModelAdmin):
     list_display = ("user", "role")
     search_fields = ("user__username", "user__email")
     list_filter = ("role",)
+
+
+@admin.register(Customer)
+class CustomerAdmin(admin.ModelAdmin):
+    list_display = (
+        "name",
+        "customer_number",
+        "email",
+        "phone",
+        "city",
+        "is_active",
+        "updated_at",
+    )
+    search_fields = ("name", "customer_number", "email", "phone", "city")
+    list_filter = ("is_active", "country", "city")
+    readonly_fields = ("created_at", "updated_at")
+
+
+@admin.register(CustomerContact)
+class CustomerContactAdmin(admin.ModelAdmin):
+    list_display = (
+        "customer",
+        "first_name",
+        "last_name",
+        "role",
+        "email",
+        "phone",
+        "is_primary",
+        "is_active",
+    )
+    search_fields = (
+        "customer__name",
+        "first_name",
+        "last_name",
+        "role",
+        "email",
+        "phone",
+    )
+    list_filter = ("is_primary", "is_active")
+    readonly_fields = ("created_at", "updated_at")
+
+
+@admin.register(DeliveryAddress)
+class DeliveryAddressAdmin(admin.ModelAdmin):
+    list_display = (
+        "customer",
+        "label",
+        "recipient_name",
+        "postal_code",
+        "city",
+        "is_default",
+        "is_active",
+    )
+    search_fields = (
+        "customer__name",
+        "label",
+        "recipient_name",
+        "street",
+        "postal_code",
+        "city",
+    )
+    list_filter = ("is_default", "is_active", "country")
+    readonly_fields = ("created_at", "updated_at")
+
+
+@admin.register(CustomerNote)
+class CustomerNoteAdmin(admin.ModelAdmin):
+    list_display = (
+        "customer",
+        "title",
+        "created_by",
+        "created_at",
+        "updated_at",
+    )
+    search_fields = ("customer__name", "title", "note", "created_by__username")
+    list_filter = ("created_at",)
+    readonly_fields = ("created_at", "updated_at")

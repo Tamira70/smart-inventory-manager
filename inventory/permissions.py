@@ -18,3 +18,13 @@ class IsLagerOrAdmin(BasePermission):
             and profile
             and profile.role in ["admin", "lager"]
         )
+
+class IsEinkaufOrAdmin:
+    def has_permission(self, request, view):
+        profile = getattr(request.user, "userprofile", None)
+        return bool(
+            request.user
+            and request.user.is_authenticated
+            and profile
+            and profile.role in ["admin", "einkauf"]
+        )

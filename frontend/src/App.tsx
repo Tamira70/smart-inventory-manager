@@ -52,6 +52,148 @@ type StorageLocationForm = {
   is_active: boolean;
 };
 
+
+type Supplier = {
+  id: number;
+  name: string;
+  supplier_number: string | null;
+  contact_person: string;
+  email: string;
+  phone: string;
+  street: string;
+  postal_code: string;
+  city: string;
+  country: string;
+  note: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+type SupplierForm = {
+  name: string;
+  supplier_number: string;
+  contact_person: string;
+  email: string;
+  phone: string;
+  street: string;
+  postal_code: string;
+  city: string;
+  country: string;
+  note: string;
+  is_active: boolean;
+};
+
+type Customer = {
+  id: number;
+  customer_number: string | null;
+  name: string;
+  email: string;
+  phone: string;
+  street: string;
+  postal_code: string;
+  city: string;
+  country: string;
+  note: string;
+  is_active: boolean;
+  contact_count: number;
+  delivery_address_count: number;
+  note_count: number;
+  created_at: string;
+  updated_at: string;
+};
+
+type CustomerForm = {
+  customer_number: string;
+  name: string;
+  email: string;
+  phone: string;
+  street: string;
+  postal_code: string;
+  city: string;
+  country: string;
+  note: string;
+  is_active: boolean;
+};
+
+type CustomerContact = {
+  id: number;
+  customer: number;
+  customer_name: string;
+  first_name: string;
+  last_name: string;
+  role: string;
+  email: string;
+  phone: string;
+  mobile: string;
+  is_primary: boolean;
+  is_active: boolean;
+  note: string;
+  created_at: string;
+  updated_at: string;
+};
+
+type CustomerContactForm = {
+  customer: string;
+  first_name: string;
+  last_name: string;
+  role: string;
+  email: string;
+  phone: string;
+  mobile: string;
+  is_primary: boolean;
+  is_active: boolean;
+  note: string;
+};
+
+type DeliveryAddress = {
+  id: number;
+  customer: number;
+  customer_name: string;
+  label: string;
+  recipient_name: string;
+  street: string;
+  postal_code: string;
+  city: string;
+  country: string;
+  is_default: boolean;
+  is_active: boolean;
+  note: string;
+  created_at: string;
+  updated_at: string;
+};
+
+type DeliveryAddressForm = {
+  customer: string;
+  label: string;
+  recipient_name: string;
+  street: string;
+  postal_code: string;
+  city: string;
+  country: string;
+  is_default: boolean;
+  is_active: boolean;
+  note: string;
+};
+
+type CustomerNote = {
+  id: number;
+  customer: number;
+  customer_name: string;
+  title: string;
+  note: string;
+  created_by?: number | null;
+  created_by_username?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type CustomerNoteForm = {
+  customer: string;
+  title: string;
+  note: string;
+};
+
 type StockMovement = {
   id: number;
   product: number;
@@ -154,6 +296,41 @@ type ReorderSuggestion = Product & {
   suggestedQuantity: number;
 };
 
+type AdminUser = {
+  id: number;
+  username: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  is_active: boolean;
+  is_staff: boolean;
+  date_joined: string;
+  role: string;
+};
+
+type AdminUserForm = {
+  username: string;
+  password: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  role: string;
+  is_active: boolean;
+};
+
+type AuditLog = {
+  id: number;
+  area: string;
+  action: string;
+  object_type: string;
+  object_id: string;
+  message: string;
+  metadata: Record<string, unknown>;
+  created_by?: number | null;
+  created_by_username?: string | null;
+  created_at: string;
+};
+
 type PurchaseOrderDraft = {
   id: number;
   productId: number;
@@ -185,6 +362,76 @@ const initialStorageLocationForm: StorageLocationForm = {
   rack: "",
   shelf: "",
   description: "",
+  is_active: true,
+};
+
+
+const initialSupplierForm: SupplierForm = {
+  name: "",
+  supplier_number: "",
+  contact_person: "",
+  email: "",
+  phone: "",
+  street: "",
+  postal_code: "",
+  city: "",
+  country: "Deutschland",
+  note: "",
+  is_active: true,
+};
+
+const initialCustomerForm: CustomerForm = {
+  customer_number: "",
+  name: "",
+  email: "",
+  phone: "",
+  street: "",
+  postal_code: "",
+  city: "",
+  country: "Deutschland",
+  note: "",
+  is_active: true,
+};
+
+const initialCustomerContactForm: CustomerContactForm = {
+  customer: "",
+  first_name: "",
+  last_name: "",
+  role: "",
+  email: "",
+  phone: "",
+  mobile: "",
+  is_primary: false,
+  is_active: true,
+  note: "",
+};
+
+const initialDeliveryAddressForm: DeliveryAddressForm = {
+  customer: "",
+  label: "Standard",
+  recipient_name: "",
+  street: "",
+  postal_code: "",
+  city: "",
+  country: "Deutschland",
+  is_default: false,
+  is_active: true,
+  note: "",
+};
+
+const initialCustomerNoteForm: CustomerNoteForm = {
+  customer: "",
+  title: "",
+  note: "",
+};
+
+const initialAdminUserForm: AdminUserForm = {
+  username: "",
+  password: "",
+  email: "",
+  first_name: "",
+  last_name: "",
+  role: "viewer",
   is_active: true,
 };
 
@@ -312,7 +559,15 @@ const isCompactLayout = windowWidth < 1180;
     return new Set(purchaseOrderDrafts.map((draft) => draft.productId));
   }, [purchaseOrderDrafts]);
 
-  const [loggedIn, setLoggedIn] = useState(isLoggedIn());
+    const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [adminUsersLoading, setAdminUsersLoading] = useState(false);
+  const [auditLogsLoading, setAuditLogsLoading] = useState(false);
+  const [adminUserSaving, setAdminUserSaving] = useState(false);
+  const [adminUserForm, setAdminUserForm] =
+    useState<AdminUserForm>(initialAdminUserForm);
+
+const [loggedIn, setLoggedIn] = useState(isLoggedIn());
   const [products, setProducts] = useState<Product[]>([]);
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [movementsLoading, setMovementsLoading] = useState(false);
@@ -323,6 +578,37 @@ const isCompactLayout = windowWidth < 1180;
   const [storageLocationSaving, setStorageLocationSaving] = useState(false);
   const [storageLocationForm, setStorageLocationForm] =
     useState<StorageLocationForm>(initialStorageLocationForm);
+
+    const [customers, setCustomers] = useState<Customer[]>([]);
+  const [customerContacts, setCustomerContacts] = useState<CustomerContact[]>([]);
+  const [deliveryAddresses, setDeliveryAddresses] = useState<DeliveryAddress[]>([]);
+  const [customerNotes, setCustomerNotes] = useState<CustomerNote[]>([]);
+
+  const [customersLoading, setCustomersLoading] = useState(false);
+  const [customerContactsLoading, setCustomerContactsLoading] = useState(false);
+  const [deliveryAddressesLoading, setDeliveryAddressesLoading] = useState(false);
+  const [customerNotesLoading, setCustomerNotesLoading] = useState(false);
+
+  const [customerSaving, setCustomerSaving] = useState(false);
+  const [customerContactSaving, setCustomerContactSaving] = useState(false);
+  const [deliveryAddressSaving, setDeliveryAddressSaving] = useState(false);
+  const [customerNoteSaving, setCustomerNoteSaving] = useState(false);
+
+  const [customerForm, setCustomerForm] =
+    useState<CustomerForm>(initialCustomerForm);
+  const [customerContactForm, setCustomerContactForm] =
+    useState<CustomerContactForm>(initialCustomerContactForm);
+  const [deliveryAddressForm, setDeliveryAddressForm] =
+    useState<DeliveryAddressForm>(initialDeliveryAddressForm);
+  const [customerNoteForm, setCustomerNoteForm] =
+    useState<CustomerNoteForm>(initialCustomerNoteForm);
+
+const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [suppliersLoading, setSuppliersLoading] = useState(false);
+  const [supplierSaving, setSupplierSaving] = useState(false);
+  const [supplierForm, setSupplierForm] =
+    useState<SupplierForm>(initialSupplierForm);
+
 
   const [inventorySessions, setInventorySessions] = useState<InventorySession[]>([]);
   const [inventoryCounts, setInventoryCounts] = useState<InventoryCount[]>([]);
@@ -359,6 +645,12 @@ const isCompactLayout = windowWidth < 1180;
   const [goodsOutReferenceNumber, setGoodsOutReferenceNumber] = useState("");
   const [goodsOutNote, setGoodsOutNote] = useState("");
   const [goodsOutSaving, setGoodsOutSaving] = useState(false);
+
+  const [correctionProductId, setCorrectionProductId] = useState("");
+  const [correctionTargetQuantity, setCorrectionTargetQuantity] = useState("");
+  const [correctionReference, setCorrectionReference] = useState("");
+  const [correctionReason, setCorrectionReason] = useState("");
+  const [correctionSaving, setCorrectionSaving] = useState(false);
 
   const productNameRef = useRef<HTMLInputElement | null>(null);
   const productSkuRef = useRef<HTMLInputElement | null>(null);
@@ -428,19 +720,20 @@ const canAccessSection = (section: ActiveSection) => {
   }
 
   // Einkauf: Einkauf + Kundenstamm + Bestände.
-  if (role === "einkauf") {
-    return [
-      "dashboard",
-      "orders",
-      "product",
-      "suppliers",
-      "stock-overview",
-      "customers",
-      "contacts",
-      "addresses",
-      "customer-notes",
-    ].includes(section);
-  }
+if (role === "einkauf") {
+  return [
+    "dashboard",
+    "orders",
+    "product",
+    "suppliers",
+    "stock-overview",
+    "customers",
+    "contacts",
+    "addresses",
+    "customer-notes",
+    "corrections",
+  ].includes(section);
+}
 
   // Dispo: Disposition, Bestände, Inventur, Bewegungshistorie.
   if (role === "dispo") {
@@ -470,20 +763,20 @@ const visibleSidebarMenus = useMemo(() => {
         items: menu.items.filter((item) => canAccessSection(item.id)),
       }));
   }
-
-  if (role === "einkauf") {
-    return sidebarMenus
-      .filter(
-        (menu) =>
-          menu.id === "dashboard" ||
-          menu.id === "einkauf" ||
-          menu.id === "kundenstamm"
-      )
-      .map((menu) => ({
-        ...menu,
-        items: menu.items.filter((item) => canAccessSection(item.id)),
-      }));
-  }
+if (role === "einkauf") {
+  return sidebarMenus
+    .filter(
+      (menu) =>
+        menu.id === "dashboard" ||
+        menu.id === "einkauf" ||
+        menu.id === "kundenstamm" ||
+        menu.id === "lager"
+    )
+    .map((menu) => ({
+      ...menu,
+      items: menu.items.filter((item) => canAccessSection(item.id)),
+    }));
+}
 
   if (role === "dispo") {
     return sidebarMenus
@@ -557,6 +850,123 @@ const visibleSidebarMenus = useMemo(() => {
   };
 
 
+  const loadSuppliers = async () => {
+    try {
+      setSuppliersLoading(true);
+
+      const response = await apiFetch("/inventory-api/suppliers/");
+      const data = (await response.json()) as Supplier[];
+
+      setSuppliers(data);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Fehler beim Laden der Lieferanten.";
+      setError(message);
+    } finally {
+      setSuppliersLoading(false);
+    }
+  };
+
+  const loadCustomers = async () => {
+    try {
+      setCustomersLoading(true);
+      const response = await apiFetch("/inventory-api/customers/");
+      const data = (await response.json()) as Customer[];
+      setCustomers(data);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Fehler beim Laden der Kunden.";
+      setError(message);
+    } finally {
+      setCustomersLoading(false);
+    }
+  };
+
+  const loadCustomerContacts = async () => {
+    try {
+      setCustomerContactsLoading(true);
+      const response = await apiFetch("/inventory-api/customer-contacts/");
+      const data = (await response.json()) as CustomerContact[];
+      setCustomerContacts(data);
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Fehler beim Laden der Ansprechpartner.";
+      setError(message);
+    } finally {
+      setCustomerContactsLoading(false);
+    }
+  };
+
+  const loadDeliveryAddresses = async () => {
+    try {
+      setDeliveryAddressesLoading(true);
+      const response = await apiFetch("/inventory-api/delivery-addresses/");
+      const data = (await response.json()) as DeliveryAddress[];
+      setDeliveryAddresses(data);
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Fehler beim Laden der Lieferadressen.";
+      setError(message);
+    } finally {
+      setDeliveryAddressesLoading(false);
+    }
+  };
+
+  const loadCustomerNotes = async () => {
+    try {
+      setCustomerNotesLoading(true);
+      const response = await apiFetch("/inventory-api/customer-notes/");
+      const data = (await response.json()) as CustomerNote[];
+      setCustomerNotes(data);
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Fehler beim Laden der Kundennotizen.";
+      setError(message);
+    } finally {
+      setCustomerNotesLoading(false);
+    }
+  };
+
+  const loadAdminUsers = async () => {
+    if (role !== "admin") return;
+
+    try {
+      setAdminUsersLoading(true);
+      const response = await apiFetch("/inventory-api/admin-users/");
+      const data = (await response.json()) as AdminUser[];
+      setAdminUsers(data);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Fehler beim Laden der Benutzer.";
+      setError(message);
+    } finally {
+      setAdminUsersLoading(false);
+    }
+  };
+
+  const loadAuditLogs = async () => {
+    if (role !== "admin") return;
+
+    try {
+      setAuditLogsLoading(true);
+      const response = await apiFetch("/inventory-api/audit-logs/");
+      const data = (await response.json()) as AuditLog[];
+      setAuditLogs(data);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Fehler beim Laden des Systemprotokolls.";
+      setError(message);
+    } finally {
+      setAuditLogsLoading(false);
+    }
+  };
+
   const loadMovements = async () => {
     try {
       setMovementsLoading(true);
@@ -614,8 +1024,20 @@ const visibleSidebarMenus = useMemo(() => {
     void loadMovements();
     void loadInventorySessions();
     void loadStorageLocations();
+    void loadSuppliers();
+    void loadCustomers();
+    void loadCustomerContacts();
+    void loadDeliveryAddresses();
+    void loadCustomerNotes();
     }
     }, [loggedIn]);
+
+  useEffect(() => {
+    if (loggedIn && role === "admin") {
+      void loadAdminUsers();
+      void loadAuditLogs();
+    }
+  }, [loggedIn, role]);
 
   useEffect(() => {
     if (loggedIn && selectedInventorySessionId) {
@@ -655,6 +1077,10 @@ const visibleSidebarMenus = useMemo(() => {
   const selectedInventoryProduct = useMemo(() => {
     return products.find((product) => String(product.id) === inventoryProductId) ?? null;
   }, [products, inventoryProductId]);
+
+  const selectedCorrectionProduct = useMemo(() => {
+    return products.find((product) => String(product.id) === correctionProductId) ?? null;
+  }, [products, correctionProductId]);
 
   const countedProductIds = useMemo(() => {
     return new Set(inventoryCounts.map((count) => count.product));
@@ -704,7 +1130,474 @@ const visibleSidebarMenus = useMemo(() => {
     (movement) => movement.movement_type === "OUT" && new Date(movement.created_at).toDateString() === todayKey
   ).length;
   const latestMovement = movements[0] ?? null;
+  const correctionMovements = useMemo(() => {
+    return movements.filter((movement) => {
+      const reference = (movement.reference_number ?? "").toLowerCase();
+      const note = (movement.note ?? "").toLowerCase();
+
+      return reference.startsWith("korr") || note.includes("lagerkorrektur");
+    });
+  }, [movements]);
+
   const canShowProductOverview = ["product", "stock-overview", "min-stock"].includes(activeSection);
+
+  const handleSupplierChange = (
+    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const { name, value } = event.target;
+
+    setSupplierForm((current) => ({
+      ...current,
+      [name]: value,
+    }));
+  };
+
+  const handleCreateSupplier = async (event: FormEvent) => {
+    event.preventDefault();
+
+    if (!(role === "admin" || role === "einkauf")) {
+      setError("Nur Admin oder Einkauf dürfen Lieferanten anlegen.");
+      return;
+    }
+
+    if (!supplierForm.name.trim()) {
+      setError("Bitte einen Lieferantennamen eintragen.");
+      return;
+    }
+
+    try {
+      setSupplierSaving(true);
+      setError("");
+      setSuccess("");
+
+      const payload = {
+        ...supplierForm,
+        supplier_number: supplierForm.supplier_number.trim() || null,
+      };
+
+      const response = await apiFetch("/inventory-api/suppliers/", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+
+        if (errorData.supplier_number) {
+          throw new Error(
+            "Diese Lieferantennummer existiert bereits. Bitte eine andere Nummer verwenden."
+          );
+        }
+
+        throw new Error(JSON.stringify(errorData));
+      }
+
+      setSupplierForm(initialSupplierForm);
+      await loadSuppliers();
+
+      setSuccess("🚚 Lieferant erfolgreich angelegt.");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Fehler beim Anlegen des Lieferanten.";
+      setError(message);
+    } finally {
+      setSupplierSaving(false);
+    }
+  };
+
+  const canManageCustomerMaster = role === "admin" || role === "einkauf";
+
+  const handleCustomerChange = (
+    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const { name, value } = event.target;
+    setCustomerForm((current) => ({ ...current, [name]: value }));
+  };
+
+  const handleCreateCustomer = async (event: FormEvent) => {
+    event.preventDefault();
+
+    if (!canManageCustomerMaster) {
+      setError("Nur Admin oder Einkauf dürfen Kunden anlegen.");
+      return;
+    }
+
+    if (!customerForm.name.trim()) {
+      setError("Bitte einen Kundennamen eintragen.");
+      return;
+    }
+
+    try {
+      setCustomerSaving(true);
+      setError("");
+      setSuccess("");
+
+      const payload = {
+        ...customerForm,
+        customer_number: customerForm.customer_number.trim() || null,
+      };
+
+      const response = await apiFetch("/inventory-api/customers/", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+
+        if (errorData.customer_number) {
+          throw new Error(
+            "Diese Kundennummer existiert bereits. Bitte eine andere Nummer verwenden."
+          );
+        }
+
+        throw new Error(JSON.stringify(errorData));
+      }
+
+      setCustomerForm(initialCustomerForm);
+      await loadCustomers();
+      setSuccess("👥 Kunde erfolgreich angelegt.");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Fehler beim Anlegen des Kunden.";
+      setError(message);
+    } finally {
+      setCustomerSaving(false);
+    }
+  };
+
+  const handleCustomerContactChange = (
+    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = event.target;
+    setCustomerContactForm((current) => ({ ...current, [name]: value }));
+  };
+
+  const handleCreateCustomerContact = async (event: FormEvent) => {
+    event.preventDefault();
+
+    if (!canManageCustomerMaster) {
+      setError("Nur Admin oder Einkauf dürfen Ansprechpartner anlegen.");
+      return;
+    }
+
+    if (!customerContactForm.customer) {
+      setError("Bitte einen Kunden auswählen.");
+      return;
+    }
+
+    if (!customerContactForm.last_name.trim()) {
+      setError("Bitte mindestens einen Nachnamen eintragen.");
+      return;
+    }
+
+    try {
+      setCustomerContactSaving(true);
+      setError("");
+      setSuccess("");
+
+      const response = await apiFetch("/inventory-api/customer-contacts/", {
+        method: "POST",
+        body: JSON.stringify({
+          ...customerContactForm,
+          customer: Number(customerContactForm.customer),
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(JSON.stringify(errorData));
+      }
+
+      setCustomerContactForm(initialCustomerContactForm);
+      await loadCustomerContacts();
+      await loadCustomers();
+      setSuccess("☎️ Ansprechpartner erfolgreich angelegt.");
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Fehler beim Anlegen des Ansprechpartners.";
+      setError(message);
+    } finally {
+      setCustomerContactSaving(false);
+    }
+  };
+
+  const handleDeliveryAddressChange = (
+    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = event.target;
+    setDeliveryAddressForm((current) => ({ ...current, [name]: value }));
+  };
+
+  const handleCreateDeliveryAddress = async (event: FormEvent) => {
+    event.preventDefault();
+
+    if (!canManageCustomerMaster) {
+      setError("Nur Admin oder Einkauf dürfen Lieferadressen anlegen.");
+      return;
+    }
+
+    if (!deliveryAddressForm.customer) {
+      setError("Bitte einen Kunden auswählen.");
+      return;
+    }
+
+    if (!deliveryAddressForm.street.trim()) {
+      setError("Bitte eine Straße eintragen.");
+      return;
+    }
+
+    if (!deliveryAddressForm.postal_code.trim() || !deliveryAddressForm.city.trim()) {
+      setError("Bitte PLZ und Ort eintragen.");
+      return;
+    }
+
+    try {
+      setDeliveryAddressSaving(true);
+      setError("");
+      setSuccess("");
+
+      const response = await apiFetch("/inventory-api/delivery-addresses/", {
+        method: "POST",
+        body: JSON.stringify({
+          ...deliveryAddressForm,
+          customer: Number(deliveryAddressForm.customer),
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(JSON.stringify(errorData));
+      }
+
+      setDeliveryAddressForm(initialDeliveryAddressForm);
+      await loadDeliveryAddresses();
+      await loadCustomers();
+      setSuccess("📦 Lieferadresse erfolgreich angelegt.");
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Fehler beim Anlegen der Lieferadresse.";
+      setError(message);
+    } finally {
+      setDeliveryAddressSaving(false);
+    }
+  };
+
+  const handleCustomerNoteChange = (
+    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = event.target;
+    setCustomerNoteForm((current) => ({ ...current, [name]: value }));
+  };
+
+  const handleCreateCustomerNote = async (event: FormEvent) => {
+    event.preventDefault();
+
+    if (!canManageCustomerMaster) {
+      setError("Nur Admin oder Einkauf dürfen Kundennotizen anlegen.");
+      return;
+    }
+
+    if (!customerNoteForm.customer) {
+      setError("Bitte einen Kunden auswählen.");
+      return;
+    }
+
+    if (!customerNoteForm.title.trim() || !customerNoteForm.note.trim()) {
+      setError("Bitte Titel und Notiz eintragen.");
+      return;
+    }
+
+    try {
+      setCustomerNoteSaving(true);
+      setError("");
+      setSuccess("");
+
+      const response = await apiFetch("/inventory-api/customer-notes/", {
+        method: "POST",
+        body: JSON.stringify({
+          ...customerNoteForm,
+          customer: Number(customerNoteForm.customer),
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(JSON.stringify(errorData));
+      }
+
+      setCustomerNoteForm(initialCustomerNoteForm);
+      await loadCustomerNotes();
+      await loadCustomers();
+      setSuccess("📝 Kundennotiz erfolgreich angelegt.");
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Fehler beim Anlegen der Kundennotiz.";
+      setError(message);
+    } finally {
+      setCustomerNoteSaving(false);
+    }
+  };
+
+  const handleAdminUserChange = (
+    event: ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = event.target;
+
+    setAdminUserForm((current) => ({
+      ...current,
+      [name]: value,
+    }));
+  };
+
+  const handleAdminUserActiveChange = (checked: boolean) => {
+    setAdminUserForm((current) => ({
+      ...current,
+      is_active: checked,
+    }));
+  };
+
+  const handleCreateAdminUser = async (event: FormEvent) => {
+    event.preventDefault();
+
+    if (role !== "admin") {
+      setError("Nur Admins dürfen Benutzer anlegen.");
+      return;
+    }
+
+    if (!adminUserForm.username.trim()) {
+      setError("Bitte einen Benutzernamen eintragen.");
+      return;
+    }
+
+    if (!adminUserForm.password.trim()) {
+      setError("Bitte ein Startpasswort eintragen.");
+      return;
+    }
+
+    try {
+      setAdminUserSaving(true);
+      setError("");
+      setSuccess("");
+
+      const response = await apiFetch("/inventory-api/admin-users/", {
+        method: "POST",
+        body: JSON.stringify(adminUserForm),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+
+        if (errorData.username) {
+          throw new Error("Dieser Benutzername existiert bereits.");
+        }
+
+        throw new Error(JSON.stringify(errorData));
+      }
+
+      setAdminUserForm(initialAdminUserForm);
+      await loadAdminUsers();
+      await loadAuditLogs();
+
+      setSuccess("👤 Benutzer erfolgreich angelegt.");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Fehler beim Anlegen des Benutzers.";
+      setError(message);
+    } finally {
+      setAdminUserSaving(false);
+    }
+  };
+
+  const handleUpdateAdminUserRole = async (
+    userId: number,
+    newRole: string
+  ) => {
+    if (role !== "admin") {
+      setError("Nur Admins dürfen Rollen ändern.");
+      return;
+    }
+
+    try {
+      setError("");
+      setSuccess("");
+
+      const response = await apiFetch(`/inventory-api/admin-users/${userId}/`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          role: newRole,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(JSON.stringify(errorData));
+      }
+
+      await loadAdminUsers();
+      await loadAuditLogs();
+
+      setSuccess("🔐 Rolle erfolgreich aktualisiert.");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Fehler beim Ändern der Rolle.";
+      setError(message);
+    }
+  };
+
+  const handleToggleAdminUserActive = async (
+    userId: number,
+    isActive: boolean,
+    username: string
+  ) => {
+    if (role !== "admin") {
+      setError("Nur Admins dürfen Benutzer aktivieren oder deaktivieren.");
+      return;
+    }
+
+    if (user?.username === username && !isActive) {
+      setError("Du kannst deinen eigenen aktuell angemeldeten Benutzer nicht deaktivieren.");
+      return;
+    }
+
+    try {
+      setError("");
+      setSuccess("");
+
+      const response = await apiFetch(`/inventory-api/admin-users/${userId}/`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          is_active: isActive,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(JSON.stringify(errorData));
+      }
+
+      await loadAdminUsers();
+      await loadAuditLogs();
+
+      setSuccess(
+        isActive
+          ? "✅ Benutzer wurde aktiviert."
+          : "⛔ Benutzer wurde deaktiviert."
+      );
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Fehler beim Ändern des Benutzerstatus.";
+      setError(message);
+    }
+  };
 
   const handleCreatePurchaseOrderDraft = (product: ReorderSuggestion) => {
     if (!canWrite) {
@@ -1090,6 +1983,91 @@ const visibleSidebarMenus = useMemo(() => {
 
   };
 
+  const handleStockCorrection = async (event: FormEvent) => {
+    event.preventDefault();
+
+    if (!hasPermission("lager")) {
+      setError("Nur-Lese-Modus: Du kannst Lagerkorrekturen ansehen, aber nicht buchen.");
+      return;
+    }
+
+    if (!selectedCorrectionProduct) {
+      setError("Bitte ein Produkt für die Lagerkorrektur auswählen.");
+      return;
+    }
+
+    if (correctionTargetQuantity === "" || Number(correctionTargetQuantity) < 0) {
+      setError("Der Zielbestand muss 0 oder größer sein.");
+      return;
+    }
+
+    if (!correctionReason.trim()) {
+      setError("Bitte eine Begründung für die Lagerkorrektur eintragen.");
+      return;
+    }
+
+    const targetQuantity = Number(correctionTargetQuantity);
+    const currentQuantity = selectedCorrectionProduct.quantity;
+    const difference = targetQuantity - currentQuantity;
+
+    if (difference === 0) {
+      setError("Keine Lagerkorrektur notwendig: Zielbestand entspricht dem aktuellen Bestand.");
+      return;
+    }
+
+    const movementType = difference > 0 ? "IN" : "OUT";
+    const movementQuantity = Math.abs(difference);
+
+    const confirmed = window.confirm(
+      `Lagerkorrektur für "${selectedCorrectionProduct.name}" buchen?\n\nAktueller Bestand: ${currentQuantity}\nZielbestand: ${targetQuantity}\nDifferenz: ${difference > 0 ? "+" : ""}${difference}`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setCorrectionSaving(true);
+      setError("");
+      setSuccess("");
+
+      const response = await apiFetch("/inventory-api/stock-movements/", {
+        method: "POST",
+        body: JSON.stringify({
+          product: selectedCorrectionProduct.id,
+          movement_type: movementType,
+          quantity: movementQuantity,
+          reference_number:
+            correctionReference.trim() ||
+            `KORR-${new Date().toISOString().slice(0, 10)}-${selectedCorrectionProduct.id}`,
+          note:
+            `Lagerkorrektur: ${correctionReason.trim()}. ` +
+            `Systembestand ${currentQuantity}, Zielbestand ${targetQuantity}, ` +
+            `Differenz ${difference > 0 ? "+" : ""}${difference}.`,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(JSON.stringify(errorData));
+      }
+
+      setCorrectionProductId("");
+      setCorrectionTargetQuantity("");
+      setCorrectionReference("");
+      setCorrectionReason("");
+
+      await loadProducts();
+      await loadMovements();
+
+      setSuccess("🔧 Lagerkorrektur erfolgreich gebucht.");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Fehler beim Buchen der Lagerkorrektur.";
+      setError(message);
+    } finally {
+      setCorrectionSaving(false);
+    }
+  };
+
   const handleCreateInventorySession = async (event: FormEvent) => {
     event.preventDefault();
 
@@ -1418,7 +2396,23 @@ const visibleSidebarMenus = useMemo(() => {
               onApproveDraft={handleApprovePurchaseOrderDraft}
             />
             )}
-            {activeSection === "suppliers" && <PlaceholderSection title="🚚 Lieferanten" text="Hier können später Lieferantenstammdaten, Ansprechpartner und Lieferbedingungen gepflegt werden." />}
+            {activeSection === "suppliers" && (
+              <SuppliersSection
+                suppliers={suppliers}
+                loading={suppliersLoading}
+                form={supplierForm}
+                saving={supplierSaving}
+                canManage={role === "admin" || role === "einkauf"}
+                onChange={handleSupplierChange}
+                onToggleActive={(checked) =>
+                  setSupplierForm((current) => ({
+                    ...current,
+                    is_active: checked,
+                  }))
+                }
+                onSubmit={handleCreateSupplier}
+              />
+            )}
             {activeSection === "reorder" && (
               <ReorderSection
               suggestions={reorderSuggestions}
@@ -1427,7 +2421,24 @@ const visibleSidebarMenus = useMemo(() => {
               onCreateOrderDraft={handleCreatePurchaseOrderDraft}
             />
             )}
-            {activeSection === "corrections" && <PlaceholderSection title="🔧 Lagerkorrekturen" text="Hier können später manuelle Lagerkorrekturen mit Begründung und Audit-Log gebucht werden." />}
+            {activeSection === "corrections" && (
+              <StockCorrectionsSection
+                products={products}
+                selectedProduct={selectedCorrectionProduct}
+                correctionProductId={correctionProductId}
+                setCorrectionProductId={setCorrectionProductId}
+                correctionTargetQuantity={correctionTargetQuantity}
+                setCorrectionTargetQuantity={setCorrectionTargetQuantity}
+                correctionReference={correctionReference}
+                setCorrectionReference={setCorrectionReference}
+                correctionReason={correctionReason}
+                setCorrectionReason={setCorrectionReason}
+                correctionSaving={correctionSaving}
+                correctionMovements={correctionMovements}
+                canManage={hasPermission("lager")}
+                onSubmit={handleStockCorrection}
+              />
+            )}
         
           {activeSection === "locations" && (
           <StorageLocationsSection
@@ -1450,12 +2461,103 @@ const visibleSidebarMenus = useMemo(() => {
 
 
 
-            {activeSection === "customers" && <PlaceholderSection title="👥 Kundenliste" text="Hier kann später ein Kundenstamm mit Kundendaten, Kundennummern und Status entstehen." />}
-            {activeSection === "contacts" && <PlaceholderSection title="☎️ Ansprechpartner" text="Hier können später Ansprechpartner je Kunde verwaltet werden." />}
-            {activeSection === "addresses" && <PlaceholderSection title="📦 Lieferadressen" text="Hier können später abweichende Lieferadressen je Kunde gepflegt werden." />}
-            {activeSection === "customer-notes" && <PlaceholderSection title="📝 Kundennotizen" text="Hier können später Notizen, Hinweise und interne Kundeninformationen gepflegt werden." />}
-            {activeSection === "admin-users" && <PlaceholderSection title="👤 Benutzer anlegen" text="Hier kann später eine Benutzerverwaltung im Frontend entstehen. Aktuell erfolgt dies über Django Admin." />}
-            {activeSection === "admin-rights" && <PlaceholderSection title="🔐 Rollen & Zugriffsrechte" text="Hier können später Modulrechte für Einkauf, Dispo, Lager und Kundenstamm gepflegt werden." />}
+            {activeSection === "customers" && (
+              <CustomersSection
+                customers={customers}
+                loading={customersLoading}
+                form={customerForm}
+                saving={customerSaving}
+                canManage={canManageCustomerMaster}
+                onChange={handleCustomerChange}
+                onToggleActive={(checked) =>
+                  setCustomerForm((current) => ({
+                    ...current,
+                    is_active: checked,
+                  }))
+                }
+                onSubmit={handleCreateCustomer}
+              />
+            )}
+            {activeSection === "contacts" && (
+              <CustomerContactsSection
+                customers={customers}
+                contacts={customerContacts}
+                loading={customerContactsLoading}
+                form={customerContactForm}
+                saving={customerContactSaving}
+                canManage={canManageCustomerMaster}
+                onChange={handleCustomerContactChange}
+                onTogglePrimary={(checked) =>
+                  setCustomerContactForm((current) => ({
+                    ...current,
+                    is_primary: checked,
+                  }))
+                }
+                onToggleActive={(checked) =>
+                  setCustomerContactForm((current) => ({
+                    ...current,
+                    is_active: checked,
+                  }))
+                }
+                onSubmit={handleCreateCustomerContact}
+              />
+            )}
+            {activeSection === "addresses" && (
+              <DeliveryAddressesSection
+                customers={customers}
+                addresses={deliveryAddresses}
+                loading={deliveryAddressesLoading}
+                form={deliveryAddressForm}
+                saving={deliveryAddressSaving}
+                canManage={canManageCustomerMaster}
+                onChange={handleDeliveryAddressChange}
+                onToggleDefault={(checked) =>
+                  setDeliveryAddressForm((current) => ({
+                    ...current,
+                    is_default: checked,
+                  }))
+                }
+                onToggleActive={(checked) =>
+                  setDeliveryAddressForm((current) => ({
+                    ...current,
+                    is_active: checked,
+                  }))
+                }
+                onSubmit={handleCreateDeliveryAddress}
+              />
+            )}
+            {activeSection === "customer-notes" && (
+              <CustomerNotesSection
+                customers={customers}
+                notes={customerNotes}
+                loading={customerNotesLoading}
+                form={customerNoteForm}
+                saving={customerNoteSaving}
+                canManage={canManageCustomerMaster}
+                onChange={handleCustomerNoteChange}
+                onSubmit={handleCreateCustomerNote}
+              />
+            )}
+            {activeSection === "admin-users" && (
+              <AdminUsersSection
+                users={adminUsers}
+                loading={adminUsersLoading}
+                form={adminUserForm}
+                saving={adminUserSaving}
+                canManage={role === "admin"}
+                onChange={handleAdminUserChange}
+                onToggleActive={handleAdminUserActiveChange}
+                onToggleUserActive={handleToggleAdminUserActive}
+                onSubmit={handleCreateAdminUser}
+              />
+            )}
+            {activeSection === "admin-rights" && (
+              <RoleRightsSection
+                users={adminUsers}
+                canManage={role === "admin"}
+                onChangeUserRole={handleUpdateAdminUserRole}
+              />
+            )}
             {activeSection === "admin-locations" && (
               <StorageLocationsSection
                 title="📍 Lagerorte anlegen"
@@ -1476,7 +2578,13 @@ const visibleSidebarMenus = useMemo(() => {
             )}
 
 
-            {activeSection === "admin-audit" && <PlaceholderSection title="🧾 Systemprotokoll" text="Hier kann später nachvollzogen werden, welcher Benutzer welche Änderung durchgeführt hat." />}
+            {activeSection === "admin-audit" && (
+              <AuditLogSection
+                logs={auditLogs}
+                loading={auditLogsLoading}
+                canView={role === "admin"}
+              />
+            )}
 
             {activeSection === "product" && (
              <ProductFormSection
@@ -1744,21 +2852,1261 @@ function OrdersSection({
   );
 }
 
-function PlaceholderSection({ title, text }: { title: string; text: string }) {
+function AdminUsersSection({
+  users,
+  loading,
+  form,
+  saving,
+  canManage,
+  onChange,
+  onToggleActive,
+  onToggleUserActive,
+  onSubmit,
+}: {
+  users: AdminUser[];
+  loading: boolean;
+  form: AdminUserForm;
+  saving: boolean;
+  canManage: boolean;
+  onChange: (event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
+  onToggleActive: (checked: boolean) => void;
+  onToggleUserActive: (
+    userId: number,
+    isActive: boolean,
+    username: string
+  ) => void;
+  onSubmit: (event: FormEvent) => void;
+}) {
+  const activeUsers = users.filter((user) => user.is_active);
+
+  const roleOptions = [
+    { value: "viewer", label: "Viewer / Recruiter" },
+    { value: "lager", label: "Lager" },
+    { value: "einkauf", label: "Einkauf" },
+    { value: "dispo", label: "Dispo" },
+    { value: "admin", label: "Admin" },
+  ];
+
   return (
     <section style={sectionStyle}>
-      <div style={placeholderHeaderStyle}>
-        <h2 style={{ ...sectionTitleStyle, marginBottom: 0 }}>{title}</h2>
-        <span style={placeholderBadgeStyle}>Modul vorbereitet</span>
+      <h2 style={sectionTitleStyle}>👤 Benutzer anlegen</h2>
+
+      <p style={infoStyle}>
+        Benutzerverwaltung für Demo-Zugänge. Neue Benutzer können direkt mit
+        Rolle und Aktiv/Inaktiv-Status angelegt werden. Bestehende Rollen werden
+        hier nur angezeigt; ändern kannst du sie unter Rollen & Zugriffsrechte.
+      </p>
+
+      <div style={dashboardGridStyle}>
+        <Card title="Benutzer gesamt" value={String(users.length)} />
+        <Card title="Aktive Benutzer" value={String(activeUsers.length)} />
       </div>
-      <p style={infoStyle}>{text}</p>
-      <div style={placeholderBoxStyle}>
-        <strong>Geplanter Ausbau</strong>
-        <p style={{ marginTop: "8px", color: "#cbd5e1" }}>
-          Dieser Bereich ist bereits in der ERP-Navigation vorbereitet und kann später mit eigenen
-          Datenmodellen, Formularen, Tabellen, Rollenrechten und Exportfunktionen erweitert werden.
+
+      {canManage ? (
+        <form
+          onSubmit={onSubmit}
+          style={{ ...formGridStyle, marginTop: "22px", marginBottom: "24px" }}
+        >
+          <input
+            name="username"
+            placeholder="Benutzername"
+            value={form.username}
+            onChange={onChange}
+            style={inputStyle}
+          />
+
+          <input
+            name="password"
+            type="password"
+            placeholder="Startpasswort"
+            value={form.password}
+            onChange={onChange}
+            style={inputStyle}
+          />
+
+          <input
+            name="email"
+            placeholder="E-Mail"
+            value={form.email}
+            onChange={onChange}
+            style={inputStyle}
+          />
+
+          <input
+            name="first_name"
+            placeholder="Vorname"
+            value={form.first_name}
+            onChange={onChange}
+            style={inputStyle}
+          />
+
+          <input
+            name="last_name"
+            placeholder="Nachname"
+            value={form.last_name}
+            onChange={onChange}
+            style={inputStyle}
+          />
+
+          <select
+            name="role"
+            value={form.role}
+            onChange={onChange}
+            style={inputStyle}
+          >
+            {roleOptions.map((roleOption) => (
+              <option key={roleOption.value} value={roleOption.value}>
+                {roleOption.label}
+              </option>
+            ))}
+          </select>
+
+          <label style={checkboxLabelStyle}>
+            <input
+              type="checkbox"
+              checked={form.is_active}
+              onChange={(event) => onToggleActive(event.target.checked)}
+            />
+            Benutzer aktiv anlegen
+          </label>
+
+          <button type="submit" disabled={saving} style={primaryButtonStyle}>
+            {saving ? "Speichere..." : "Benutzer anlegen"}
+          </button>
+        </form>
+      ) : (
+        <p style={infoStyle}>
+          Nur Admins dürfen Benutzer anlegen.
         </p>
+      )}
+
+      {loading && <p>Lade Benutzer...</p>}
+
+      {!loading && users.length > 0 && (
+        <div style={{ ...tableWrapStyle, marginTop: "22px" }}>
+          <table style={dataTableStyle}>
+            <thead>
+              <tr style={tableHeaderRowStyle}>
+                <th style={tableHeadStyle}>Benutzername</th>
+                <th style={tableHeadStyle}>Name</th>
+                <th style={tableHeadStyle}>E-Mail</th>
+                <th style={tableHeadStyle}>Rolle</th>
+                <th style={tableHeadStyle}>Aktiv / Inaktiv</th>
+                <th style={tableHeadStyle}>Staff</th>
+                <th style={tableHeadStyle}>Erstellt</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {users.map((user) => (
+                <tr
+                  key={user.id}
+                  style={{
+                    borderTop: "1px solid rgba(148, 163, 184, 0.12)",
+                    background: user.is_active
+                      ? "rgba(22,101,52,0.06)"
+                      : "rgba(127,29,29,0.08)",
+                  }}
+                >
+                  <td style={tableCellStyle}>{user.username}</td>
+
+                  <td style={tableCellStyle}>
+                    {[user.first_name, user.last_name].filter(Boolean).join(" ") ||
+                      "—"}
+                  </td>
+
+                  <td style={tableCellStyle}>{user.email || "—"}</td>
+
+                  <td style={tableCellStyle}>
+                    <strong>{user.role}</strong>
+                  </td>
+
+                  <td style={tableCellStyle}>
+                    <label style={checkboxLabelStyle}>
+                      <input
+                        type="checkbox"
+                        checked={user.is_active}
+                        disabled={!canManage}
+                        onChange={(event) =>
+                          onToggleUserActive(
+                            user.id,
+                            event.target.checked,
+                            user.username
+                          )
+                        }
+                      />
+                      {user.is_active ? "Aktiv" : "Inaktiv"}
+                    </label>
+                  </td>
+
+                  <td style={tableCellStyle}>{user.is_staff ? "✅ Ja" : "—"}</td>
+
+                  <td style={tableCellStyle}>
+                    {new Date(user.date_joined).toLocaleString("de-DE")}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {!loading && users.length === 0 && <p>Noch keine Benutzer vorhanden.</p>}
+    </section>
+  );
+}
+
+
+function RoleRightsSection({
+  users,
+  canManage,
+  onChangeUserRole,
+}: {
+  users: AdminUser[];
+  canManage: boolean;
+  onChangeUserRole: (userId: number, newRole: string) => void;
+}) {
+  const roleOptions = [
+    { value: "admin", label: "Admin" },
+    { value: "lager", label: "Lager" },
+    { value: "einkauf", label: "Einkauf" },
+    { value: "dispo", label: "Dispo" },
+    { value: "viewer", label: "Viewer / Recruiter" },
+  ];
+
+  const roleCounts = users.reduce<Record<string, number>>((acc, user) => {
+    acc[user.role] = (acc[user.role] || 0) + 1;
+    return acc;
+  }, {});
+
+  const rights = [
+    {
+      role: "admin",
+      label: "Admin",
+      access:
+        "Voller Zugriff auf alle Module, Benutzer, Rollen und Systemprotokoll.",
+    },
+    {
+      role: "lager",
+      label: "Lager",
+      access:
+        "Wareneingang, Warenausgang, Lagerorte, Lagerkorrekturen und Bewegungshistorie.",
+    },
+    {
+      role: "einkauf",
+      label: "Einkauf",
+      access:
+        "Einkauf, Lieferanten, Kundenstamm und Lagerkorrekturen nur lesend.",
+    },
+    {
+      role: "dispo",
+      label: "Dispo",
+      access:
+        "Dispo, Bestände, Mindestbestände, Nachbestellvorschläge und Inventuransicht.",
+    },
+    {
+      role: "viewer",
+      label: "Viewer / Recruiter",
+      access: "Alle Bereiche ansehen, aber keine Schreib- oder Buchungsrechte.",
+    },
+  ];
+
+  return (
+    <section style={sectionStyle}>
+      <h2 style={sectionTitleStyle}>🔐 Rollen & Zugriffsrechte</h2>
+
+      <p style={infoStyle}>
+        Rollen können hier direkt je Benutzer angepasst werden. Aktiv/Inaktiv
+        wird ausschließlich unter „Benutzer anlegen“ gepflegt.
+      </p>
+
+      <div style={dashboardGridStyle}>
+        <Card title="Rollen" value={String(rights.length)} />
+        <Card title="Benutzer" value={String(users.length)} />
       </div>
+
+      {!canManage && (
+        <p style={infoStyle}>
+          Nur Admins dürfen Rollen ändern. Diese Seite zeigt die aktuelle
+          Rechte-Struktur lesend an.
+        </p>
+      )}
+
+      <div style={{ ...tableWrapStyle, marginTop: "22px" }}>
+        <table style={dataTableStyle}>
+          <thead>
+            <tr style={tableHeaderRowStyle}>
+              <th style={tableHeadStyle}>Rolle</th>
+              <th style={tableHeadStyle}>Benutzer</th>
+              <th style={tableHeadStyle}>Zugriffsrechte</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {rights.map((right) => (
+              <tr
+                key={right.role}
+                style={{ borderTop: "1px solid rgba(148, 163, 184, 0.12)" }}
+              >
+                <td style={tableCellStyle}>
+                  <strong>{right.label}</strong>
+                </td>
+                <td style={tableCellStyle}>{roleCounts[right.role] || 0}</td>
+                <td style={tableCellStyle}>{right.access}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <h3 style={{ color: "#bfdbfe", marginTop: "26px" }}>
+        Benutzerrollen bearbeiten
+      </h3>
+
+      <div style={{ ...tableWrapStyle, marginTop: "14px" }}>
+        <table style={dataTableStyle}>
+          <thead>
+            <tr style={tableHeaderRowStyle}>
+              <th style={tableHeadStyle}>Benutzer</th>
+              <th style={tableHeadStyle}>Aktuelle Rolle</th>
+              <th style={tableHeadStyle}>Neue Rolle</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {users.map((user) => (
+              <tr
+                key={user.id}
+                style={{
+                  borderTop: "1px solid rgba(148, 163, 184, 0.12)",
+                  background: user.is_active
+                    ? "rgba(22,101,52,0.06)"
+                    : "rgba(127,29,29,0.08)",
+                }}
+              >
+                <td style={tableCellStyle}>
+                  <strong>{user.username}</strong>
+                  <br />
+                  <span style={{ color: "#94a3b8" }}>
+                    {[user.first_name, user.last_name].filter(Boolean).join(" ") ||
+                      user.email ||
+                      "—"}
+                  </span>
+                </td>
+
+                <td style={tableCellStyle}>{user.role}</td>
+
+                <td style={tableCellStyle}>
+                  <select
+                    value={user.role}
+                    disabled={!canManage}
+                    onChange={(event) =>
+                      onChangeUserRole(user.id, event.target.value)
+                    }
+                    style={canManage ? inputStyle : disabledButtonStyle}
+                  >
+                    {roleOptions.map((roleOption) => (
+                      <option key={roleOption.value} value={roleOption.value}>
+                        {roleOption.label}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+
+function AuditLogSection({
+  logs,
+  loading,
+  canView,
+}: {
+  logs: AuditLog[];
+  loading: boolean;
+  canView: boolean;
+}) {
+  return (
+    <section style={sectionStyle}>
+      <h2 style={sectionTitleStyle}>🧾 Systemprotokoll</h2>
+
+      <p style={infoStyle}>
+        Nachvollziehbarkeit wichtiger Admin-Aktionen wie Benutzeranlage und
+        Rollenänderungen.
+      </p>
+
+      {!canView && (
+        <p style={infoStyle}>
+          Nur Admins dürfen das Systemprotokoll ansehen.
+        </p>
+      )}
+
+      {canView && (
+        <>
+          <div style={dashboardGridStyle}>
+            <Card title="Protokolleinträge" value={String(logs.length)} />
+          </div>
+
+          {loading && <p>Lade Systemprotokoll...</p>}
+
+          {!loading && logs.length === 0 && (
+            <p>Noch keine Protokolleinträge vorhanden.</p>
+          )}
+
+          {!loading && logs.length > 0 && (
+            <div style={{ ...tableWrapStyle, marginTop: "22px" }}>
+              <table style={dataTableStyle}>
+                <thead>
+                  <tr style={tableHeaderRowStyle}>
+                    <th style={tableHeadStyle}>Datum</th>
+                    <th style={tableHeadStyle}>Bereich</th>
+                    <th style={tableHeadStyle}>Aktion</th>
+                    <th style={tableHeadStyle}>Objekt</th>
+                    <th style={tableHeadStyle}>Meldung</th>
+                    <th style={tableHeadStyle}>Benutzer</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {logs.map((log) => (
+                    <tr
+                      key={log.id}
+                      style={{ borderTop: "1px solid rgba(148, 163, 184, 0.12)" }}
+                    >
+                      <td style={tableCellStyle}>
+                        {new Date(log.created_at).toLocaleString("de-DE")}
+                      </td>
+                      <td style={tableCellStyle}>{log.area}</td>
+                      <td style={tableCellStyle}>{log.action}</td>
+                      <td style={tableCellStyle}>
+                        {log.object_type || "—"} {log.object_id || ""}
+                      </td>
+                      <td style={tableCellStyle}>{log.message}</td>
+                      <td style={tableCellStyle}>
+                        {log.created_by_username || "System"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      )}
+    </section>
+  );
+}
+
+
+function CustomersSection({
+  customers,
+  loading,
+  form,
+  saving,
+  canManage,
+  onChange,
+  onToggleActive,
+  onSubmit,
+}: {
+  customers: Customer[];
+  loading: boolean;
+  form: CustomerForm;
+  saving: boolean;
+  canManage: boolean;
+  onChange: (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
+  onToggleActive: (checked: boolean) => void;
+  onSubmit: (event: FormEvent) => void;
+}) {
+  const activeCustomers = customers.filter((customer) => customer.is_active);
+
+  return (
+    <section style={sectionStyle}>
+      <h2 style={sectionTitleStyle}>👥 Kundenliste</h2>
+
+      <p style={infoStyle}>
+        Kundenstamm mit Kundennummer, Kontaktinformationen und Status.
+      </p>
+
+      <div style={dashboardGridStyle}>
+        <Card title="Kunden gesamt" value={String(customers.length)} />
+        <Card title="Aktive Kunden" value={String(activeCustomers.length)} />
+      </div>
+
+      {canManage ? (
+        <form
+          onSubmit={onSubmit}
+          style={{ ...formGridStyle, marginTop: "22px", marginBottom: "24px" }}
+        >
+          <input name="name" placeholder="Kundenname" value={form.name} onChange={onChange} style={inputStyle} />
+          <input name="customer_number" placeholder="Kundennummer" value={form.customer_number} onChange={onChange} style={inputStyle} />
+          <input name="email" placeholder="E-Mail" value={form.email} onChange={onChange} style={inputStyle} />
+          <input name="phone" placeholder="Telefon" value={form.phone} onChange={onChange} style={inputStyle} />
+          <input name="street" placeholder="Straße" value={form.street} onChange={onChange} style={inputStyle} />
+          <input name="postal_code" placeholder="PLZ" value={form.postal_code} onChange={onChange} style={inputStyle} />
+          <input name="city" placeholder="Ort" value={form.city} onChange={onChange} style={inputStyle} />
+          <input name="country" placeholder="Land" value={form.country} onChange={onChange} style={inputStyle} />
+
+          <textarea
+            name="note"
+            placeholder="Notiz"
+            value={form.note}
+            onChange={onChange}
+            style={{ ...inputStyle, minHeight: "80px", gridColumn: "1 / -1" }}
+          />
+
+          <label style={checkboxLabelStyle}>
+            <input type="checkbox" checked={form.is_active} onChange={(event) => onToggleActive(event.target.checked)} />
+            Aktiv
+          </label>
+
+          <button type="submit" disabled={saving} style={primaryButtonStyle}>
+            {saving ? "Speichere..." : "Kunde anlegen"}
+          </button>
+        </form>
+      ) : (
+        <p style={infoStyle}>Nur-Lese-Modus: Kunden können angesehen, aber nicht angelegt oder bearbeitet werden.</p>
+      )}
+
+      {loading && <p>Lade Kunden...</p>}
+      {!loading && customers.length === 0 && <p>Noch keine Kunden vorhanden.</p>}
+
+      {!loading && customers.length > 0 && (
+        <div style={{ ...tableWrapStyle, marginTop: "22px" }}>
+          <table style={dataTableStyle}>
+            <thead>
+              <tr style={tableHeaderRowStyle}>
+                <th style={tableHeadStyle}>Name</th>
+                <th style={tableHeadStyle}>Nummer</th>
+                <th style={tableHeadStyle}>E-Mail</th>
+                <th style={tableHeadStyle}>Telefon</th>
+                <th style={tableHeadStyle}>Ort</th>
+                <th style={tableHeadStyle}>Ansprechpartner</th>
+                <th style={tableHeadStyle}>Lieferadressen</th>
+                <th style={tableHeadStyle}>Notizen</th>
+                <th style={tableHeadStyle}>Status</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {customers.map((customer) => (
+                <tr
+                  key={customer.id}
+                  style={{
+                    borderTop: "1px solid rgba(148, 163, 184, 0.12)",
+                    background: customer.is_active ? "rgba(22,101,52,0.08)" : "rgba(127,29,29,0.08)",
+                  }}
+                >
+                  <td style={tableCellStyle}>{customer.name}</td>
+                  <td style={tableCellStyle}>{customer.customer_number || "—"}</td>
+                  <td style={tableCellStyle}>{customer.email || "—"}</td>
+                  <td style={tableCellStyle}>{customer.phone || "—"}</td>
+                  <td style={tableCellStyle}>{customer.city || "—"}</td>
+                  <td style={tableCellStyle}>{customer.contact_count}</td>
+                  <td style={tableCellStyle}>{customer.delivery_address_count}</td>
+                  <td style={tableCellStyle}>{customer.note_count}</td>
+                  <td style={tableCellStyle}>{customer.is_active ? "✅ Aktiv" : "⛔ Inaktiv"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
+
+function CustomerContactsSection({
+  customers,
+  contacts,
+  loading,
+  form,
+  saving,
+  canManage,
+  onChange,
+  onTogglePrimary,
+  onToggleActive,
+  onSubmit,
+}: {
+  customers: Customer[];
+  contacts: CustomerContact[];
+  loading: boolean;
+  form: CustomerContactForm;
+  saving: boolean;
+  canManage: boolean;
+  onChange: (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void;
+  onTogglePrimary: (checked: boolean) => void;
+  onToggleActive: (checked: boolean) => void;
+  onSubmit: (event: FormEvent) => void;
+}) {
+  return (
+    <section style={sectionStyle}>
+      <h2 style={sectionTitleStyle}>☎️ Ansprechpartner</h2>
+
+      <p style={infoStyle}>Ansprechpartner je Kunde mit Rolle, Telefon und E-Mail.</p>
+
+      <div style={dashboardGridStyle}>
+        <Card title="Ansprechpartner" value={String(contacts.length)} />
+        <Card title="Primäre Kontakte" value={String(contacts.filter((contact) => contact.is_primary).length)} />
+      </div>
+
+      {canManage ? (
+        <form onSubmit={onSubmit} style={{ ...formGridStyle, marginTop: "22px", marginBottom: "24px" }}>
+          <select name="customer" value={form.customer} onChange={onChange} style={inputStyle}>
+            <option value="">Kunde auswählen</option>
+            {customers.map((customer) => (
+              <option key={customer.id} value={customer.id}>{customer.name}</option>
+            ))}
+          </select>
+
+          <input name="first_name" placeholder="Vorname" value={form.first_name} onChange={onChange} style={inputStyle} />
+          <input name="last_name" placeholder="Nachname" value={form.last_name} onChange={onChange} style={inputStyle} />
+          <input name="role" placeholder="Funktion / Rolle" value={form.role} onChange={onChange} style={inputStyle} />
+          <input name="email" placeholder="E-Mail" value={form.email} onChange={onChange} style={inputStyle} />
+          <input name="phone" placeholder="Telefon" value={form.phone} onChange={onChange} style={inputStyle} />
+          <input name="mobile" placeholder="Mobil" value={form.mobile} onChange={onChange} style={inputStyle} />
+
+          <label style={checkboxLabelStyle}>
+            <input type="checkbox" checked={form.is_primary} onChange={(event) => onTogglePrimary(event.target.checked)} />
+            Hauptkontakt
+          </label>
+
+          <label style={checkboxLabelStyle}>
+            <input type="checkbox" checked={form.is_active} onChange={(event) => onToggleActive(event.target.checked)} />
+            Aktiv
+          </label>
+
+          <textarea name="note" placeholder="Notiz" value={form.note} onChange={onChange} style={{ ...inputStyle, minHeight: "80px", gridColumn: "1 / -1" }} />
+
+          <button type="submit" disabled={saving} style={primaryButtonStyle}>
+            {saving ? "Speichere..." : "Ansprechpartner anlegen"}
+          </button>
+        </form>
+      ) : (
+        <p style={infoStyle}>Nur-Lese-Modus: Ansprechpartner können angesehen, aber nicht angelegt werden.</p>
+      )}
+
+      {loading && <p>Lade Ansprechpartner...</p>}
+
+      {!loading && contacts.length > 0 && (
+        <div style={{ ...tableWrapStyle, marginTop: "22px" }}>
+          <table style={dataTableStyle}>
+            <thead>
+              <tr style={tableHeaderRowStyle}>
+                <th style={tableHeadStyle}>Kunde</th>
+                <th style={tableHeadStyle}>Name</th>
+                <th style={tableHeadStyle}>Rolle</th>
+                <th style={tableHeadStyle}>E-Mail</th>
+                <th style={tableHeadStyle}>Telefon</th>
+                <th style={tableHeadStyle}>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {contacts.map((contact) => (
+                <tr key={contact.id} style={{ borderTop: "1px solid rgba(148, 163, 184, 0.12)" }}>
+                  <td style={tableCellStyle}>{contact.customer_name}</td>
+                  <td style={tableCellStyle}>{`${contact.first_name} ${contact.last_name}`.trim()}</td>
+                  <td style={tableCellStyle}>{contact.role || "—"}</td>
+                  <td style={tableCellStyle}>{contact.email || "—"}</td>
+                  <td style={tableCellStyle}>{contact.phone || contact.mobile || "—"}</td>
+                  <td style={tableCellStyle}>{contact.is_primary ? "⭐ Hauptkontakt" : contact.is_active ? "✅ Aktiv" : "⛔ Inaktiv"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {!loading && contacts.length === 0 && <p>Noch keine Ansprechpartner vorhanden.</p>}
+    </section>
+  );
+}
+
+
+function DeliveryAddressesSection({
+  customers,
+  addresses,
+  loading,
+  form,
+  saving,
+  canManage,
+  onChange,
+  onToggleDefault,
+  onToggleActive,
+  onSubmit,
+}: {
+  customers: Customer[];
+  addresses: DeliveryAddress[];
+  loading: boolean;
+  form: DeliveryAddressForm;
+  saving: boolean;
+  canManage: boolean;
+  onChange: (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void;
+  onToggleDefault: (checked: boolean) => void;
+  onToggleActive: (checked: boolean) => void;
+  onSubmit: (event: FormEvent) => void;
+}) {
+  return (
+    <section style={sectionStyle}>
+      <h2 style={sectionTitleStyle}>📦 Lieferadressen</h2>
+
+      <p style={infoStyle}>Abweichende Lieferadressen und Standardadressen je Kunde.</p>
+
+      <div style={dashboardGridStyle}>
+        <Card title="Lieferadressen" value={String(addresses.length)} />
+        <Card title="Standardadressen" value={String(addresses.filter((address) => address.is_default).length)} />
+      </div>
+
+      {canManage ? (
+        <form onSubmit={onSubmit} style={{ ...formGridStyle, marginTop: "22px", marginBottom: "24px" }}>
+          <select name="customer" value={form.customer} onChange={onChange} style={inputStyle}>
+            <option value="">Kunde auswählen</option>
+            {customers.map((customer) => (
+              <option key={customer.id} value={customer.id}>{customer.name}</option>
+            ))}
+          </select>
+
+          <input name="label" placeholder="Bezeichnung z. B. Werk 1" value={form.label} onChange={onChange} style={inputStyle} />
+          <input name="recipient_name" placeholder="Empfängername" value={form.recipient_name} onChange={onChange} style={inputStyle} />
+          <input name="street" placeholder="Straße" value={form.street} onChange={onChange} style={inputStyle} />
+          <input name="postal_code" placeholder="PLZ" value={form.postal_code} onChange={onChange} style={inputStyle} />
+          <input name="city" placeholder="Ort" value={form.city} onChange={onChange} style={inputStyle} />
+          <input name="country" placeholder="Land" value={form.country} onChange={onChange} style={inputStyle} />
+
+          <label style={checkboxLabelStyle}>
+            <input type="checkbox" checked={form.is_default} onChange={(event) => onToggleDefault(event.target.checked)} />
+            Standardadresse
+          </label>
+
+          <label style={checkboxLabelStyle}>
+            <input type="checkbox" checked={form.is_active} onChange={(event) => onToggleActive(event.target.checked)} />
+            Aktiv
+          </label>
+
+          <textarea name="note" placeholder="Notiz" value={form.note} onChange={onChange} style={{ ...inputStyle, minHeight: "80px", gridColumn: "1 / -1" }} />
+
+          <button type="submit" disabled={saving} style={primaryButtonStyle}>
+            {saving ? "Speichere..." : "Lieferadresse anlegen"}
+          </button>
+        </form>
+      ) : (
+        <p style={infoStyle}>Nur-Lese-Modus: Lieferadressen können angesehen, aber nicht angelegt werden.</p>
+      )}
+
+      {loading && <p>Lade Lieferadressen...</p>}
+
+      {!loading && addresses.length > 0 && (
+        <div style={{ ...tableWrapStyle, marginTop: "22px" }}>
+          <table style={dataTableStyle}>
+            <thead>
+              <tr style={tableHeaderRowStyle}>
+                <th style={tableHeadStyle}>Kunde</th>
+                <th style={tableHeadStyle}>Bezeichnung</th>
+                <th style={tableHeadStyle}>Empfänger</th>
+                <th style={tableHeadStyle}>Straße</th>
+                <th style={tableHeadStyle}>PLZ</th>
+                <th style={tableHeadStyle}>Ort</th>
+                <th style={tableHeadStyle}>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {addresses.map((address) => (
+                <tr key={address.id} style={{ borderTop: "1px solid rgba(148, 163, 184, 0.12)" }}>
+                  <td style={tableCellStyle}>{address.customer_name}</td>
+                  <td style={tableCellStyle}>{address.label}</td>
+                  <td style={tableCellStyle}>{address.recipient_name || "—"}</td>
+                  <td style={tableCellStyle}>{address.street}</td>
+                  <td style={tableCellStyle}>{address.postal_code}</td>
+                  <td style={tableCellStyle}>{address.city}</td>
+                  <td style={tableCellStyle}>{address.is_default ? "⭐ Standard" : address.is_active ? "✅ Aktiv" : "⛔ Inaktiv"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {!loading && addresses.length === 0 && <p>Noch keine Lieferadressen vorhanden.</p>}
+    </section>
+  );
+}
+
+
+function CustomerNotesSection({
+  customers,
+  notes,
+  loading,
+  form,
+  saving,
+  canManage,
+  onChange,
+  onSubmit,
+}: {
+  customers: Customer[];
+  notes: CustomerNote[];
+  loading: boolean;
+  form: CustomerNoteForm;
+  saving: boolean;
+  canManage: boolean;
+  onChange: (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void;
+  onSubmit: (event: FormEvent) => void;
+}) {
+  return (
+    <section style={sectionStyle}>
+      <h2 style={sectionTitleStyle}>📝 Kundennotizen</h2>
+
+      <p style={infoStyle}>Interne Notizen, Hinweise und Gesprächsvermerke je Kunde.</p>
+
+      <div style={dashboardGridStyle}>
+        <Card title="Notizen gesamt" value={String(notes.length)} />
+        <Card title="Kunden mit Notizen" value={String(new Set(notes.map((note) => note.customer)).size)} />
+      </div>
+
+      {canManage ? (
+        <form onSubmit={onSubmit} style={{ ...formGridStyle, marginTop: "22px", marginBottom: "24px" }}>
+          <select name="customer" value={form.customer} onChange={onChange} style={inputStyle}>
+            <option value="">Kunde auswählen</option>
+            {customers.map((customer) => (
+              <option key={customer.id} value={customer.id}>{customer.name}</option>
+            ))}
+          </select>
+
+          <input name="title" placeholder="Titel" value={form.title} onChange={onChange} style={inputStyle} />
+
+          <textarea name="note" placeholder="Notiz" value={form.note} onChange={onChange} style={{ ...inputStyle, minHeight: "100px", gridColumn: "1 / -1" }} />
+
+          <button type="submit" disabled={saving} style={primaryButtonStyle}>
+            {saving ? "Speichere..." : "Kundennotiz anlegen"}
+          </button>
+        </form>
+      ) : (
+        <p style={infoStyle}>Nur-Lese-Modus: Kundennotizen können angesehen, aber nicht angelegt werden.</p>
+      )}
+
+      {loading && <p>Lade Kundennotizen...</p>}
+
+      {!loading && notes.length > 0 && (
+        <div style={{ ...tableWrapStyle, marginTop: "22px" }}>
+          <table style={dataTableStyle}>
+            <thead>
+              <tr style={tableHeaderRowStyle}>
+                <th style={tableHeadStyle}>Datum</th>
+                <th style={tableHeadStyle}>Kunde</th>
+                <th style={tableHeadStyle}>Titel</th>
+                <th style={tableHeadStyle}>Notiz</th>
+                <th style={tableHeadStyle}>Erstellt von</th>
+              </tr>
+            </thead>
+            <tbody>
+              {notes.map((note) => (
+                <tr key={note.id} style={{ borderTop: "1px solid rgba(148, 163, 184, 0.12)" }}>
+                  <td style={tableCellStyle}>{new Date(note.created_at).toLocaleString("de-DE")}</td>
+                  <td style={tableCellStyle}>{note.customer_name}</td>
+                  <td style={tableCellStyle}>{note.title}</td>
+                  <td style={tableCellStyle}>{note.note}</td>
+                  <td style={tableCellStyle}>{note.created_by_username || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {!loading && notes.length === 0 && <p>Noch keine Kundennotizen vorhanden.</p>}
+    </section>
+  );
+}
+
+
+function StockCorrectionsSection({
+  products,
+  selectedProduct,
+  correctionProductId,
+  setCorrectionProductId,
+  correctionTargetQuantity,
+  setCorrectionTargetQuantity,
+  correctionReference,
+  setCorrectionReference,
+  correctionReason,
+  setCorrectionReason,
+  correctionSaving,
+  correctionMovements,
+  canManage,
+  onSubmit,
+}: {
+  products: Product[];
+  selectedProduct: Product | null;
+  correctionProductId: string;
+  setCorrectionProductId: (value: string) => void;
+  correctionTargetQuantity: string;
+  setCorrectionTargetQuantity: (value: string) => void;
+  correctionReference: string;
+  setCorrectionReference: (value: string) => void;
+  correctionReason: string;
+  setCorrectionReason: (value: string) => void;
+  correctionSaving: boolean;
+  correctionMovements: StockMovement[];
+  canManage: boolean;
+  onSubmit: (event: FormEvent) => void;
+}) {
+  const targetQuantity =
+    correctionTargetQuantity === "" ? null : Number(correctionTargetQuantity);
+
+  const difference =
+    selectedProduct && targetQuantity !== null
+      ? targetQuantity - selectedProduct.quantity
+      : null;
+
+  return (
+    <section style={sectionStyle}>
+      <h2 style={sectionTitleStyle}>🔧 Lagerkorrekturen</h2>
+
+      <p style={infoStyle}>
+        Manuelle Lagerkorrekturen mit Begründung und Bewegungshistorie. Die
+        Korrektur wird als Wareneingang oder Warenausgang gebucht und bleibt in
+        der Historie nachvollziehbar.
+      </p>
+
+      <div style={dashboardGridStyle}>
+        <Card title="Korrekturbuchungen" value={String(correctionMovements.length)} />
+        <Card
+          title="Aktuelle Differenz"
+          value={difference === null ? "—" : difference > 0 ? `+${difference}` : String(difference)}
+          danger={difference !== null && difference !== 0}
+        />
+      </div>
+
+      {canManage ? (
+        <form
+          onSubmit={onSubmit}
+          style={{ ...formGridStyle, marginTop: "22px", marginBottom: "24px" }}
+        >
+          <select
+            value={correctionProductId}
+            onChange={(event) => setCorrectionProductId(event.target.value)}
+            style={inputStyle}
+          >
+            <option value="">Produkt auswählen</option>
+            {products.map((product) => (
+              <option key={product.id} value={product.id}>
+                {product.name} ({product.sku}) - aktuell: {product.quantity} {product.unit}
+              </option>
+            ))}
+          </select>
+
+          <input
+            type="number"
+            min="0"
+            placeholder="Neuer Zielbestand"
+            value={correctionTargetQuantity}
+            onChange={(event) => setCorrectionTargetQuantity(event.target.value)}
+            style={inputStyle}
+          />
+
+          <input
+            type="text"
+            placeholder="Referenz z. B. KORR-2026-001"
+            value={correctionReference}
+            onChange={(event) => setCorrectionReference(event.target.value)}
+            style={inputStyle}
+          />
+
+          <textarea
+            placeholder="Begründung der Lagerkorrektur"
+            value={correctionReason}
+            onChange={(event) => setCorrectionReason(event.target.value)}
+            style={{
+              ...inputStyle,
+              minHeight: "80px",
+              gridColumn: "1 / -1",
+            }}
+          />
+
+          {selectedProduct && (
+            <p style={{ ...infoStyle, gridColumn: "1 / -1" }}>
+              Produkt: <strong>{selectedProduct.name}</strong> | Aktueller Bestand:{" "}
+              <strong>{selectedProduct.quantity} {selectedProduct.unit}</strong>
+              {difference !== null && (
+                <>
+                  {" "} | Differenz:{" "}
+                  <strong>{difference > 0 ? `+${difference}` : difference}</strong>
+                </>
+              )}
+            </p>
+          )}
+
+          <button
+            type="submit"
+            disabled={correctionSaving}
+            style={primaryButtonStyle}
+          >
+            {correctionSaving ? "Buche..." : "Lagerkorrektur buchen"}
+          </button>
+        </form>
+      ) : (
+        <p style={infoStyle}>
+          Nur-Lese-Modus: Lagerkorrekturen können angesehen, aber nicht gebucht
+          werden.
+        </p>
+      )}
+
+      {correctionMovements.length === 0 ? (
+        <p>Noch keine Lagerkorrekturen vorhanden.</p>
+      ) : (
+        <div style={{ ...tableWrapStyle, marginTop: "22px" }}>
+          <table style={dataTableStyle}>
+            <thead>
+              <tr style={tableHeaderRowStyle}>
+                <th style={tableHeadStyle}>Datum</th>
+                <th style={tableHeadStyle}>Produkt</th>
+                <th style={tableHeadStyle}>Typ</th>
+                <th style={tableHeadStyle}>Menge</th>
+                <th style={tableHeadStyle}>Referenz</th>
+                <th style={tableHeadStyle}>Begründung</th>
+                <th style={tableHeadStyle}>Benutzer</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {correctionMovements.map((movement) => {
+                const isIn = movement.movement_type === "IN";
+
+                return (
+                  <tr
+                    key={movement.id}
+                    style={{
+                      borderTop: "1px solid rgba(148, 163, 184, 0.12)",
+                      background: isIn
+                        ? "rgba(22,101,52,0.08)"
+                        : "rgba(127,29,29,0.08)",
+                    }}
+                  >
+                    <td style={tableCellStyle}>
+                      {new Date(movement.created_at).toLocaleString("de-DE")}
+                    </td>
+                    <td style={tableCellStyle}>{movement.product_name}</td>
+                    <td style={tableCellStyle}>
+                      {isIn ? "Bestandserhöhung" : "Bestandsreduzierung"}
+                    </td>
+                    <td style={tableCellStyle}>
+                      {isIn ? "+" : "-"}{movement.quantity}
+                    </td>
+                    <td style={tableCellStyle}>{movement.reference_number || "—"}</td>
+                    <td style={tableCellStyle}>{movement.note || "—"}</td>
+                    <td style={tableCellStyle}>
+                      {movement.created_by_username || "—"}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function SuppliersSection({
+  suppliers,
+  loading,
+  form,
+  saving,
+  canManage,
+  onChange,
+  onToggleActive,
+  onSubmit,
+}: {
+  suppliers: Supplier[];
+  loading: boolean;
+  form: SupplierForm;
+  saving: boolean;
+  canManage: boolean;
+  onChange: (
+    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => void;
+  onToggleActive: (checked: boolean) => void;
+  onSubmit: (event: FormEvent) => void;
+}) {
+  const activeSuppliers = suppliers.filter((supplier) => supplier.is_active);
+
+  return (
+    <section style={sectionStyle}>
+      <h2 style={sectionTitleStyle}>🚚 Lieferanten</h2>
+
+      <p style={infoStyle}>
+        Verwaltung von Lieferanten, Ansprechpartnern und Kontaktdaten für den
+        Einkaufsprozess.
+      </p>
+
+      <div style={dashboardGridStyle}>
+        <Card title="Lieferanten gesamt" value={String(suppliers.length)} />
+        <Card title="Aktive Lieferanten" value={String(activeSuppliers.length)} />
+      </div>
+
+      {canManage && (
+        <form
+          onSubmit={onSubmit}
+          style={{ ...formGridStyle, marginTop: "22px", marginBottom: "24px" }}
+        >
+          <input
+            name="name"
+            placeholder="Lieferantenname"
+            value={form.name}
+            onChange={onChange}
+            style={inputStyle}
+          />
+
+          <input
+            name="supplier_number"
+            placeholder="Lieferantennummer"
+            value={form.supplier_number}
+            onChange={onChange}
+            style={inputStyle}
+          />
+
+          <input
+            name="contact_person"
+            placeholder="Ansprechpartner"
+            value={form.contact_person}
+            onChange={onChange}
+            style={inputStyle}
+          />
+
+          <input
+            name="email"
+            placeholder="E-Mail"
+            value={form.email}
+            onChange={onChange}
+            style={inputStyle}
+          />
+
+          <input
+            name="phone"
+            placeholder="Telefon"
+            value={form.phone}
+            onChange={onChange}
+            style={inputStyle}
+          />
+
+          <input
+            name="street"
+            placeholder="Straße"
+            value={form.street}
+            onChange={onChange}
+            style={inputStyle}
+          />
+
+          <input
+            name="postal_code"
+            placeholder="PLZ"
+            value={form.postal_code}
+            onChange={onChange}
+            style={inputStyle}
+          />
+
+          <input
+            name="city"
+            placeholder="Ort"
+            value={form.city}
+            onChange={onChange}
+            style={inputStyle}
+          />
+
+          <input
+            name="country"
+            placeholder="Land"
+            value={form.country}
+            onChange={onChange}
+            style={inputStyle}
+          />
+
+          <textarea
+            name="note"
+            placeholder="Notiz"
+            value={form.note}
+            onChange={onChange}
+            style={{
+              ...inputStyle,
+              minHeight: "80px",
+              gridColumn: "1 / -1",
+            }}
+          />
+
+          <label style={checkboxLabelStyle}>
+            <input
+              type="checkbox"
+              checked={form.is_active}
+              onChange={(event) => onToggleActive(event.target.checked)}
+            />
+            Aktiv
+          </label>
+
+          <button type="submit" disabled={saving} style={primaryButtonStyle}>
+            {saving ? "Speichere..." : "Lieferant anlegen"}
+          </button>
+        </form>
+      )}
+
+      {!canManage && (
+        <p style={infoStyle}>
+          Nur-Lese-Modus: Lieferanten können angesehen, aber nicht angelegt oder
+          bearbeitet werden.
+        </p>
+      )}
+
+      {loading && <p>Lade Lieferanten...</p>}
+
+      {!loading && suppliers.length === 0 && (
+        <p>Noch keine Lieferanten vorhanden.</p>
+      )}
+
+      {!loading && suppliers.length > 0 && (
+        <div style={{ ...tableWrapStyle, marginTop: "22px" }}>
+          <table style={dataTableStyle}>
+            <thead>
+              <tr style={tableHeaderRowStyle}>
+                <th style={tableHeadStyle}>Name</th>
+                <th style={tableHeadStyle}>Nummer</th>
+                <th style={tableHeadStyle}>Ansprechpartner</th>
+                <th style={tableHeadStyle}>E-Mail</th>
+                <th style={tableHeadStyle}>Telefon</th>
+                <th style={tableHeadStyle}>Ort</th>
+                <th style={tableHeadStyle}>Status</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {suppliers.map((supplier) => (
+                <tr
+                  key={supplier.id}
+                  style={{
+                    borderTop: "1px solid rgba(148, 163, 184, 0.12)",
+                    background: supplier.is_active
+                      ? "rgba(22,101,52,0.08)"
+                      : "rgba(127,29,29,0.08)",
+                  }}
+                >
+                  <td style={tableCellStyle}>{supplier.name}</td>
+                  <td style={tableCellStyle}>{supplier.supplier_number || "—"}</td>
+                  <td style={tableCellStyle}>{supplier.contact_person || "—"}</td>
+                  <td style={tableCellStyle}>{supplier.email || "—"}</td>
+                  <td style={tableCellStyle}>{supplier.phone || "—"}</td>
+                  <td style={tableCellStyle}>{supplier.city || "—"}</td>
+                  <td style={tableCellStyle}>
+                    {supplier.is_active ? "✅ Aktiv" : "⛔ Inaktiv"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </section>
   );
 }

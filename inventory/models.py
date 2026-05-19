@@ -36,6 +36,28 @@ class StorageLocation(models.Model):
 
         return " - ".join(parts)
 
+class Supplier(models.Model):
+    name = models.CharField(max_length=255)
+    supplier_number = models.CharField(max_length=100, blank=True, unique=True, null=True)
+    contact_person = models.CharField(max_length=255, blank=True)
+    email = models.EmailField(blank=True)
+    phone = models.CharField(max_length=80, blank=True)
+    street = models.CharField(max_length=255, blank=True)
+    postal_code = models.CharField(max_length=20, blank=True)
+    city = models.CharField(max_length=120, blank=True)
+    country = models.CharField(max_length=120, blank=True, default="Deutschland")
+    note = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
 
 class Product(models.Model):
     name = models.CharField(max_length=255)
@@ -168,6 +190,132 @@ class InventoryCount(models.Model):
 
     def __str__(self):
         return f"{self.session.title} - {self.product.name}"
+
+
+
+class Customer(models.Model):
+    customer_number = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        unique=True,
+    )
+    name = models.CharField(max_length=255)
+    email = models.EmailField(blank=True)
+    phone = models.CharField(max_length=80, blank=True)
+    street = models.CharField(max_length=255, blank=True)
+    postal_code = models.CharField(max_length=20, blank=True)
+    city = models.CharField(max_length=120, blank=True)
+    country = models.CharField(max_length=120, blank=True, default="Deutschland")
+    note = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+
+class CustomerContact(models.Model):
+    customer = models.ForeignKey(
+        Customer,
+        on_delete=models.CASCADE,
+        related_name="contacts",
+    )
+    first_name = models.CharField(max_length=120, blank=True)
+    last_name = models.CharField(max_length=120)
+    role = models.CharField(max_length=120, blank=True)
+    email = models.EmailField(blank=True)
+    phone = models.CharField(max_length=80, blank=True)
+    mobile = models.CharField(max_length=80, blank=True)
+    is_primary = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+    note = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["customer__name", "last_name", "first_name"]
+
+    def __str__(self):
+        full_name = f"{self.first_name} {self.last_name}".strip()
+        return f"{full_name} - {self.customer.name}"
+
+
+class DeliveryAddress(models.Model):
+    customer = models.ForeignKey(
+        Customer,
+        on_delete=models.CASCADE,
+        related_name="delivery_addresses",
+    )
+    label = models.CharField(max_length=120, default="Standard")
+    recipient_name = models.CharField(max_length=255, blank=True)
+    street = models.CharField(max_length=255)
+    postal_code = models.CharField(max_length=20)
+    city = models.CharField(max_length=120)
+    country = models.CharField(max_length=120, default="Deutschland")
+    is_default = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+    note = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["customer__name", "-is_default", "label"]
+
+    def __str__(self):
+        return f"{self.customer.name} - {self.label}"
+
+
+class CustomerNote(models.Model):
+    customer = models.ForeignKey(
+        Customer,
+        on_delete=models.CASCADE,
+        related_name="notes",
+    )
+    title = models.CharField(max_length=180)
+    note = models.TextField()
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.customer.name} - {self.title}"
+
+
+
+class AuditLog(models.Model):
+    ACTION_CHOICES = [
+        ("CREATE", "Erstellt"),
+        ("UPDATE", "Geändert"),
+        ("DELETE", "Gelöscht"),
+        ("LOGIN", "Login"),
+        ("SYSTEM", "System"),
+    ]
+
+    area = models.CharField(max_length=120, default="System")
+    action = models.CharField(max_length=20, choices=ACTION_CHOICES)
+    object_type = models.CharField(max_length=120, blank=True)
+    object_id = models.CharField(max_length=120, blank=True)
+    message = models.TextField()
+    metadata = models.JSONField(default=dict, blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.area} - {self.action} - {self.created_at:%d.%m.%Y %H:%M}"
 
 
 class UserProfile(models.Model):

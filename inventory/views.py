@@ -1,3 +1,4 @@
+from django.contrib.auth.models import User
 from django.http import HttpResponse
 from django.utils.text import slugify
 from openpyxl import Workbook
@@ -18,6 +19,13 @@ from .models import (
     StockMovement,
     InventorySession,
     InventoryCount,
+    StorageLocation,
+    Supplier,
+    Customer,
+    CustomerContact,
+    DeliveryAddress,
+    CustomerNote,
+    AuditLog,
 )
 from .serializers import (
     ProductSerializer,
@@ -25,8 +33,18 @@ from .serializers import (
     StockMovementSerializer,
     InventorySessionSerializer,
     InventoryCountSerializer,
+    StorageLocationSerializer,
+    SupplierSerializer,
+
+    CustomerSerializer,
+    CustomerContactSerializer,
+    DeliveryAddressSerializer,
+    CustomerNoteSerializer,
+    AdminUserSerializer,
+    AuditLogSerializer,
 )
-from .permissions import IsAdmin, IsLagerOrAdmin
+from .permissions import IsAdmin, IsLagerOrAdmin, IsEinkaufOrAdmin
+
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
@@ -43,8 +61,127 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         return data
 
 
+
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
+
+
+class StorageLocationViewSet(viewsets.ModelViewSet):
+    queryset = StorageLocation.objects.all().order_by("code")
+    serializer_class = StorageLocationSerializer
+
+    def get_permissions(self):
+        if self.request.method in ["GET", "HEAD", "OPTIONS"]:
+            return [IsAuthenticated()]
+        return [IsAuthenticated(), IsEinkaufOrAdmin()]
+
+
+class SupplierViewSet(viewsets.ModelViewSet):
+    queryset = Supplier.objects.all().order_by("name")
+    serializer_class = SupplierSerializer
+
+    def get_permissions(self):
+        if self.request.method in ["GET", "HEAD", "OPTIONS"]:
+            return [IsAuthenticated()]
+        return [IsAuthenticated(), IsEinkaufOrAdmin()]
+
+
+
+class CustomerViewSet(viewsets.ModelViewSet):
+    queryset = Customer.objects.all().order_by("name")
+    serializer_class = CustomerSerializer
+
+    def get_permissions(self):
+        if self.request.method in ["GET", "HEAD", "OPTIONS"]:
+            return [IsAuthenticated()]
+        return [IsAuthenticated(), IsEinkaufOrAdmin()]
+
+
+class CustomerContactViewSet(viewsets.ModelViewSet):
+    queryset = CustomerContact.objects.select_related("customer").order_by(
+        "customer__name",
+        "last_name",
+        "first_name",
+    )
+    serializer_class = CustomerContactSerializer
+
+    def get_permissions(self):
+        if self.request.method in ["GET", "HEAD", "OPTIONS"]:
+            return [IsAuthenticated()]
+        return [IsAuthenticated(), IsEinkaufOrAdmin()]
+
+
+class DeliveryAddressViewSet(viewsets.ModelViewSet):
+    queryset = DeliveryAddress.objects.select_related("customer").order_by(
+        "customer__name",
+        "-is_default",
+        "label",
+    )
+    serializer_class = DeliveryAddressSerializer
+
+    def get_permissions(self):
+        if self.request.method in ["GET", "HEAD", "OPTIONS"]:
+            return [IsAuthenticated()]
+        return [IsAuthenticated(), IsEinkaufOrAdmin()]
+
+
+class CustomerNoteViewSet(viewsets.ModelViewSet):
+    queryset = CustomerNote.objects.select_related(
+        "customer",
+        "created_by",
+    ).order_by("-created_at")
+    serializer_class = CustomerNoteSerializer
+
+    def get_permissions(self):
+        if self.request.method in ["GET", "HEAD", "OPTIONS"]:
+            return [IsAuthenticated()]
+        return [IsAuthenticated(), IsEinkaufOrAdmin()]
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+
+
+class AdminUserViewSet(viewsets.ModelViewSet):
+    queryset = User.objects.select_related("userprofile").order_by("username")
+    serializer_class = AdminUserSerializer
+
+    def get_permissions(self):
+        return [IsAuthenticated(), IsAdmin()]
+
+    def perform_create(self, serializer):
+        created_user = serializer.save()
+
+        AuditLog.objects.create(
+            area="Benutzerverwaltung",
+            action="CREATE",
+            object_type="User",
+            object_id=str(created_user.id),
+            message=f"Benutzer {created_user.username} wurde angelegt.",
+            created_by=self.request.user,
+            metadata={"username": created_user.username},
+        )
+
+    def perform_update(self, serializer):
+        updated_user = serializer.save()
+
+        AuditLog.objects.create(
+            area="Benutzerverwaltung",
+            action="UPDATE",
+            object_type="User",
+            object_id=str(updated_user.id),
+            message=f"Benutzer {updated_user.username} wurde geändert.",
+            created_by=self.request.user,
+            metadata={"username": updated_user.username},
+        )
+
+
+class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = AuditLog.objects.select_related("created_by").order_by("-created_at")
+    serializer_class = AuditLogSerializer
+
+    def get_permissions(self):
+        return [IsAuthenticated(), IsAdmin()]
 
 
 class ProductViewSet(viewsets.ModelViewSet):
@@ -403,3 +540,4 @@ class InventoryCountViewSet(viewsets.ModelViewSet):
 
         serializer = self.get_serializer(inventory_count)
         return Response(serializer.data)
+    
