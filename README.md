@@ -96,14 +96,7 @@ Rolle: Dispo
 Rechte: Dispo, Bestände, Mindestbestände, Nachbestellvorschläge und Inventuransicht
 ```
 
-### ⚙️ Admin
 
-```text
-Benutzername: tamira
-Passwort: lokal gesetzt
-Rolle: Admin
-Rechte: Vollzugriff
-```
 
 ---
 
