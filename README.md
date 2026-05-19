@@ -96,7 +96,14 @@ Rolle: Dispo
 Rechte: Dispo, Bestände, Mindestbestände, Nachbestellvorschläge und Inventuransicht
 ```
 
+### ⚙️ Admin
 
+```text
+Benutzername: tamira
+Passwort: lokal gesetzt
+Rolle: Admin
+Rechte: Vollzugriff
+```
 
 ---
 
@@ -470,69 +477,48 @@ Lege Screenshots im Ordner `screenshots/` ab.
 
 ### 🔐 Login
 
-```text
-screenshots/login.png
-```
+![Login](screenshots/login.png)
 
 ### 📊 Dashboard
 
-```text
-screenshots/dashboard.png
-```
+![Dashboard](screenshots/dashboard.png)
 
 ### 📋 Produkte
 
-```text
-screenshots/products.png
-```
+![Produkte](screenshots/products.png)
 
 ### 📥 Wareneingang
 
-```text
-screenshots/goods-in-WE.png
-```
+![Wareneingang](screenshots/goods-in-WE.png)
+
+### 📤 Warenausgang
+
+![Warenausgang](screenshots/goods-in-WA.png)
 
 ### 🕓 Bewegungshistorie
 
-```text
-screenshots/history.png
-```
+![Bewegungshistorie](screenshots/history.png)
 
 ### 🧾 Inventur-Modus
 
-```text
-screenshots/inventory-mode.png
-```
+![Inventur-Modus](screenshots/inventory-mode.png)
 
 ### 📍 Lagerorte
 
-```text
-screenshots/storage-locations.png
-```
+![Lagerorte](screenshots/storage-locations.png)
 
 ### 🚚 Lieferanten
 
-```text
-screenshots/suppliers.png
-```
+![Lieferanten](screenshots/suppliers.png)
 
 ### 👥 Kundenstamm
 
-```text
-screenshots/customers.png
-```
+![Kundenstamm](screenshots/customers.png)
 
 ### 🔐 Rollen & Rechte
 
-```text
-screenshots/roles.png
-```
+![Rollen und Rechte](screenshots/roles.png)
 
-Beispiel-Einbindung:
-
-```markdown
-![Dashboard](screenshots/dashboard.png)
-```
 
 ---
 
