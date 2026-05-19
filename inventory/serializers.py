@@ -11,6 +11,10 @@ from .models import (
     StorageLocation,
     Supplier,
 
+    Customer,
+    CustomerContact,
+    DeliveryAddress,
+    CustomerNote,
 )
 
 
@@ -66,6 +70,127 @@ class StorageLocationSerializer(serializers.ModelSerializer):
 
     def get_product_count(self, obj):
         return obj.products.count()
+
+
+
+class CustomerSerializer(serializers.ModelSerializer):
+    contact_count = serializers.SerializerMethodField()
+    delivery_address_count = serializers.SerializerMethodField()
+    note_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Customer
+        fields = [
+            "id",
+            "customer_number",
+            "name",
+            "email",
+            "phone",
+            "street",
+            "postal_code",
+            "city",
+            "country",
+            "note",
+            "is_active",
+            "contact_count",
+            "delivery_address_count",
+            "note_count",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "contact_count",
+            "delivery_address_count",
+            "note_count",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_contact_count(self, obj):
+        return obj.contacts.count()
+
+    def get_delivery_address_count(self, obj):
+        return obj.delivery_addresses.count()
+
+    def get_note_count(self, obj):
+        return obj.notes.count()
+
+
+class CustomerContactSerializer(serializers.ModelSerializer):
+    customer_name = serializers.CharField(source="customer.name", read_only=True)
+
+    class Meta:
+        model = CustomerContact
+        fields = [
+            "id",
+            "customer",
+            "customer_name",
+            "first_name",
+            "last_name",
+            "role",
+            "email",
+            "phone",
+            "mobile",
+            "is_primary",
+            "is_active",
+            "note",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["customer_name", "created_at", "updated_at"]
+
+
+class DeliveryAddressSerializer(serializers.ModelSerializer):
+    customer_name = serializers.CharField(source="customer.name", read_only=True)
+
+    class Meta:
+        model = DeliveryAddress
+        fields = [
+            "id",
+            "customer",
+            "customer_name",
+            "label",
+            "recipient_name",
+            "street",
+            "postal_code",
+            "city",
+            "country",
+            "is_default",
+            "is_active",
+            "note",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["customer_name", "created_at", "updated_at"]
+
+
+class CustomerNoteSerializer(serializers.ModelSerializer):
+    customer_name = serializers.CharField(source="customer.name", read_only=True)
+    created_by_username = serializers.CharField(
+        source="created_by.username",
+        read_only=True,
+    )
+
+    class Meta:
+        model = CustomerNote
+        fields = [
+            "id",
+            "customer",
+            "customer_name",
+            "title",
+            "note",
+            "created_by",
+            "created_by_username",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "created_by",
+            "created_by_username",
+            "customer_name",
+            "created_at",
+            "updated_at",
+        ]
 
 
 class ProductSerializer(serializers.ModelSerializer):

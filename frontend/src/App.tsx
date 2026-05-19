@@ -84,6 +84,116 @@ type SupplierForm = {
   is_active: boolean;
 };
 
+type Customer = {
+  id: number;
+  customer_number: string | null;
+  name: string;
+  email: string;
+  phone: string;
+  street: string;
+  postal_code: string;
+  city: string;
+  country: string;
+  note: string;
+  is_active: boolean;
+  contact_count: number;
+  delivery_address_count: number;
+  note_count: number;
+  created_at: string;
+  updated_at: string;
+};
+
+type CustomerForm = {
+  customer_number: string;
+  name: string;
+  email: string;
+  phone: string;
+  street: string;
+  postal_code: string;
+  city: string;
+  country: string;
+  note: string;
+  is_active: boolean;
+};
+
+type CustomerContact = {
+  id: number;
+  customer: number;
+  customer_name: string;
+  first_name: string;
+  last_name: string;
+  role: string;
+  email: string;
+  phone: string;
+  mobile: string;
+  is_primary: boolean;
+  is_active: boolean;
+  note: string;
+  created_at: string;
+  updated_at: string;
+};
+
+type CustomerContactForm = {
+  customer: string;
+  first_name: string;
+  last_name: string;
+  role: string;
+  email: string;
+  phone: string;
+  mobile: string;
+  is_primary: boolean;
+  is_active: boolean;
+  note: string;
+};
+
+type DeliveryAddress = {
+  id: number;
+  customer: number;
+  customer_name: string;
+  label: string;
+  recipient_name: string;
+  street: string;
+  postal_code: string;
+  city: string;
+  country: string;
+  is_default: boolean;
+  is_active: boolean;
+  note: string;
+  created_at: string;
+  updated_at: string;
+};
+
+type DeliveryAddressForm = {
+  customer: string;
+  label: string;
+  recipient_name: string;
+  street: string;
+  postal_code: string;
+  city: string;
+  country: string;
+  is_default: boolean;
+  is_active: boolean;
+  note: string;
+};
+
+type CustomerNote = {
+  id: number;
+  customer: number;
+  customer_name: string;
+  title: string;
+  note: string;
+  created_by?: number | null;
+  created_by_username?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type CustomerNoteForm = {
+  customer: string;
+  title: string;
+  note: string;
+};
+
 type StockMovement = {
   id: number;
   product: number;
@@ -235,6 +345,51 @@ const initialSupplierForm: SupplierForm = {
   is_active: true,
 };
 
+const initialCustomerForm: CustomerForm = {
+  customer_number: "",
+  name: "",
+  email: "",
+  phone: "",
+  street: "",
+  postal_code: "",
+  city: "",
+  country: "Deutschland",
+  note: "",
+  is_active: true,
+};
+
+const initialCustomerContactForm: CustomerContactForm = {
+  customer: "",
+  first_name: "",
+  last_name: "",
+  role: "",
+  email: "",
+  phone: "",
+  mobile: "",
+  is_primary: false,
+  is_active: true,
+  note: "",
+};
+
+const initialDeliveryAddressForm: DeliveryAddressForm = {
+  customer: "",
+  label: "Standard",
+  recipient_name: "",
+  street: "",
+  postal_code: "",
+  city: "",
+  country: "Deutschland",
+  is_default: false,
+  is_active: true,
+  note: "",
+};
+
+const initialCustomerNoteForm: CustomerNoteForm = {
+  customer: "",
+  title: "",
+  note: "",
+};
+
 const unitOptions = ["Stück", "kg", "Liter", "Box", "Palette"];
 
 const sidebarMenus: SidebarMenu[] = [
@@ -371,7 +526,31 @@ const isCompactLayout = windowWidth < 1180;
   const [storageLocationForm, setStorageLocationForm] =
     useState<StorageLocationForm>(initialStorageLocationForm);
 
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+    const [customers, setCustomers] = useState<Customer[]>([]);
+  const [customerContacts, setCustomerContacts] = useState<CustomerContact[]>([]);
+  const [deliveryAddresses, setDeliveryAddresses] = useState<DeliveryAddress[]>([]);
+  const [customerNotes, setCustomerNotes] = useState<CustomerNote[]>([]);
+
+  const [customersLoading, setCustomersLoading] = useState(false);
+  const [customerContactsLoading, setCustomerContactsLoading] = useState(false);
+  const [deliveryAddressesLoading, setDeliveryAddressesLoading] = useState(false);
+  const [customerNotesLoading, setCustomerNotesLoading] = useState(false);
+
+  const [customerSaving, setCustomerSaving] = useState(false);
+  const [customerContactSaving, setCustomerContactSaving] = useState(false);
+  const [deliveryAddressSaving, setDeliveryAddressSaving] = useState(false);
+  const [customerNoteSaving, setCustomerNoteSaving] = useState(false);
+
+  const [customerForm, setCustomerForm] =
+    useState<CustomerForm>(initialCustomerForm);
+  const [customerContactForm, setCustomerContactForm] =
+    useState<CustomerContactForm>(initialCustomerContactForm);
+  const [deliveryAddressForm, setDeliveryAddressForm] =
+    useState<DeliveryAddressForm>(initialDeliveryAddressForm);
+  const [customerNoteForm, setCustomerNoteForm] =
+    useState<CustomerNoteForm>(initialCustomerNoteForm);
+
+const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [suppliersLoading, setSuppliersLoading] = useState(false);
   const [supplierSaving, setSupplierSaving] = useState(false);
   const [supplierForm, setSupplierForm] =
@@ -635,6 +814,72 @@ if (role === "einkauf") {
     }
   };
 
+  const loadCustomers = async () => {
+    try {
+      setCustomersLoading(true);
+      const response = await apiFetch("/inventory-api/customers/");
+      const data = (await response.json()) as Customer[];
+      setCustomers(data);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Fehler beim Laden der Kunden.";
+      setError(message);
+    } finally {
+      setCustomersLoading(false);
+    }
+  };
+
+  const loadCustomerContacts = async () => {
+    try {
+      setCustomerContactsLoading(true);
+      const response = await apiFetch("/inventory-api/customer-contacts/");
+      const data = (await response.json()) as CustomerContact[];
+      setCustomerContacts(data);
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Fehler beim Laden der Ansprechpartner.";
+      setError(message);
+    } finally {
+      setCustomerContactsLoading(false);
+    }
+  };
+
+  const loadDeliveryAddresses = async () => {
+    try {
+      setDeliveryAddressesLoading(true);
+      const response = await apiFetch("/inventory-api/delivery-addresses/");
+      const data = (await response.json()) as DeliveryAddress[];
+      setDeliveryAddresses(data);
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Fehler beim Laden der Lieferadressen.";
+      setError(message);
+    } finally {
+      setDeliveryAddressesLoading(false);
+    }
+  };
+
+  const loadCustomerNotes = async () => {
+    try {
+      setCustomerNotesLoading(true);
+      const response = await apiFetch("/inventory-api/customer-notes/");
+      const data = (await response.json()) as CustomerNote[];
+      setCustomerNotes(data);
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Fehler beim Laden der Kundennotizen.";
+      setError(message);
+    } finally {
+      setCustomerNotesLoading(false);
+    }
+  };
+
   const loadMovements = async () => {
     try {
       setMovementsLoading(true);
@@ -693,6 +938,10 @@ if (role === "einkauf") {
     void loadInventorySessions();
     void loadStorageLocations();
     void loadSuppliers();
+    void loadCustomers();
+    void loadCustomerContacts();
+    void loadDeliveryAddresses();
+    void loadCustomerNotes();
     }
     }, [loggedIn]);
 
@@ -859,6 +1108,246 @@ if (role === "einkauf") {
       setError(message);
     } finally {
       setSupplierSaving(false);
+    }
+  };
+
+  const canManageCustomerMaster = role === "admin" || role === "einkauf";
+
+  const handleCustomerChange = (
+    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const { name, value } = event.target;
+    setCustomerForm((current) => ({ ...current, [name]: value }));
+  };
+
+  const handleCreateCustomer = async (event: FormEvent) => {
+    event.preventDefault();
+
+    if (!canManageCustomerMaster) {
+      setError("Nur Admin oder Einkauf dürfen Kunden anlegen.");
+      return;
+    }
+
+    if (!customerForm.name.trim()) {
+      setError("Bitte einen Kundennamen eintragen.");
+      return;
+    }
+
+    try {
+      setCustomerSaving(true);
+      setError("");
+      setSuccess("");
+
+      const payload = {
+        ...customerForm,
+        customer_number: customerForm.customer_number.trim() || null,
+      };
+
+      const response = await apiFetch("/inventory-api/customers/", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+
+        if (errorData.customer_number) {
+          throw new Error(
+            "Diese Kundennummer existiert bereits. Bitte eine andere Nummer verwenden."
+          );
+        }
+
+        throw new Error(JSON.stringify(errorData));
+      }
+
+      setCustomerForm(initialCustomerForm);
+      await loadCustomers();
+      setSuccess("👥 Kunde erfolgreich angelegt.");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Fehler beim Anlegen des Kunden.";
+      setError(message);
+    } finally {
+      setCustomerSaving(false);
+    }
+  };
+
+  const handleCustomerContactChange = (
+    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = event.target;
+    setCustomerContactForm((current) => ({ ...current, [name]: value }));
+  };
+
+  const handleCreateCustomerContact = async (event: FormEvent) => {
+    event.preventDefault();
+
+    if (!canManageCustomerMaster) {
+      setError("Nur Admin oder Einkauf dürfen Ansprechpartner anlegen.");
+      return;
+    }
+
+    if (!customerContactForm.customer) {
+      setError("Bitte einen Kunden auswählen.");
+      return;
+    }
+
+    if (!customerContactForm.last_name.trim()) {
+      setError("Bitte mindestens einen Nachnamen eintragen.");
+      return;
+    }
+
+    try {
+      setCustomerContactSaving(true);
+      setError("");
+      setSuccess("");
+
+      const response = await apiFetch("/inventory-api/customer-contacts/", {
+        method: "POST",
+        body: JSON.stringify({
+          ...customerContactForm,
+          customer: Number(customerContactForm.customer),
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(JSON.stringify(errorData));
+      }
+
+      setCustomerContactForm(initialCustomerContactForm);
+      await loadCustomerContacts();
+      await loadCustomers();
+      setSuccess("☎️ Ansprechpartner erfolgreich angelegt.");
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Fehler beim Anlegen des Ansprechpartners.";
+      setError(message);
+    } finally {
+      setCustomerContactSaving(false);
+    }
+  };
+
+  const handleDeliveryAddressChange = (
+    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = event.target;
+    setDeliveryAddressForm((current) => ({ ...current, [name]: value }));
+  };
+
+  const handleCreateDeliveryAddress = async (event: FormEvent) => {
+    event.preventDefault();
+
+    if (!canManageCustomerMaster) {
+      setError("Nur Admin oder Einkauf dürfen Lieferadressen anlegen.");
+      return;
+    }
+
+    if (!deliveryAddressForm.customer) {
+      setError("Bitte einen Kunden auswählen.");
+      return;
+    }
+
+    if (!deliveryAddressForm.street.trim()) {
+      setError("Bitte eine Straße eintragen.");
+      return;
+    }
+
+    if (!deliveryAddressForm.postal_code.trim() || !deliveryAddressForm.city.trim()) {
+      setError("Bitte PLZ und Ort eintragen.");
+      return;
+    }
+
+    try {
+      setDeliveryAddressSaving(true);
+      setError("");
+      setSuccess("");
+
+      const response = await apiFetch("/inventory-api/delivery-addresses/", {
+        method: "POST",
+        body: JSON.stringify({
+          ...deliveryAddressForm,
+          customer: Number(deliveryAddressForm.customer),
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(JSON.stringify(errorData));
+      }
+
+      setDeliveryAddressForm(initialDeliveryAddressForm);
+      await loadDeliveryAddresses();
+      await loadCustomers();
+      setSuccess("📦 Lieferadresse erfolgreich angelegt.");
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Fehler beim Anlegen der Lieferadresse.";
+      setError(message);
+    } finally {
+      setDeliveryAddressSaving(false);
+    }
+  };
+
+  const handleCustomerNoteChange = (
+    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = event.target;
+    setCustomerNoteForm((current) => ({ ...current, [name]: value }));
+  };
+
+  const handleCreateCustomerNote = async (event: FormEvent) => {
+    event.preventDefault();
+
+    if (!canManageCustomerMaster) {
+      setError("Nur Admin oder Einkauf dürfen Kundennotizen anlegen.");
+      return;
+    }
+
+    if (!customerNoteForm.customer) {
+      setError("Bitte einen Kunden auswählen.");
+      return;
+    }
+
+    if (!customerNoteForm.title.trim() || !customerNoteForm.note.trim()) {
+      setError("Bitte Titel und Notiz eintragen.");
+      return;
+    }
+
+    try {
+      setCustomerNoteSaving(true);
+      setError("");
+      setSuccess("");
+
+      const response = await apiFetch("/inventory-api/customer-notes/", {
+        method: "POST",
+        body: JSON.stringify({
+          ...customerNoteForm,
+          customer: Number(customerNoteForm.customer),
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(JSON.stringify(errorData));
+      }
+
+      setCustomerNoteForm(initialCustomerNoteForm);
+      await loadCustomerNotes();
+      await loadCustomers();
+      setSuccess("📝 Kundennotiz erfolgreich angelegt.");
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Fehler beim Anlegen der Kundennotiz.";
+      setError(message);
+    } finally {
+      setCustomerNoteSaving(false);
     }
   };
 
@@ -1724,10 +2213,83 @@ if (role === "einkauf") {
 
 
 
-            {activeSection === "customers" && <PlaceholderSection title="👥 Kundenliste" text="Hier kann später ein Kundenstamm mit Kundendaten, Kundennummern und Status entstehen." />}
-            {activeSection === "contacts" && <PlaceholderSection title="☎️ Ansprechpartner" text="Hier können später Ansprechpartner je Kunde verwaltet werden." />}
-            {activeSection === "addresses" && <PlaceholderSection title="📦 Lieferadressen" text="Hier können später abweichende Lieferadressen je Kunde gepflegt werden." />}
-            {activeSection === "customer-notes" && <PlaceholderSection title="📝 Kundennotizen" text="Hier können später Notizen, Hinweise und interne Kundeninformationen gepflegt werden." />}
+            {activeSection === "customers" && (
+              <CustomersSection
+                customers={customers}
+                loading={customersLoading}
+                form={customerForm}
+                saving={customerSaving}
+                canManage={canManageCustomerMaster}
+                onChange={handleCustomerChange}
+                onToggleActive={(checked) =>
+                  setCustomerForm((current) => ({
+                    ...current,
+                    is_active: checked,
+                  }))
+                }
+                onSubmit={handleCreateCustomer}
+              />
+            )}
+            {activeSection === "contacts" && (
+              <CustomerContactsSection
+                customers={customers}
+                contacts={customerContacts}
+                loading={customerContactsLoading}
+                form={customerContactForm}
+                saving={customerContactSaving}
+                canManage={canManageCustomerMaster}
+                onChange={handleCustomerContactChange}
+                onTogglePrimary={(checked) =>
+                  setCustomerContactForm((current) => ({
+                    ...current,
+                    is_primary: checked,
+                  }))
+                }
+                onToggleActive={(checked) =>
+                  setCustomerContactForm((current) => ({
+                    ...current,
+                    is_active: checked,
+                  }))
+                }
+                onSubmit={handleCreateCustomerContact}
+              />
+            )}
+            {activeSection === "addresses" && (
+              <DeliveryAddressesSection
+                customers={customers}
+                addresses={deliveryAddresses}
+                loading={deliveryAddressesLoading}
+                form={deliveryAddressForm}
+                saving={deliveryAddressSaving}
+                canManage={canManageCustomerMaster}
+                onChange={handleDeliveryAddressChange}
+                onToggleDefault={(checked) =>
+                  setDeliveryAddressForm((current) => ({
+                    ...current,
+                    is_default: checked,
+                  }))
+                }
+                onToggleActive={(checked) =>
+                  setDeliveryAddressForm((current) => ({
+                    ...current,
+                    is_active: checked,
+                  }))
+                }
+                onSubmit={handleCreateDeliveryAddress}
+              />
+            )}
+            {activeSection === "customer-notes" && (
+              <CustomerNotesSection
+                customers={customers}
+                notes={customerNotes}
+                loading={customerNotesLoading}
+                form={customerNoteForm}
+                saving={customerNoteSaving}
+                canManage={canManageCustomerMaster}
+                onChange={handleCustomerNoteChange}
+                onSubmit={handleCreateCustomerNote}
+              />
+            )}
             {activeSection === "admin-users" && <PlaceholderSection title="👤 Benutzer anlegen" text="Hier kann später eine Benutzerverwaltung im Frontend entstehen. Aktuell erfolgt dies über Django Admin." />}
             {activeSection === "admin-rights" && <PlaceholderSection title="🔐 Rollen & Zugriffsrechte" text="Hier können später Modulrechte für Einkauf, Dispo, Lager und Kundenstamm gepflegt werden." />}
             {activeSection === "admin-locations" && (
@@ -2017,6 +2579,426 @@ function OrdersSection({
     </section>
   );
 }
+
+function CustomersSection({
+  customers,
+  loading,
+  form,
+  saving,
+  canManage,
+  onChange,
+  onToggleActive,
+  onSubmit,
+}: {
+  customers: Customer[];
+  loading: boolean;
+  form: CustomerForm;
+  saving: boolean;
+  canManage: boolean;
+  onChange: (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
+  onToggleActive: (checked: boolean) => void;
+  onSubmit: (event: FormEvent) => void;
+}) {
+  const activeCustomers = customers.filter((customer) => customer.is_active);
+
+  return (
+    <section style={sectionStyle}>
+      <h2 style={sectionTitleStyle}>👥 Kundenliste</h2>
+
+      <p style={infoStyle}>
+        Kundenstamm mit Kundennummer, Kontaktinformationen und Status.
+      </p>
+
+      <div style={dashboardGridStyle}>
+        <Card title="Kunden gesamt" value={String(customers.length)} />
+        <Card title="Aktive Kunden" value={String(activeCustomers.length)} />
+      </div>
+
+      {canManage ? (
+        <form
+          onSubmit={onSubmit}
+          style={{ ...formGridStyle, marginTop: "22px", marginBottom: "24px" }}
+        >
+          <input name="name" placeholder="Kundenname" value={form.name} onChange={onChange} style={inputStyle} />
+          <input name="customer_number" placeholder="Kundennummer" value={form.customer_number} onChange={onChange} style={inputStyle} />
+          <input name="email" placeholder="E-Mail" value={form.email} onChange={onChange} style={inputStyle} />
+          <input name="phone" placeholder="Telefon" value={form.phone} onChange={onChange} style={inputStyle} />
+          <input name="street" placeholder="Straße" value={form.street} onChange={onChange} style={inputStyle} />
+          <input name="postal_code" placeholder="PLZ" value={form.postal_code} onChange={onChange} style={inputStyle} />
+          <input name="city" placeholder="Ort" value={form.city} onChange={onChange} style={inputStyle} />
+          <input name="country" placeholder="Land" value={form.country} onChange={onChange} style={inputStyle} />
+
+          <textarea
+            name="note"
+            placeholder="Notiz"
+            value={form.note}
+            onChange={onChange}
+            style={{ ...inputStyle, minHeight: "80px", gridColumn: "1 / -1" }}
+          />
+
+          <label style={checkboxLabelStyle}>
+            <input type="checkbox" checked={form.is_active} onChange={(event) => onToggleActive(event.target.checked)} />
+            Aktiv
+          </label>
+
+          <button type="submit" disabled={saving} style={primaryButtonStyle}>
+            {saving ? "Speichere..." : "Kunde anlegen"}
+          </button>
+        </form>
+      ) : (
+        <p style={infoStyle}>Nur-Lese-Modus: Kunden können angesehen, aber nicht angelegt oder bearbeitet werden.</p>
+      )}
+
+      {loading && <p>Lade Kunden...</p>}
+      {!loading && customers.length === 0 && <p>Noch keine Kunden vorhanden.</p>}
+
+      {!loading && customers.length > 0 && (
+        <div style={{ ...tableWrapStyle, marginTop: "22px" }}>
+          <table style={dataTableStyle}>
+            <thead>
+              <tr style={tableHeaderRowStyle}>
+                <th style={tableHeadStyle}>Name</th>
+                <th style={tableHeadStyle}>Nummer</th>
+                <th style={tableHeadStyle}>E-Mail</th>
+                <th style={tableHeadStyle}>Telefon</th>
+                <th style={tableHeadStyle}>Ort</th>
+                <th style={tableHeadStyle}>Ansprechpartner</th>
+                <th style={tableHeadStyle}>Lieferadressen</th>
+                <th style={tableHeadStyle}>Notizen</th>
+                <th style={tableHeadStyle}>Status</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {customers.map((customer) => (
+                <tr
+                  key={customer.id}
+                  style={{
+                    borderTop: "1px solid rgba(148, 163, 184, 0.12)",
+                    background: customer.is_active ? "rgba(22,101,52,0.08)" : "rgba(127,29,29,0.08)",
+                  }}
+                >
+                  <td style={tableCellStyle}>{customer.name}</td>
+                  <td style={tableCellStyle}>{customer.customer_number || "—"}</td>
+                  <td style={tableCellStyle}>{customer.email || "—"}</td>
+                  <td style={tableCellStyle}>{customer.phone || "—"}</td>
+                  <td style={tableCellStyle}>{customer.city || "—"}</td>
+                  <td style={tableCellStyle}>{customer.contact_count}</td>
+                  <td style={tableCellStyle}>{customer.delivery_address_count}</td>
+                  <td style={tableCellStyle}>{customer.note_count}</td>
+                  <td style={tableCellStyle}>{customer.is_active ? "✅ Aktiv" : "⛔ Inaktiv"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
+
+function CustomerContactsSection({
+  customers,
+  contacts,
+  loading,
+  form,
+  saving,
+  canManage,
+  onChange,
+  onTogglePrimary,
+  onToggleActive,
+  onSubmit,
+}: {
+  customers: Customer[];
+  contacts: CustomerContact[];
+  loading: boolean;
+  form: CustomerContactForm;
+  saving: boolean;
+  canManage: boolean;
+  onChange: (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void;
+  onTogglePrimary: (checked: boolean) => void;
+  onToggleActive: (checked: boolean) => void;
+  onSubmit: (event: FormEvent) => void;
+}) {
+  return (
+    <section style={sectionStyle}>
+      <h2 style={sectionTitleStyle}>☎️ Ansprechpartner</h2>
+
+      <p style={infoStyle}>Ansprechpartner je Kunde mit Rolle, Telefon und E-Mail.</p>
+
+      <div style={dashboardGridStyle}>
+        <Card title="Ansprechpartner" value={String(contacts.length)} />
+        <Card title="Primäre Kontakte" value={String(contacts.filter((contact) => contact.is_primary).length)} />
+      </div>
+
+      {canManage ? (
+        <form onSubmit={onSubmit} style={{ ...formGridStyle, marginTop: "22px", marginBottom: "24px" }}>
+          <select name="customer" value={form.customer} onChange={onChange} style={inputStyle}>
+            <option value="">Kunde auswählen</option>
+            {customers.map((customer) => (
+              <option key={customer.id} value={customer.id}>{customer.name}</option>
+            ))}
+          </select>
+
+          <input name="first_name" placeholder="Vorname" value={form.first_name} onChange={onChange} style={inputStyle} />
+          <input name="last_name" placeholder="Nachname" value={form.last_name} onChange={onChange} style={inputStyle} />
+          <input name="role" placeholder="Funktion / Rolle" value={form.role} onChange={onChange} style={inputStyle} />
+          <input name="email" placeholder="E-Mail" value={form.email} onChange={onChange} style={inputStyle} />
+          <input name="phone" placeholder="Telefon" value={form.phone} onChange={onChange} style={inputStyle} />
+          <input name="mobile" placeholder="Mobil" value={form.mobile} onChange={onChange} style={inputStyle} />
+
+          <label style={checkboxLabelStyle}>
+            <input type="checkbox" checked={form.is_primary} onChange={(event) => onTogglePrimary(event.target.checked)} />
+            Hauptkontakt
+          </label>
+
+          <label style={checkboxLabelStyle}>
+            <input type="checkbox" checked={form.is_active} onChange={(event) => onToggleActive(event.target.checked)} />
+            Aktiv
+          </label>
+
+          <textarea name="note" placeholder="Notiz" value={form.note} onChange={onChange} style={{ ...inputStyle, minHeight: "80px", gridColumn: "1 / -1" }} />
+
+          <button type="submit" disabled={saving} style={primaryButtonStyle}>
+            {saving ? "Speichere..." : "Ansprechpartner anlegen"}
+          </button>
+        </form>
+      ) : (
+        <p style={infoStyle}>Nur-Lese-Modus: Ansprechpartner können angesehen, aber nicht angelegt werden.</p>
+      )}
+
+      {loading && <p>Lade Ansprechpartner...</p>}
+
+      {!loading && contacts.length > 0 && (
+        <div style={{ ...tableWrapStyle, marginTop: "22px" }}>
+          <table style={dataTableStyle}>
+            <thead>
+              <tr style={tableHeaderRowStyle}>
+                <th style={tableHeadStyle}>Kunde</th>
+                <th style={tableHeadStyle}>Name</th>
+                <th style={tableHeadStyle}>Rolle</th>
+                <th style={tableHeadStyle}>E-Mail</th>
+                <th style={tableHeadStyle}>Telefon</th>
+                <th style={tableHeadStyle}>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {contacts.map((contact) => (
+                <tr key={contact.id} style={{ borderTop: "1px solid rgba(148, 163, 184, 0.12)" }}>
+                  <td style={tableCellStyle}>{contact.customer_name}</td>
+                  <td style={tableCellStyle}>{`${contact.first_name} ${contact.last_name}`.trim()}</td>
+                  <td style={tableCellStyle}>{contact.role || "—"}</td>
+                  <td style={tableCellStyle}>{contact.email || "—"}</td>
+                  <td style={tableCellStyle}>{contact.phone || contact.mobile || "—"}</td>
+                  <td style={tableCellStyle}>{contact.is_primary ? "⭐ Hauptkontakt" : contact.is_active ? "✅ Aktiv" : "⛔ Inaktiv"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {!loading && contacts.length === 0 && <p>Noch keine Ansprechpartner vorhanden.</p>}
+    </section>
+  );
+}
+
+
+function DeliveryAddressesSection({
+  customers,
+  addresses,
+  loading,
+  form,
+  saving,
+  canManage,
+  onChange,
+  onToggleDefault,
+  onToggleActive,
+  onSubmit,
+}: {
+  customers: Customer[];
+  addresses: DeliveryAddress[];
+  loading: boolean;
+  form: DeliveryAddressForm;
+  saving: boolean;
+  canManage: boolean;
+  onChange: (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void;
+  onToggleDefault: (checked: boolean) => void;
+  onToggleActive: (checked: boolean) => void;
+  onSubmit: (event: FormEvent) => void;
+}) {
+  return (
+    <section style={sectionStyle}>
+      <h2 style={sectionTitleStyle}>📦 Lieferadressen</h2>
+
+      <p style={infoStyle}>Abweichende Lieferadressen und Standardadressen je Kunde.</p>
+
+      <div style={dashboardGridStyle}>
+        <Card title="Lieferadressen" value={String(addresses.length)} />
+        <Card title="Standardadressen" value={String(addresses.filter((address) => address.is_default).length)} />
+      </div>
+
+      {canManage ? (
+        <form onSubmit={onSubmit} style={{ ...formGridStyle, marginTop: "22px", marginBottom: "24px" }}>
+          <select name="customer" value={form.customer} onChange={onChange} style={inputStyle}>
+            <option value="">Kunde auswählen</option>
+            {customers.map((customer) => (
+              <option key={customer.id} value={customer.id}>{customer.name}</option>
+            ))}
+          </select>
+
+          <input name="label" placeholder="Bezeichnung z. B. Werk 1" value={form.label} onChange={onChange} style={inputStyle} />
+          <input name="recipient_name" placeholder="Empfängername" value={form.recipient_name} onChange={onChange} style={inputStyle} />
+          <input name="street" placeholder="Straße" value={form.street} onChange={onChange} style={inputStyle} />
+          <input name="postal_code" placeholder="PLZ" value={form.postal_code} onChange={onChange} style={inputStyle} />
+          <input name="city" placeholder="Ort" value={form.city} onChange={onChange} style={inputStyle} />
+          <input name="country" placeholder="Land" value={form.country} onChange={onChange} style={inputStyle} />
+
+          <label style={checkboxLabelStyle}>
+            <input type="checkbox" checked={form.is_default} onChange={(event) => onToggleDefault(event.target.checked)} />
+            Standardadresse
+          </label>
+
+          <label style={checkboxLabelStyle}>
+            <input type="checkbox" checked={form.is_active} onChange={(event) => onToggleActive(event.target.checked)} />
+            Aktiv
+          </label>
+
+          <textarea name="note" placeholder="Notiz" value={form.note} onChange={onChange} style={{ ...inputStyle, minHeight: "80px", gridColumn: "1 / -1" }} />
+
+          <button type="submit" disabled={saving} style={primaryButtonStyle}>
+            {saving ? "Speichere..." : "Lieferadresse anlegen"}
+          </button>
+        </form>
+      ) : (
+        <p style={infoStyle}>Nur-Lese-Modus: Lieferadressen können angesehen, aber nicht angelegt werden.</p>
+      )}
+
+      {loading && <p>Lade Lieferadressen...</p>}
+
+      {!loading && addresses.length > 0 && (
+        <div style={{ ...tableWrapStyle, marginTop: "22px" }}>
+          <table style={dataTableStyle}>
+            <thead>
+              <tr style={tableHeaderRowStyle}>
+                <th style={tableHeadStyle}>Kunde</th>
+                <th style={tableHeadStyle}>Bezeichnung</th>
+                <th style={tableHeadStyle}>Empfänger</th>
+                <th style={tableHeadStyle}>Straße</th>
+                <th style={tableHeadStyle}>PLZ</th>
+                <th style={tableHeadStyle}>Ort</th>
+                <th style={tableHeadStyle}>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {addresses.map((address) => (
+                <tr key={address.id} style={{ borderTop: "1px solid rgba(148, 163, 184, 0.12)" }}>
+                  <td style={tableCellStyle}>{address.customer_name}</td>
+                  <td style={tableCellStyle}>{address.label}</td>
+                  <td style={tableCellStyle}>{address.recipient_name || "—"}</td>
+                  <td style={tableCellStyle}>{address.street}</td>
+                  <td style={tableCellStyle}>{address.postal_code}</td>
+                  <td style={tableCellStyle}>{address.city}</td>
+                  <td style={tableCellStyle}>{address.is_default ? "⭐ Standard" : address.is_active ? "✅ Aktiv" : "⛔ Inaktiv"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {!loading && addresses.length === 0 && <p>Noch keine Lieferadressen vorhanden.</p>}
+    </section>
+  );
+}
+
+
+function CustomerNotesSection({
+  customers,
+  notes,
+  loading,
+  form,
+  saving,
+  canManage,
+  onChange,
+  onSubmit,
+}: {
+  customers: Customer[];
+  notes: CustomerNote[];
+  loading: boolean;
+  form: CustomerNoteForm;
+  saving: boolean;
+  canManage: boolean;
+  onChange: (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void;
+  onSubmit: (event: FormEvent) => void;
+}) {
+  return (
+    <section style={sectionStyle}>
+      <h2 style={sectionTitleStyle}>📝 Kundennotizen</h2>
+
+      <p style={infoStyle}>Interne Notizen, Hinweise und Gesprächsvermerke je Kunde.</p>
+
+      <div style={dashboardGridStyle}>
+        <Card title="Notizen gesamt" value={String(notes.length)} />
+        <Card title="Kunden mit Notizen" value={String(new Set(notes.map((note) => note.customer)).size)} />
+      </div>
+
+      {canManage ? (
+        <form onSubmit={onSubmit} style={{ ...formGridStyle, marginTop: "22px", marginBottom: "24px" }}>
+          <select name="customer" value={form.customer} onChange={onChange} style={inputStyle}>
+            <option value="">Kunde auswählen</option>
+            {customers.map((customer) => (
+              <option key={customer.id} value={customer.id}>{customer.name}</option>
+            ))}
+          </select>
+
+          <input name="title" placeholder="Titel" value={form.title} onChange={onChange} style={inputStyle} />
+
+          <textarea name="note" placeholder="Notiz" value={form.note} onChange={onChange} style={{ ...inputStyle, minHeight: "100px", gridColumn: "1 / -1" }} />
+
+          <button type="submit" disabled={saving} style={primaryButtonStyle}>
+            {saving ? "Speichere..." : "Kundennotiz anlegen"}
+          </button>
+        </form>
+      ) : (
+        <p style={infoStyle}>Nur-Lese-Modus: Kundennotizen können angesehen, aber nicht angelegt werden.</p>
+      )}
+
+      {loading && <p>Lade Kundennotizen...</p>}
+
+      {!loading && notes.length > 0 && (
+        <div style={{ ...tableWrapStyle, marginTop: "22px" }}>
+          <table style={dataTableStyle}>
+            <thead>
+              <tr style={tableHeaderRowStyle}>
+                <th style={tableHeadStyle}>Datum</th>
+                <th style={tableHeadStyle}>Kunde</th>
+                <th style={tableHeadStyle}>Titel</th>
+                <th style={tableHeadStyle}>Notiz</th>
+                <th style={tableHeadStyle}>Erstellt von</th>
+              </tr>
+            </thead>
+            <tbody>
+              {notes.map((note) => (
+                <tr key={note.id} style={{ borderTop: "1px solid rgba(148, 163, 184, 0.12)" }}>
+                  <td style={tableCellStyle}>{new Date(note.created_at).toLocaleString("de-DE")}</td>
+                  <td style={tableCellStyle}>{note.customer_name}</td>
+                  <td style={tableCellStyle}>{note.title}</td>
+                  <td style={tableCellStyle}>{note.note}</td>
+                  <td style={tableCellStyle}>{note.created_by_username || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {!loading && notes.length === 0 && <p>Noch keine Kundennotizen vorhanden.</p>}
+    </section>
+  );
+}
+
 
 function StockCorrectionsSection({
   products,

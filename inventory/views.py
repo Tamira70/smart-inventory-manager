@@ -20,6 +20,10 @@ from .models import (
     InventoryCount,
     StorageLocation,
     Supplier,
+    Customer,
+    CustomerContact,
+    DeliveryAddress,
+    CustomerNote,
 )
 from .serializers import (
     ProductSerializer,
@@ -30,6 +34,10 @@ from .serializers import (
     StorageLocationSerializer,
     SupplierSerializer,
 
+    CustomerSerializer,
+    CustomerContactSerializer,
+    DeliveryAddressSerializer,
+    CustomerNoteSerializer,
 )
 from .permissions import IsAdmin, IsLagerOrAdmin, IsEinkaufOrAdmin
 
@@ -72,6 +80,61 @@ class SupplierViewSet(viewsets.ModelViewSet):
         if self.request.method in ["GET", "HEAD", "OPTIONS"]:
             return [IsAuthenticated()]
         return [IsAuthenticated(), IsEinkaufOrAdmin()]
+
+
+
+class CustomerViewSet(viewsets.ModelViewSet):
+    queryset = Customer.objects.all().order_by("name")
+    serializer_class = CustomerSerializer
+
+    def get_permissions(self):
+        if self.request.method in ["GET", "HEAD", "OPTIONS"]:
+            return [IsAuthenticated()]
+        return [IsAuthenticated(), IsEinkaufOrAdmin()]
+
+
+class CustomerContactViewSet(viewsets.ModelViewSet):
+    queryset = CustomerContact.objects.select_related("customer").order_by(
+        "customer__name",
+        "last_name",
+        "first_name",
+    )
+    serializer_class = CustomerContactSerializer
+
+    def get_permissions(self):
+        if self.request.method in ["GET", "HEAD", "OPTIONS"]:
+            return [IsAuthenticated()]
+        return [IsAuthenticated(), IsEinkaufOrAdmin()]
+
+
+class DeliveryAddressViewSet(viewsets.ModelViewSet):
+    queryset = DeliveryAddress.objects.select_related("customer").order_by(
+        "customer__name",
+        "-is_default",
+        "label",
+    )
+    serializer_class = DeliveryAddressSerializer
+
+    def get_permissions(self):
+        if self.request.method in ["GET", "HEAD", "OPTIONS"]:
+            return [IsAuthenticated()]
+        return [IsAuthenticated(), IsEinkaufOrAdmin()]
+
+
+class CustomerNoteViewSet(viewsets.ModelViewSet):
+    queryset = CustomerNote.objects.select_related(
+        "customer",
+        "created_by",
+    ).order_by("-created_at")
+    serializer_class = CustomerNoteSerializer
+
+    def get_permissions(self):
+        if self.request.method in ["GET", "HEAD", "OPTIONS"]:
+            return [IsAuthenticated()]
+        return [IsAuthenticated(), IsEinkaufOrAdmin()]
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
 
 
 class ProductViewSet(viewsets.ModelViewSet):
