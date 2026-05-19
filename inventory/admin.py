@@ -7,8 +7,32 @@ from .models import (
     UserProfile,
     InventorySession,
     InventoryCount,
+    StorageLocation,
+    Supplier,
 )
 
+@admin.register(Supplier)
+class SupplierAdmin(admin.ModelAdmin):
+    list_display = (
+        "name",
+        "supplier_number",
+        "contact_person",
+        "email",
+        "phone",
+        "city",
+        "is_active",
+        "updated_at",
+    )
+    search_fields = (
+        "name",
+        "supplier_number",
+        "contact_person",
+        "email",
+        "phone",
+        "city",
+    )
+    list_filter = ("is_active", "country", "city")
+    readonly_fields = ("created_at", "updated_at")
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):

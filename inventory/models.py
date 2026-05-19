@@ -36,6 +36,28 @@ class StorageLocation(models.Model):
 
         return " - ".join(parts)
 
+class Supplier(models.Model):
+    name = models.CharField(max_length=255)
+    supplier_number = models.CharField(max_length=100, blank=True, unique=True, null=True)
+    contact_person = models.CharField(max_length=255, blank=True)
+    email = models.EmailField(blank=True)
+    phone = models.CharField(max_length=80, blank=True)
+    street = models.CharField(max_length=255, blank=True)
+    postal_code = models.CharField(max_length=20, blank=True)
+    city = models.CharField(max_length=120, blank=True)
+    country = models.CharField(max_length=120, blank=True, default="Deutschland")
+    note = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
 
 class Product(models.Model):
     name = models.CharField(max_length=255)

@@ -52,6 +52,38 @@ type StorageLocationForm = {
   is_active: boolean;
 };
 
+
+type Supplier = {
+  id: number;
+  name: string;
+  supplier_number: string | null;
+  contact_person: string;
+  email: string;
+  phone: string;
+  street: string;
+  postal_code: string;
+  city: string;
+  country: string;
+  note: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+type SupplierForm = {
+  name: string;
+  supplier_number: string;
+  contact_person: string;
+  email: string;
+  phone: string;
+  street: string;
+  postal_code: string;
+  city: string;
+  country: string;
+  note: string;
+  is_active: boolean;
+};
+
 type StockMovement = {
   id: number;
   product: number;
@@ -185,6 +217,21 @@ const initialStorageLocationForm: StorageLocationForm = {
   rack: "",
   shelf: "",
   description: "",
+  is_active: true,
+};
+
+
+const initialSupplierForm: SupplierForm = {
+  name: "",
+  supplier_number: "",
+  contact_person: "",
+  email: "",
+  phone: "",
+  street: "",
+  postal_code: "",
+  city: "",
+  country: "Deutschland",
+  note: "",
   is_active: true,
 };
 
@@ -323,6 +370,13 @@ const isCompactLayout = windowWidth < 1180;
   const [storageLocationSaving, setStorageLocationSaving] = useState(false);
   const [storageLocationForm, setStorageLocationForm] =
     useState<StorageLocationForm>(initialStorageLocationForm);
+
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [suppliersLoading, setSuppliersLoading] = useState(false);
+  const [supplierSaving, setSupplierSaving] = useState(false);
+  const [supplierForm, setSupplierForm] =
+    useState<SupplierForm>(initialSupplierForm);
+
 
   const [inventorySessions, setInventorySessions] = useState<InventorySession[]>([]);
   const [inventoryCounts, setInventoryCounts] = useState<InventoryCount[]>([]);
@@ -557,6 +611,23 @@ const visibleSidebarMenus = useMemo(() => {
   };
 
 
+  const loadSuppliers = async () => {
+    try {
+      setSuppliersLoading(true);
+
+      const response = await apiFetch("/inventory-api/suppliers/");
+      const data = (await response.json()) as Supplier[];
+
+      setSuppliers(data);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Fehler beim Laden der Lieferanten.";
+      setError(message);
+    } finally {
+      setSuppliersLoading(false);
+    }
+  };
+
   const loadMovements = async () => {
     try {
       setMovementsLoading(true);
@@ -614,6 +685,7 @@ const visibleSidebarMenus = useMemo(() => {
     void loadMovements();
     void loadInventorySessions();
     void loadStorageLocations();
+    void loadSuppliers();
     }
     }, [loggedIn]);
 
@@ -705,6 +777,70 @@ const visibleSidebarMenus = useMemo(() => {
   ).length;
   const latestMovement = movements[0] ?? null;
   const canShowProductOverview = ["product", "stock-overview", "min-stock"].includes(activeSection);
+
+  const handleSupplierChange = (
+    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const { name, value } = event.target;
+
+    setSupplierForm((current) => ({
+      ...current,
+      [name]: value,
+    }));
+  };
+
+  const handleCreateSupplier = async (event: FormEvent) => {
+    event.preventDefault();
+
+    if (!(role === "admin" || role === "einkauf")) {
+      setError("Nur Admin oder Einkauf dürfen Lieferanten anlegen.");
+      return;
+    }
+
+    if (!supplierForm.name.trim()) {
+      setError("Bitte einen Lieferantennamen eintragen.");
+      return;
+    }
+
+    try {
+      setSupplierSaving(true);
+      setError("");
+      setSuccess("");
+
+      const payload = {
+        ...supplierForm,
+        supplier_number: supplierForm.supplier_number.trim() || null,
+      };
+
+      const response = await apiFetch("/inventory-api/suppliers/", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+
+        if (errorData.supplier_number) {
+          throw new Error(
+            "Diese Lieferantennummer existiert bereits. Bitte eine andere Nummer verwenden."
+          );
+        }
+
+        throw new Error(JSON.stringify(errorData));
+      }
+
+      setSupplierForm(initialSupplierForm);
+      await loadSuppliers();
+
+      setSuccess("🚚 Lieferant erfolgreich angelegt.");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Fehler beim Anlegen des Lieferanten.";
+      setError(message);
+    } finally {
+      setSupplierSaving(false);
+    }
+  };
 
   const handleCreatePurchaseOrderDraft = (product: ReorderSuggestion) => {
     if (!canWrite) {
@@ -1418,7 +1554,23 @@ const visibleSidebarMenus = useMemo(() => {
               onApproveDraft={handleApprovePurchaseOrderDraft}
             />
             )}
-            {activeSection === "suppliers" && <PlaceholderSection title="🚚 Lieferanten" text="Hier können später Lieferantenstammdaten, Ansprechpartner und Lieferbedingungen gepflegt werden." />}
+            {activeSection === "suppliers" && (
+              <SuppliersSection
+                suppliers={suppliers}
+                loading={suppliersLoading}
+                form={supplierForm}
+                saving={supplierSaving}
+                canManage={role === "admin" || role === "einkauf"}
+                onChange={handleSupplierChange}
+                onToggleActive={(checked) =>
+                  setSupplierForm((current) => ({
+                    ...current,
+                    is_active: checked,
+                  }))
+                }
+                onSubmit={handleCreateSupplier}
+              />
+            )}
             {activeSection === "reorder" && (
               <ReorderSection
               suggestions={reorderSuggestions}
@@ -1736,6 +1888,205 @@ function OrdersSection({
                   </tr>
                 );
               })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function SuppliersSection({
+  suppliers,
+  loading,
+  form,
+  saving,
+  canManage,
+  onChange,
+  onToggleActive,
+  onSubmit,
+}: {
+  suppliers: Supplier[];
+  loading: boolean;
+  form: SupplierForm;
+  saving: boolean;
+  canManage: boolean;
+  onChange: (
+    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => void;
+  onToggleActive: (checked: boolean) => void;
+  onSubmit: (event: FormEvent) => void;
+}) {
+  const activeSuppliers = suppliers.filter((supplier) => supplier.is_active);
+
+  return (
+    <section style={sectionStyle}>
+      <h2 style={sectionTitleStyle}>🚚 Lieferanten</h2>
+
+      <p style={infoStyle}>
+        Verwaltung von Lieferanten, Ansprechpartnern und Kontaktdaten für den
+        Einkaufsprozess.
+      </p>
+
+      <div style={dashboardGridStyle}>
+        <Card title="Lieferanten gesamt" value={String(suppliers.length)} />
+        <Card title="Aktive Lieferanten" value={String(activeSuppliers.length)} />
+      </div>
+
+      {canManage && (
+        <form
+          onSubmit={onSubmit}
+          style={{ ...formGridStyle, marginTop: "22px", marginBottom: "24px" }}
+        >
+          <input
+            name="name"
+            placeholder="Lieferantenname"
+            value={form.name}
+            onChange={onChange}
+            style={inputStyle}
+          />
+
+          <input
+            name="supplier_number"
+            placeholder="Lieferantennummer"
+            value={form.supplier_number}
+            onChange={onChange}
+            style={inputStyle}
+          />
+
+          <input
+            name="contact_person"
+            placeholder="Ansprechpartner"
+            value={form.contact_person}
+            onChange={onChange}
+            style={inputStyle}
+          />
+
+          <input
+            name="email"
+            placeholder="E-Mail"
+            value={form.email}
+            onChange={onChange}
+            style={inputStyle}
+          />
+
+          <input
+            name="phone"
+            placeholder="Telefon"
+            value={form.phone}
+            onChange={onChange}
+            style={inputStyle}
+          />
+
+          <input
+            name="street"
+            placeholder="Straße"
+            value={form.street}
+            onChange={onChange}
+            style={inputStyle}
+          />
+
+          <input
+            name="postal_code"
+            placeholder="PLZ"
+            value={form.postal_code}
+            onChange={onChange}
+            style={inputStyle}
+          />
+
+          <input
+            name="city"
+            placeholder="Ort"
+            value={form.city}
+            onChange={onChange}
+            style={inputStyle}
+          />
+
+          <input
+            name="country"
+            placeholder="Land"
+            value={form.country}
+            onChange={onChange}
+            style={inputStyle}
+          />
+
+          <textarea
+            name="note"
+            placeholder="Notiz"
+            value={form.note}
+            onChange={onChange}
+            style={{
+              ...inputStyle,
+              minHeight: "80px",
+              gridColumn: "1 / -1",
+            }}
+          />
+
+          <label style={checkboxLabelStyle}>
+            <input
+              type="checkbox"
+              checked={form.is_active}
+              onChange={(event) => onToggleActive(event.target.checked)}
+            />
+            Aktiv
+          </label>
+
+          <button type="submit" disabled={saving} style={primaryButtonStyle}>
+            {saving ? "Speichere..." : "Lieferant anlegen"}
+          </button>
+        </form>
+      )}
+
+      {!canManage && (
+        <p style={infoStyle}>
+          Nur-Lese-Modus: Lieferanten können angesehen, aber nicht angelegt oder
+          bearbeitet werden.
+        </p>
+      )}
+
+      {loading && <p>Lade Lieferanten...</p>}
+
+      {!loading && suppliers.length === 0 && (
+        <p>Noch keine Lieferanten vorhanden.</p>
+      )}
+
+      {!loading && suppliers.length > 0 && (
+        <div style={{ ...tableWrapStyle, marginTop: "22px" }}>
+          <table style={dataTableStyle}>
+            <thead>
+              <tr style={tableHeaderRowStyle}>
+                <th style={tableHeadStyle}>Name</th>
+                <th style={tableHeadStyle}>Nummer</th>
+                <th style={tableHeadStyle}>Ansprechpartner</th>
+                <th style={tableHeadStyle}>E-Mail</th>
+                <th style={tableHeadStyle}>Telefon</th>
+                <th style={tableHeadStyle}>Ort</th>
+                <th style={tableHeadStyle}>Status</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {suppliers.map((supplier) => (
+                <tr
+                  key={supplier.id}
+                  style={{
+                    borderTop: "1px solid rgba(148, 163, 184, 0.12)",
+                    background: supplier.is_active
+                      ? "rgba(22,101,52,0.08)"
+                      : "rgba(127,29,29,0.08)",
+                  }}
+                >
+                  <td style={tableCellStyle}>{supplier.name}</td>
+                  <td style={tableCellStyle}>{supplier.supplier_number || "—"}</td>
+                  <td style={tableCellStyle}>{supplier.contact_person || "—"}</td>
+                  <td style={tableCellStyle}>{supplier.email || "—"}</td>
+                  <td style={tableCellStyle}>{supplier.phone || "—"}</td>
+                  <td style={tableCellStyle}>{supplier.city || "—"}</td>
+                  <td style={tableCellStyle}>
+                    {supplier.is_active ? "✅ Aktiv" : "⛔ Inaktiv"}
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>

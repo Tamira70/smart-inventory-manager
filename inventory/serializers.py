@@ -9,8 +9,31 @@ from .models import (
     InventorySession,
     InventoryCount,
     StorageLocation,
+    Supplier,
+
 )
 
+
+class SupplierSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Supplier
+        fields = [
+            "id",
+            "name",
+            "supplier_number",
+            "contact_person",
+            "email",
+            "phone",
+            "street",
+            "postal_code",
+            "city",
+            "country",
+            "note",
+            "is_active",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["created_at", "updated_at"]
 
 class UserProfileSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source="user.username", read_only=True)

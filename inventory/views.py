@@ -19,6 +19,7 @@ from .models import (
     InventorySession,
     InventoryCount,
     StorageLocation,
+    Supplier,
 )
 from .serializers import (
     ProductSerializer,
@@ -27,8 +28,10 @@ from .serializers import (
     InventorySessionSerializer,
     InventoryCountSerializer,
     StorageLocationSerializer,
+    SupplierSerializer,
+
 )
-from .permissions import IsAdmin, IsLagerOrAdmin
+from .permissions import IsAdmin, IsLagerOrAdmin, IsEinkaufOrAdmin
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -58,7 +61,17 @@ class StorageLocationViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.request.method in ["GET", "HEAD", "OPTIONS"]:
             return [IsAuthenticated()]
-        return [IsAuthenticated(), IsAdmin()]
+        return [IsAuthenticated(), IsEinkaufOrAdmin()]
+
+
+class SupplierViewSet(viewsets.ModelViewSet):
+    queryset = Supplier.objects.all().order_by("name")
+    serializer_class = SupplierSerializer
+
+    def get_permissions(self):
+        if self.request.method in ["GET", "HEAD", "OPTIONS"]:
+            return [IsAuthenticated()]
+        return [IsAuthenticated(), IsEinkaufOrAdmin()]
 
 
 class ProductViewSet(viewsets.ModelViewSet):
