@@ -3,7 +3,6 @@ from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
 
 from .views import (
-<<<<<<< Updated upstream
     CustomTokenObtainPairView,
     ProductViewSet,
     InventoryTransactionViewSet,
@@ -19,14 +18,6 @@ from .views import (
     AdminUserViewSet,
     AuditLogViewSet,
 )
-=======
-    ProductViewSet,
-    InventoryTransactionViewSet,
-    StockMovementViewSet,
-    CustomTokenObtainPairView,
-)
-
->>>>>>> Stashed changes
 
 router = DefaultRouter()
 router.register(r"products", ProductViewSet, basename="product")
@@ -40,21 +31,11 @@ router.register(r"customers", CustomerViewSet, basename="customer")
 router.register(r"customer-contacts", CustomerContactViewSet, basename="customer-contact")
 router.register(r"delivery-addresses", DeliveryAddressViewSet, basename="delivery-address")
 router.register(r"customer-notes", CustomerNoteViewSet, basename="customer-note")
-
-<<<<<<< Updated upstream
 router.register(r"admin-users", AdminUserViewSet, basename="admin-user")
 router.register(r"audit-logs", AuditLogViewSet, basename="audit-log")
-=======
 
->>>>>>> Stashed changes
 urlpatterns = [
     path("login/", CustomTokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("", include(router.urls)),
-<<<<<<< Updated upstream
 ]
-=======
-    path("login/", CustomTokenObtainPairView.as_view(), name="token_obtain_pair"),
-    path("token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
-]
->>>>>>> Stashed changes
