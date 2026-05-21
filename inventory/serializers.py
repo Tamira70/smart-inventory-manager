@@ -300,11 +300,52 @@ class AuditLogSerializer(serializers.ModelSerializer):
 
 
 class ProductSerializer(serializers.ModelSerializer):
-    is_low_stock = serializers.BooleanField(read_only=True)
+    storage_location_code = serializers.SerializerMethodField()
+    storage_location_name = serializers.SerializerMethodField()
+    storage_location_label = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
-        fields = "__all__"
+        fields = [
+            "id",
+            "is_low_stock",
+            "name",
+            "sku",
+            "description",
+            "quantity",
+            "min_stock",
+            "unit",
+            "storage_location",
+            "storage_location_code",
+            "storage_location_name",
+            "storage_location_label",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "is_low_stock",
+            "storage_location_code",
+            "storage_location_name",
+            "storage_location_label",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_storage_location_code(self, obj):
+        if not obj.storage_location:
+            return ""
+        return obj.storage_location.code
+
+    def get_storage_location_name(self, obj):
+        if not obj.storage_location:
+            return ""
+        return obj.storage_location.name
+
+    def get_storage_location_label(self, obj):
+        if not obj.storage_location:
+            return "Kein Lagerort"
+        return str(obj.storage_location)
+
 
 
 class InventoryTransactionSerializer(serializers.ModelSerializer):

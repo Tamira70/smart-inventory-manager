@@ -185,7 +185,7 @@ class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class ProductViewSet(viewsets.ModelViewSet):
-    queryset = Product.objects.all().order_by("-id")
+    queryset = Product.objects.select_related("storage_location").order_by("-id")
     serializer_class = ProductSerializer
 
     def get_permissions(self):
