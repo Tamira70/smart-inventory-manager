@@ -5263,34 +5263,7 @@ const successStyle: CSSProperties = {
   marginBottom: "16px",
 };
 
-const placeholderHeaderStyle: CSSProperties = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  gap: "12px",
-  flexWrap: "wrap",
-  marginBottom: "16px",
-};
 
-const placeholderBadgeStyle: CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  padding: "7px 10px",
-  borderRadius: "999px",
-  background: "rgba(59, 130, 246, 0.15)",
-  border: "1px solid rgba(96, 165, 250, 0.28)",
-  color: "#bfdbfe",
-  fontSize: "0.85rem",
-  fontWeight: 700,
-};
 
-const placeholderBoxStyle: CSSProperties = {
-  marginTop: "16px",
-  padding: "16px",
-  borderRadius: "14px",
-  background: "rgba(30, 41, 59, 0.72)",
-  border: "1px solid rgba(148, 163, 184, 0.16)",
-  color: "#e5e7eb",
-};
 
 export default App;
