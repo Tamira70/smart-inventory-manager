@@ -8,34 +8,15 @@ from django.utils import timezone
 class StorageLocation(models.Model):
     code = models.CharField(max_length=50, unique=True)
     name = models.CharField(max_length=120)
-
     zone = models.CharField(max_length=80, blank=True)
     aisle = models.CharField(max_length=50, blank=True)
     rack = models.CharField(max_length=50, blank=True)
     shelf = models.CharField(max_length=50, blank=True)
-
     description = models.TextField(blank=True)
-
     is_active = models.BooleanField(default=True)
-    is_blocked = models.BooleanField(default=False)
-    is_empty = models.BooleanField(default=True)
-
-    allow_mixed_products = models.BooleanField(default=False)
-
-    length_cm = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    width_cm = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    height_cm = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-
-    max_weight_kg = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
-    @property
-    def volume_cm3(self):
-        if self.length_cm and self.width_cm and self.height_cm:
-            return self.length_cm * self.width_cm * self.height_cm
-        return None
 
     def __str__(self):
         parts = [self.code, self.name]
@@ -79,31 +60,6 @@ class Supplier(models.Model):
 
 
 class Product(models.Model):
-
-    REMOVAL_STRATEGIES = [
-        ("FIFO", "FIFO - Ältestes zuerst"),
-        ("LIFO", "LIFO - Neuestes zuerst"),
-        ("FEFO", "FEFO - Kürzestes MHD zuerst"),
-        ("HIFO", "HIFO - Höchster Preis zuerst"),
-        ("LOFO", "LOFO - Niedrigster Preis zuerst"),
-    ]
-
-    PUTAWAY_STRATEGIES = [
-        ("FIXED_BIN", "Festplatz"),
-        ("EMPTY_BIN", "Leerplatzsuche"),
-        ("ADD_TO_STOCK", "Zulagerung"),
-    ]
-
-    removal_strategy = models.CharField(max_length=20, choices=REMOVAL_STRATEGIES, default="FIFO")
-    putaway_strategy = models.CharField(max_length=30, choices=PUTAWAY_STRATEGIES, default="EMPTY_BIN")
-    packaging_type = models.ForeignKey("PackagingType", on_delete=models.SET_NULL, null=True, blank=True)
-    fixed_storage_location = models.ForeignKey(
-        "StorageLocation",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="fixed_products",
-    )
     name = models.CharField(max_length=255)
     sku = models.CharField(max_length=100, unique=True)
     description = models.TextField(blank=True)
@@ -386,37 +342,3 @@ class UserProfile(models.Model):
 @receiver(post_save, sender=User)
 def save_user_profile(sender, instance, **kwargs):
     UserProfile.objects.get_or_create(user=instance)
-
-
-class PackagingType(models.Model):
-    name = models.CharField(max_length=100, unique=True)
-    is_active = models.BooleanField(default=True)
-    length_cm = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    width_cm = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    height_cm = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-
-    def __str__(self):
-        return self.name
-
-
-class StorageStrategySettings(models.Model):
-    REMOVAL_STRATEGIES = [
-        ("FIFO", "FIFO - Ältestes zuerst"),
-        ("LIFO", "LIFO - Neuestes zuerst"),
-        ("FEFO", "FEFO - Kürzestes MHD zuerst"),
-        ("HIFO", "HIFO - Höchster Preis zuerst"),
-        ("LOFO", "LOFO - Niedrigster Preis zuerst"),
-    ]
-
-    PUTAWAY_STRATEGIES = [
-        ("FIXED_BIN", "Festplatz"),
-        ("EMPTY_BIN", "Leerplatzsuche"),
-        ("ADD_TO_STOCK", "Zulagerung"),
-    ]
-
-    removal_strategy = models.CharField(max_length=20, choices=REMOVAL_STRATEGIES, default="FIFO")
-    putaway_strategy = models.CharField(max_length=30, choices=PUTAWAY_STRATEGIES, default="EMPTY_BIN")
-    capacity_check_enabled = models.BooleanField(default=True)
-
-    def __str__(self):
-        return f"{self.removal_strategy} / {self.putaway_strategy}"

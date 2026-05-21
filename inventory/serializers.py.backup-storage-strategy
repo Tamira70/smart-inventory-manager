@@ -3,8 +3,6 @@ from django.db import transaction
 from rest_framework import serializers
 
 from .models import (
-    PackagingType,
-    StorageStrategySettings,
     Product,
     InventoryTransaction,
     StockMovement,
@@ -487,15 +485,3 @@ class InventoryCountSerializer(serializers.ModelSerializer):
         product = validated_data["product"]
         validated_data["expected_quantity"] = product.quantity
         return super().create(validated_data)
-
-
-class PackagingTypeSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = PackagingType
-        fields = "__all__"
-
-
-class StorageStrategySettingsSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = StorageStrategySettings
-        fields = "__all__"

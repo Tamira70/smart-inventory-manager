@@ -35,7 +35,17 @@ type StorageLocation = {
   rack: string;
   shelf: string;
   description: string;
+
   is_active: boolean;
+  is_blocked: boolean;
+  is_empty: boolean;
+  allow_mixed_products: boolean;
+
+  length_cm: string | null;
+  width_cm: string | null;
+  height_cm: string | null;
+  max_weight_kg: string | null;
+
   product_count: number;
   created_at: string;
   updated_at: string;
@@ -49,9 +59,17 @@ type StorageLocationForm = {
   rack: string;
   shelf: string;
   description: string;
-  is_active: boolean;
-};
 
+  is_active: boolean;
+  is_blocked: boolean;
+  is_empty: boolean;
+  allow_mixed_products: boolean;
+
+  length_cm: string;
+  width_cm: string;
+  height_cm: string;
+  max_weight_kg: string;
+};
 
 type Supplier = {
   id: number;
@@ -362,7 +380,16 @@ const initialStorageLocationForm: StorageLocationForm = {
   rack: "",
   shelf: "",
   description: "",
+
   is_active: true,
+  is_blocked: false,
+  is_empty: true,
+  allow_mixed_products: false,
+
+  length_cm: "",
+  width_cm: "",
+  height_cm: "",
+  max_weight_kg: "",
 };
 
 
@@ -2560,7 +2587,7 @@ if (role === "einkauf") {
             )}
             {activeSection === "admin-locations" && (
               <StorageLocationsSection
-                title="📍 Lagerorte anlegen"
+                title=" Lagerorte anlegen"
                 locations={storageLocations}
                 loading={storageLocationsLoading}
                 form={storageLocationForm}
@@ -3359,14 +3386,18 @@ function CustomersSection({
             style={{ ...inputStyle, minHeight: "80px", gridColumn: "1 / -1" }}
           />
 
-          <label style={checkboxLabelStyle}>
-            <input type="checkbox" checked={form.is_active} onChange={(event) => onToggleActive(event.target.checked)} />
-            Aktiv
-          </label>
+        <label style={checkboxLabelStyle}>
+          <input
+            type="checkbox"
+            checked={form.is_active}
+            onChange={(event) => onToggleActive(event.target.checked)}
+          />
+          Aktiv
+        </label>
 
-          <button type="submit" disabled={saving} style={primaryButtonStyle}>
-            {saving ? "Speichere..." : "Kunde anlegen"}
-          </button>
+        <button type="submit" disabled={saving} style={primaryButtonStyle}>
+          {saving ? "Speichere..." : "Lagerort anlegen"}
+        </button>
         </form>
       ) : (
         <p style={infoStyle}>Nur-Lese-Modus: Kunden können angesehen, aber nicht angelegt oder bearbeitet werden.</p>
@@ -4135,99 +4166,150 @@ function StorageLocationsSection({
   onSubmit: (event: FormEvent) => void;
 }) {
   const activeLocations = locations.filter((location) => location.is_active);
+  const emptyLocations = locations.filter((location) => location.is_empty);
+  const blockedLocations = locations.filter((location) => location.is_blocked);
 
   return (
     <section style={sectionStyle}>
-      <h2 style={sectionTitleStyle}>{title}</h2>
+      <h2 style={sectionTitleStyle}> {title}</h2>
 
       <p style={infoStyle}>
-        Verwaltung von Lagerorten, Regalen und Fächern. Produkte können später
-        einem Lagerort zugeordnet werden.
+        Verwaltung von Lagerorten, Regalen, Fächern, Kapazitäten und Status.
       </p>
 
       <div style={dashboardGridStyle}>
         <Card title="Lagerorte gesamt" value={String(locations.length)} />
         <Card title="Aktive Lagerorte" value={String(activeLocations.length)} />
+        <Card title="Freie Plätze" value={String(emptyLocations.length)} />
+        <Card title="Gesperrte Plätze" value={String(blockedLocations.length)} danger={blockedLocations.length > 0} />
       </div>
 
       {canManage && (
         <form
           onSubmit={onSubmit}
-          style={{ ...formGridStyle, marginTop: "22px", marginBottom: "24px" }}
+          style={{
+            marginTop: "24px",
+            marginBottom: "28px",
+            padding: "22px",
+            borderRadius: "22px",
+            background: "rgba(15, 23, 42, 0.82)",
+            border: "1px solid rgba(148, 163, 184, 0.18)",
+            boxShadow: "0 18px 40px rgba(0,0,0,0.22)",
+          }}
         >
-          <input
-            name="code"
-            placeholder="Code z. B. A-R2-F4"
-            value={form.code}
-            onChange={onChange}
-            style={inputStyle}
-          />
+          <h3 style={{ marginTop: 0, color: "#f8fafc" }}>
+            Neuen Lagerort anlegen
+          </h3>
 
-          <input
-            name="name"
-            placeholder="Name z. B. Lager A"
-            value={form.name}
-            onChange={onChange}
-            style={inputStyle}
-          />
-
-          <input
-            name="zone"
-            placeholder="Zone"
-            value={form.zone}
-            onChange={onChange}
-            style={inputStyle}
-          />
-
-          <input
-            name="aisle"
-            placeholder="Gang"
-            value={form.aisle}
-            onChange={onChange}
-            style={inputStyle}
-          />
-
-          <input
-            name="rack"
-            placeholder="Regal"
-            value={form.rack}
-            onChange={onChange}
-            style={inputStyle}
-          />
-
-          <input
-            name="shelf"
-            placeholder="Fach"
-            value={form.shelf}
-            onChange={onChange}
-            style={inputStyle}
-          />
-
-          <textarea
-            name="description"
-            placeholder="Beschreibung"
-            value={form.description}
-            onChange={onChange}
-            style={{
-              ...inputStyle,
-              minHeight: "80px",
-              gridColumn: "1 / -1",
-            }}
-          />
-
-          <label style={checkboxLabelStyle}>
+          <div style={formGridStyle}>
             <input
-              type="checkbox"
-              checked={form.is_active}
-              onChange={(event) => onToggleActive(event.target.checked)}
+              name="code"
+              placeholder="Code z. B. A-R2-F4"
+              value={form.code}
+              onChange={onChange}
+              style={inputStyle}
             />
-            Aktiv
-          </label>
+
+            <input
+              name="name"
+              placeholder="Name z. B. Lager A"
+              value={form.name}
+              onChange={onChange}
+              style={inputStyle}
+            />
+
+            <input
+              name="zone"
+              placeholder="Zone"
+              value={form.zone}
+              onChange={onChange}
+              style={inputStyle}
+            />
+
+            <input
+              name="aisle"
+              placeholder="Gang"
+              value={form.aisle}
+              onChange={onChange}
+              style={inputStyle}
+            />
+
+            <input
+              name="rack"
+              placeholder="Regal"
+              value={form.rack}
+              onChange={onChange}
+              style={inputStyle}
+            />
+
+            <input
+              name="shelf"
+              placeholder="Fach"
+              value={form.shelf}
+              onChange={onChange}
+              style={inputStyle}
+            />
+
+            <input
+              name="length_cm"
+              placeholder="Länge cm"
+              value={form.length_cm}
+              onChange={onChange}
+              style={inputStyle}
+            />
+
+            <input
+              name="width_cm"
+              placeholder="Breite cm"
+              value={form.width_cm}
+              onChange={onChange}
+              style={inputStyle}
+            />
+
+            <input
+              name="height_cm"
+              placeholder="Höhe cm"
+              value={form.height_cm}
+              onChange={onChange}
+              style={inputStyle}
+            />
+
+            <input
+              name="max_weight_kg"
+              placeholder="Max. Gewicht kg"
+              value={form.max_weight_kg}
+              onChange={onChange}
+              style={inputStyle}
+            />
+
+            <textarea
+              name="description"
+              placeholder="Beschreibung"
+              value={form.description}
+              onChange={onChange}
+              style={{
+                ...inputStyle,
+                minHeight: "80px",
+                gridColumn: "1 / -1",
+              }}
+            />
+          </div>
+
+          <div style={{ display: "flex", gap: "18px", flexWrap: "wrap", marginTop: "18px" }}>
+            <label style={checkboxLabelStyle}>
+              <input
+                type="checkbox"
+                checked={form.is_active}
+                onChange={(event) => onToggleActive(event.target.checked)}
+              />
+              Aktiv
+            </label>
+          </div>
 
           <button
             type="submit"
             disabled={saving}
-            style={primaryButtonStyle}
+            style={{ ...primaryButtonStyle, marginTop: "20px" }}
           >
             {saving ? "Speichere..." : "Lagerort anlegen"}
           </button>
@@ -4236,8 +4318,7 @@ function StorageLocationsSection({
 
       {!canManage && (
         <p style={infoStyle}>
-          Nur-Lese-Modus: Lagerorte können angesehen, aber nicht angelegt oder
-          bearbeitet werden.
+          Nur-Lese-Modus: Lagerorte können angesehen, aber nicht angelegt werden.
         </p>
       )}
 
@@ -4258,6 +4339,8 @@ function StorageLocationsSection({
                 <th style={tableHeadStyle}>Gang</th>
                 <th style={tableHeadStyle}>Regal</th>
                 <th style={tableHeadStyle}>Fach</th>
+                <th style={tableHeadStyle}>Maße</th>
+                <th style={tableHeadStyle}>Max. kg</th>
                 <th style={tableHeadStyle}>Produkte</th>
                 <th style={tableHeadStyle}>Status</th>
               </tr>
@@ -4269,9 +4352,11 @@ function StorageLocationsSection({
                   key={location.id}
                   style={{
                     borderTop: "1px solid rgba(148, 163, 184, 0.12)",
-                    background: location.is_active
-                      ? "rgba(22,101,52,0.08)"
-                      : "rgba(127,29,29,0.08)",
+                    background: location.is_blocked
+                      ? "rgba(127,29,29,0.12)"
+                      : location.is_empty
+                      ? "rgba(22,101,52,0.10)"
+                      : "rgba(30,64,175,0.10)",
                   }}
                 >
                   <td style={tableCellStyle}>{location.code}</td>
@@ -4280,9 +4365,21 @@ function StorageLocationsSection({
                   <td style={tableCellStyle}>{location.aisle || "—"}</td>
                   <td style={tableCellStyle}>{location.rack || "—"}</td>
                   <td style={tableCellStyle}>{location.shelf || "—"}</td>
+                  <td style={tableCellStyle}>
+                    {location.length_cm || location.width_cm || location.height_cm
+                      ? `${location.length_cm || "?"} × ${location.width_cm || "?"} × ${location.height_cm || "?"} cm`
+                      : "—"}
+                  </td>
+                  <td style={tableCellStyle}>{location.max_weight_kg || "—"}</td>
                   <td style={tableCellStyle}>{location.product_count}</td>
                   <td style={tableCellStyle}>
-                    {location.is_active ? "✅ Aktiv" : "⛔ Inaktiv"}
+                    {location.is_blocked
+                      ? "⛔ Gesperrt"
+                      : location.is_active
+                      ? location.is_empty
+                        ? "✅ Frei"
+                        : "📦 Belegt"
+                      : "⚪ Inaktiv"}
                   </td>
                 </tr>
               ))}
@@ -4736,18 +4833,62 @@ function ProductGrid({
     <div style={productGridStyle}>
       {products.map((product) => {
         const isLowStock = product.quantity <= product.min_stock;
+
         return (
-          <article key={product.id} style={{ background: isLowStock ? "rgba(127, 29, 29, 0.18)" : "rgba(15, 23, 42, 0.78)", border: isLowStock ? "1px solid rgba(248, 113, 113, 0.35)" : "1px solid rgba(148, 163, 184, 0.18)", borderRadius: "20px", padding: "18px", boxShadow: "0 18px 40px rgba(0,0,0,0.22)" }}>
-            <h3 style={{ margin: "0 0 6px 0", color: "#f8fafc" }}>{product.name}</h3>
-            <p style={{ margin: "0 0 10px 0", color: "#93c5fd" }}>{product.sku}</p>
+          <article
+            key={product.id}
+            style={{
+              background: isLowStock
+                ? "rgba(127, 29, 29, 0.18)"
+                : "rgba(15, 23, 42, 0.78)",
+              border: isLowStock
+                ? "1px solid rgba(248, 113, 113, 0.35)"
+                : "1px solid rgba(148, 163, 184, 0.18)",
+              borderRadius: "20px",
+              padding: "18px",
+              boxShadow: "0 18px 40px rgba(0,0,0,0.22)",
+            }}
+          >
+            <h3 style={{ margin: "0 0 6px 0", color: "#f8fafc" }}>
+              {product.name}
+            </h3>
+
+            <p style={{ margin: "0 0 10px 0", color: "#93c5fd" }}>
+              {product.sku}
+            </p>
+
             <div style={{ color: "#cbd5e1", lineHeight: 1.6 }}>
-              <div>Bestand: {product.quantity} {product.unit}</div>
+              <div>
+                Bestand: {product.quantity} {product.unit}
+              </div>
+
               <div>Mindestbestand: {product.min_stock}</div>
-              <div>Lagerort: {product.storage_location_label || "Kein Lagerort"}</div>
-              {product.description && <div>Beschreibung: {product.description}</div>}
+
+              <div>
+                Lagerplatz:{" "}
+                <strong>
+                  {product.storage_location_label || "Kein Lagerplatz"}
+                </strong>
+              </div>
+
+              {product.description && (
+                <div>Beschreibung: {product.description}</div>
+              )}
             </div>
+
             <div style={{ display: "flex", gap: "10px", marginTop: "16px" }}>
-              <button type="button" onClick={() => hasPermission("admin") && handleEdit(product)} disabled={!hasPermission("admin")} style={hasPermission("admin") ? secondaryButtonStyle : disabledButtonStyle}>Bearbeiten</button>
+              <button
+                type="button"
+                onClick={() => hasPermission("admin") && handleEdit(product)}
+                disabled={!hasPermission("admin")}
+                style={
+                  hasPermission("admin")
+                    ? secondaryButtonStyle
+                    : disabledButtonStyle
+                }
+              >
+                Bearbeiten
+              </button>
             </div>
           </article>
         );
