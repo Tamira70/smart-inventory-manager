@@ -1,8 +1,6 @@
 from django.contrib import admin
 
 from .models import (
-    PackagingType,
-    StorageStrategySettings,
     Product,
     InventoryTransaction,
     StockMovement,
@@ -39,98 +37,6 @@ class SupplierAdmin(admin.ModelAdmin):
     )
     list_filter = ("is_active", "country", "city")
     readonly_fields = ("created_at", "updated_at")
-
-
-@admin.register(StorageLocation)
-class StorageLocationAdmin(admin.ModelAdmin):
-    list_display = (
-        "code",
-        "name",
-        "zone",
-        "aisle",
-        "rack",
-        "shelf",
-        "is_active",
-        "is_blocked",
-        "is_empty",
-        "allow_mixed_products",
-        "max_weight_kg",
-    )
-
-    search_fields = (
-        "code",
-        "name",
-        "zone",
-        "aisle",
-        "rack",
-        "shelf",
-    )
-
-    list_filter = (
-        "is_active",
-        "is_blocked",
-        "is_empty",
-        "allow_mixed_products",
-        "zone",
-    )
-
-    readonly_fields = (
-        "created_at",
-        "updated_at",
-    )
-
-    fieldsets = (
-        (
-            "Grunddaten",
-            {
-                "fields": (
-                    "code",
-                    "name",
-                    "description",
-                )
-            },
-        ),
-        (
-            "Lagerstruktur",
-            {
-                "fields": (
-                    "zone",
-                    "aisle",
-                    "rack",
-                    "shelf",
-                )
-            },
-        ),
-        (
-            "Kapazität & Maße",
-            {
-                "fields": (
-                    ("length_cm", "width_cm", "height_cm"),
-                    "max_weight_kg",
-                )
-            },
-        ),
-        (
-            "Status",
-            {
-                "fields": (
-                    "is_active",
-                    "is_blocked",
-                    "is_empty",
-                    "allow_mixed_products",
-                )
-            },
-        ),
-        (
-            "Zeitstempel",
-            {
-                "fields": (
-                    "created_at",
-                    "updated_at",
-                )
-            },
-        ),
-    )
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
@@ -290,16 +196,3 @@ class CustomerNoteAdmin(admin.ModelAdmin):
     search_fields = ("customer__name", "title", "note", "created_by__username")
     list_filter = ("created_at",)
     readonly_fields = ("created_at", "updated_at")
-
-
-
-@admin.register(PackagingType)
-class PackagingTypeAdmin(admin.ModelAdmin):
-    list_display = ("name", "length_cm", "width_cm", "height_cm", "is_active")
-    list_filter = ("is_active",)
-    search_fields = ("name",)
-
-
-@admin.register(StorageStrategySettings)
-class StorageStrategySettingsAdmin(admin.ModelAdmin):
-    list_display = ("removal_strategy", "putaway_strategy", "capacity_check_enabled")
