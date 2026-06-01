@@ -212,17 +212,19 @@ type CustomerNoteForm = {
   note: string;
 };
 
-type StockMovement = {
-  id: number;
-  product: number;
-  product_name: string;
-  movement_type: "IN" | "OUT";
-  quantity: number;
-  reference_number?: string;
-  note?: string;
-  created_by_username?: string;
-  created_at: string;
-};
+  type StockMovement = {
+    id: number;
+    product: number;
+    product_name: string;
+    movement_type: "IN" | "OUT";
+    quantity: number;
+    storage_location?: number | null;
+    storage_location_label?: string | null;
+    reference_number?: string;
+    note?: string;
+    created_by_username?: string;
+    created_at: string;
+  };
 
 type InventorySession = {
   id: number;
@@ -661,6 +663,7 @@ const [suppliers, setSuppliers] = useState<Supplier[]>([]);
 
   const [movementProductId, setMovementProductId] = useState("");
   const [movementQuantity, setMovementQuantity] = useState("");
+  const [movementStorageLocationId, setMovementStorageLocationId] = useState("");
   const [movementReferenceNumber, setMovementReferenceNumber] = useState("");
   const [movementNote, setMovementNote] = useState("");
   const [movementSaving, setMovementSaving] = useState(false);
@@ -1855,30 +1858,41 @@ if (role === "einkauf") {
       setMovementSaving(false);
       return;
     }
+
     try {
-      const response = await apiFetch("/inventory-api/stock-movements/", {
-        method: "POST",
-        body: JSON.stringify({
-          product: Number(movementProductId),
-          movement_type: "IN",
-          quantity: Number(movementQuantity),
-          reference_number: movementReferenceNumber,
-          note: movementNote,
-        }),
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(JSON.stringify(errorData));
+        const response = await apiFetch("/inventory-api/stock-movements/", {
+          method: "POST",
+          body: JSON.stringify({
+            product: Number(movementProductId),
+            movement_type: "IN",
+            quantity: Number(movementQuantity),
+            storage_location: movementStorageLocationId
+              ? Number(movementStorageLocationId)
+              : null,
+            reference_number: movementReferenceNumber,
+            note: movementNote,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(JSON.stringify(errorData));
+        }
+
+        setMovementProductId("");
+        setMovementQuantity("");
+        setMovementReferenceNumber("");
+        setMovementNote("");
+        setMovementStorageLocationId("");
+
+        await loadProducts();
+        await loadMovements();
+
+        setSuccess("📥 Wareneingang erfolgreich gebucht!");
+        setTimeout(() => goodsInProductRef.current?.focus(), 0);
       }
-      setMovementProductId("");
-      setMovementQuantity("");
-      setMovementReferenceNumber("");
-      setMovementNote("");
-      await loadProducts();
-      await loadMovements();
-      setSuccess("📥 Wareneingang erfolgreich gebucht!");
-      setTimeout(() => goodsInProductRef.current?.focus(), 0);
-    } catch (err) {
+
+    catch (err) {
       const message = err instanceof Error ? err.message : "Fehler beim Wareneingang.";
       setError(message);
       if (message.includes("Sitzung abgelaufen")) {
@@ -2636,6 +2650,7 @@ if (role === "einkauf") {
             {activeSection === "goods-in" && (
               <GoodsInSection
                 products={products}
+                storageLocations={storageLocations}
                 movementProductId={movementProductId}
                 setMovementProductId={setMovementProductId}
                 movementQuantity={movementQuantity}
@@ -2644,6 +2659,8 @@ if (role === "einkauf") {
                 setMovementReferenceNumber={setMovementReferenceNumber}
                 movementNote={movementNote}
                 setMovementNote={setMovementNote}
+                movementStorageLocationId={movementStorageLocationId}
+                setMovementStorageLocationId={setMovementStorageLocationId}
                 movementSaving={movementSaving}
                 hasPermission={hasPermission}
                 handleGoodsReceipt={handleGoodsReceipt}
@@ -4586,7 +4603,10 @@ function ReorderSection({
 }
 
 function GoodsInSection({
+  movementStorageLocationId,
+  setMovementStorageLocationId,
   products,
+  storageLocations,
   movementProductId,
   setMovementProductId,
   movementQuantity,
@@ -4603,6 +4623,9 @@ function GoodsInSection({
   focusNextOnEnter,
 }: {
   products: Product[];
+  movementStorageLocationId: string;
+  setMovementStorageLocationId: (value: string) => void;
+  storageLocations: StorageLocation[];
   movementProductId: string;
   setMovementProductId: (value: string) => void;
   movementQuantity: string;
@@ -4621,19 +4644,125 @@ function GoodsInSection({
     next?: HTMLElement | null
   ) => void;
 }) {
+  const selectedProduct =
+    products.find((product) => String(product.id) === movementProductId) ?? null;
+
+  const freeLocations = storageLocations.filter(
+    (location) =>
+      location.is_active &&
+      !location.is_blocked &&
+      (location.is_empty || location.allow_mixed_products)
+  );
+
+  const suggestedLocation =
+    selectedProduct?.storage_location
+      ? storageLocations.find(
+          (location) => location.id === selectedProduct.storage_location
+        ) ?? null
+      : freeLocations[0] ?? null;
+
   return (
     <section style={sectionStyle}>
       <h2 style={sectionTitleStyle}>📥 Wareneingang buchen</h2>
+
+      <p style={infoStyle}>
+        Beim Wareneingang werden freie, aktive und nicht gesperrte Lagerplätze
+        bevorzugt. Belegte Mischlagerplätze werden nur angezeigt, wenn
+        Mischlagerung erlaubt ist.
+      </p>
+
+      <div style={dashboardGridStyle}>
+        <Card title="Freie Plätze" value={String(freeLocations.length)} />
+        <Card
+          title="Gesperrte Plätze"
+          value={String(storageLocations.filter((location) => location.is_blocked).length)}
+          danger={storageLocations.some((location) => location.is_blocked)}
+        />
+        <Card
+          title="Vorschlag"
+          value={suggestedLocation ? suggestedLocation.code : "—"}
+        />
+      </div>
+
+      {suggestedLocation && (
+        <p style={successStyle}>
+          💡 Vorschlag: {suggestedLocation.code} - {suggestedLocation.name}
+          {suggestedLocation.rack ? ` / Regal ${suggestedLocation.rack}` : ""}
+          {suggestedLocation.shelf ? ` / Fach ${suggestedLocation.shelf}` : ""}
+        </p>
+      )}
+
       <form onSubmit={handleGoodsReceipt} style={formGridStyle}>
-        <select ref={goodsInProductRef} value={movementProductId} onChange={(event) => setMovementProductId(event.target.value)} onKeyDown={(event) => focusNextOnEnter(event, goodsInQuantityRef.current)} required style={inputStyle} disabled={!hasPermission("lager")}>
+        <select
+          ref={goodsInProductRef}
+          value={movementProductId}
+          onChange={(event) => setMovementProductId(event.target.value)}
+          onKeyDown={(event) => focusNextOnEnter(event, goodsInQuantityRef.current)}
+          required
+          style={inputStyle}
+          disabled={!hasPermission("lager")}
+        >
           <option value="">Produkt auswählen</option>
-          {products.map((product) => <option key={product.id} value={product.id}>{product.name} ({product.sku})</option>)}
+          {products.map((product) => (
+            <option key={product.id} value={product.id}>
+              {product.name} ({product.sku})
+              {product.storage_location_label
+                ? ` - aktuell: ${product.storage_location_label}`
+                : ""}
+            </option>
+          ))}
         </select>
-        <input ref={goodsInQuantityRef} type="number" placeholder="Menge" value={movementQuantity} onChange={(event) => setMovementQuantity(event.target.value)} required min="1" style={inputStyle} disabled={!hasPermission("lager")} />
-        <input type="text" placeholder="Lieferschein / Referenznummer" value={movementReferenceNumber} onChange={(event) => setMovementReferenceNumber(event.target.value)} style={inputStyle} disabled={!hasPermission("lager")} />
-        <textarea placeholder="Notiz" value={movementNote} onChange={(event) => setMovementNote(event.target.value)} style={{ ...inputStyle, minHeight: "48px", gridColumn: "1 / -1" }} disabled={!hasPermission("lager")} />
+
+        <input
+          ref={goodsInQuantityRef}
+          type="number"
+          placeholder="Menge"
+          value={movementQuantity}
+          onChange={(event) => setMovementQuantity(event.target.value)}
+          required
+          min="1"
+          style={inputStyle}
+          disabled={!hasPermission("lager")}
+        />
+        <select
+          value={movementStorageLocationId || suggestedLocation?.id || ""}
+          onChange={(event) => setMovementStorageLocationId(event.target.value)}
+          style={inputStyle}
+          disabled={!hasPermission("lager")}
+        >
+          <option value="">Lagerplatz auswählen</option>
+
+          {freeLocations.map((location) => (
+            <option key={location.id} value={location.id}>
+              {location.code} - {location.name}
+              {location.is_empty ? " / frei" : " / Mischlager"}
+            </option>
+          ))}
+        </select>
+
+        <input
+          type="text"
+          placeholder="Lieferschein / Referenznummer"
+          value={movementReferenceNumber}
+          onChange={(event) => setMovementReferenceNumber(event.target.value)}
+          style={inputStyle}
+          disabled={!hasPermission("lager")}
+        />
+
+        <textarea
+          placeholder="Notiz"
+          value={movementNote}
+          onChange={(event) => setMovementNote(event.target.value)}
+          style={{ ...inputStyle, minHeight: "70px", gridColumn: "1 / -1" }}
+          disabled={!hasPermission("lager")}
+        />
+
         <div style={{ gridColumn: "1 / -1" }}>
-          <button type="submit" disabled={movementSaving || !hasPermission("lager")} style={hasPermission("lager") ? primaryButtonStyle : disabledButtonStyle}>
+          <button
+            type="submit"
+            disabled={movementSaving || !hasPermission("lager")}
+            style={hasPermission("lager") ? primaryButtonStyle : disabledButtonStyle}
+          >
             {movementSaving ? "Buche..." : "Wareneingang buchen"}
           </button>
         </div>
@@ -4990,28 +5119,117 @@ function HistorySection({
       </div>
       {movementsLoading && <p>Lade Bewegungen...</p>}
       {!movementsLoading && filteredMovements.length === 0 && <p>Keine Bewegungen gefunden.</p>}
+      
       {!movementsLoading && filteredMovements.length > 0 && (
         <div style={tableWrapStyle}>
           <table style={dataTableStyle}>
             <thead>
               <tr style={tableHeaderRowStyle}>
-                <th style={tableHeadStyle}>Datum</th><th style={tableHeadStyle}>Produkt</th><th style={tableHeadStyle}>Typ</th><th style={tableHeadStyle}>Menge</th><th style={tableHeadStyle}>Referenz</th><th style={tableHeadStyle}>Notiz</th><th style={tableHeadStyle}>Benutzer</th><th style={tableHeadStyle}>Aktion</th>
+                <th style={tableHeadStyle}>Datum</th>
+                <th style={tableHeadStyle}>Produkt</th>
+                <th style={tableHeadStyle}>Typ</th>
+                <th style={tableHeadStyle}>Menge</th>
+                <th style={tableHeadStyle}>Referenz</th>
+                <th style={tableHeadStyle}>Lagerplatz</th>
+                <th style={tableHeadStyle}>Notiz</th>
+                <th style={tableHeadStyle}>Benutzer</th>
+                <th style={tableHeadStyle}>Aktion</th>
               </tr>
             </thead>
+
             <tbody>
               {filteredMovements.map((movement, index) => {
                 const isIn = movement.movement_type === "IN";
                 const isLatest = index === 0;
+
                 return (
-                  <tr key={movement.id} style={{ borderTop: "1px solid rgba(148, 163, 184, 0.12)", background: isIn ? "rgba(22,101,52,0.08)" : "rgba(127,29,29,0.08)", transition: "0.2s" }}>
-                    <td style={tableCellStyle}>{new Date(movement.created_at).toLocaleString("de-DE")}</td>
+                  <tr
+                    key={movement.id}
+                    style={{
+                      borderTop: "1px solid rgba(148, 163, 184, 0.12)",
+                      background: isIn
+                        ? "rgba(22,101,52,0.08)"
+                        : "rgba(127,29,29,0.08)",
+                      transition: "0.2s",
+                    }}
+                  >
+                    <td style={tableCellStyle}>
+                      {new Date(movement.created_at).toLocaleString("de-DE")}
+                    </td>
+
                     <td style={tableCellStyle}>{movement.product_name}</td>
-                    <td style={tableCellStyle}><span style={{ color: isIn ? "#86efac" : "#fca5a5", fontWeight: 700 }}>{isIn ? "Wareneingang" : "Warenausgang"}</span></td>
-                    <td style={tableCellStyle}>{movement.movement_type === "OUT" ? `-${movement.quantity}` : movement.quantity}</td>
-                    <td style={{ ...tableCellStyle, color: movement.reference_number ? "#e5e7eb" : "#64748b" }}>{movement.reference_number || "—"}</td>
-                    <td style={{ ...tableCellStyle, color: movement.note ? "#e5e7eb" : "#64748b" }}>{movement.note || "—"}</td>
-                    <td style={{ ...tableCellStyle, color: movement.created_by_username ? "#e5e7eb" : "#64748b" }}>{movement.created_by_username || "—"}</td>
-                    <td style={tableCellStyle}>{isLatest && <button type="button" onClick={() => hasPermission("admin") && handleUndoMovement(movement)} disabled={!hasPermission("admin")} style={hasPermission("admin") ? secondaryButtonStyle : disabledButtonStyle}>Rückgängig</button>}</td>
+
+                    <td style={tableCellStyle}>
+                      <span
+                        style={{
+                          color: isIn ? "#86efac" : "#fca5a5",
+                          fontWeight: 700,
+                        }}
+                      >
+                        {isIn ? "Wareneingang" : "Warenausgang"}
+                      </span>
+                    </td>
+
+                    <td style={tableCellStyle}>
+                      {movement.movement_type === "OUT"
+                        ? `-${movement.quantity}`
+                        : movement.quantity}
+                    </td>
+
+                    <td
+                      style={{
+                        ...tableCellStyle,
+                        color: movement.reference_number ? "#e5e7eb" : "#64748b",
+                      }}
+                    >
+                      {movement.reference_number || "—"}
+                    </td>
+
+                    <td
+                      style={{
+                        ...tableCellStyle,
+                        color: movement.storage_location_label ? "#e5e7eb" : "#64748b",
+                      }}
+                    >
+                      {movement.storage_location_label || "—"}
+                    </td>
+
+                    <td
+                      style={{
+                        ...tableCellStyle,
+                        color: movement.note ? "#e5e7eb" : "#64748b",
+                      }}
+                    >
+                      {movement.note || "—"}
+                    </td>
+
+                    <td
+                      style={{
+                        ...tableCellStyle,
+                        color: movement.created_by_username ? "#e5e7eb" : "#64748b",
+                      }}
+                    >
+                      {movement.created_by_username || "—"}
+                    </td>
+
+                    <td style={tableCellStyle}>
+                      {isLatest && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            hasPermission("admin") && handleUndoMovement(movement)
+                          }
+                          disabled={!hasPermission("admin")}
+                          style={
+                            hasPermission("admin")
+                              ? secondaryButtonStyle
+                              : disabledButtonStyle
+                          }
+                        >
+                          Rückgängig
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 );
               })}
@@ -5019,9 +5237,9 @@ function HistorySection({
           </table>
         </div>
       )}
-    </section>
-  );
-}
+      </section>
+      );
+      }
 
 function Card({
   title,

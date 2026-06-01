@@ -358,7 +358,13 @@ class InventoryTransactionSerializer(serializers.ModelSerializer):
 
 class StockMovementSerializer(serializers.ModelSerializer):
     product_name = serializers.ReadOnlyField(source="product.name")
+    storage_location_label = serializers.SerializerMethodField()
     created_by_username = serializers.ReadOnlyField(source="created_by.username")
+
+    def get_storage_location_label(self, obj):
+        if obj.storage_location:
+            return str(obj.storage_location)
+        return None
 
     class Meta:
         model = StockMovement
@@ -368,6 +374,8 @@ class StockMovementSerializer(serializers.ModelSerializer):
             "product_name",
             "movement_type",
             "quantity",
+            "storage_location",
+            "storage_location_label",
             "reference_number",
             "note",
             "created_by",

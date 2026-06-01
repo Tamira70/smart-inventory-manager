@@ -161,17 +161,33 @@ class StockMovement(models.Model):
         on_delete=models.CASCADE,
         related_name="stock_movements",
     )
+
     movement_type = models.CharField(max_length=3, choices=MOVEMENT_TYPES)
+
     quantity = models.PositiveIntegerField()
+
+    storage_location = models.ForeignKey(
+        "StorageLocation",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="stock_movements",
+    )
+
     reference_number = models.CharField(max_length=100, blank=True)
     note = models.TextField(blank=True)
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"{self.product.name} - {self.movement_type} - {self.quantity}"
-
-
+    
 class InventorySession(models.Model):
     STATUS_CHOICES = [
         ("OPEN", "Offen"),
