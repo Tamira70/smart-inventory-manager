@@ -35,17 +35,7 @@ type StorageLocation = {
   rack: string;
   shelf: string;
   description: string;
-
   is_active: boolean;
-  is_blocked: boolean;
-  is_empty: boolean;
-  allow_mixed_products: boolean;
-
-  length_cm: string | null;
-  width_cm: string | null;
-  height_cm: string | null;
-  max_weight_kg: string | null;
-
   product_count: number;
   created_at: string;
   updated_at: string;
@@ -59,17 +49,9 @@ type StorageLocationForm = {
   rack: string;
   shelf: string;
   description: string;
-
   is_active: boolean;
-  is_blocked: boolean;
-  is_empty: boolean;
-  allow_mixed_products: boolean;
-
-  length_cm: string;
-  width_cm: string;
-  height_cm: string;
-  max_weight_kg: string;
 };
+
 
 type Supplier = {
   id: number;
@@ -212,19 +194,17 @@ type CustomerNoteForm = {
   note: string;
 };
 
-  type StockMovement = {
-    id: number;
-    product: number;
-    product_name: string;
-    movement_type: "IN" | "OUT";
-    quantity: number;
-    storage_location?: number | null;
-    storage_location_label?: string | null;
-    reference_number?: string;
-    note?: string;
-    created_by_username?: string;
-    created_at: string;
-  };
+type StockMovement = {
+  id: number;
+  product: number;
+  product_name: string;
+  movement_type: "IN" | "OUT";
+  quantity: number;
+  reference_number?: string;
+  note?: string;
+  created_by_username?: string;
+  created_at: string;
+};
 
 type InventorySession = {
   id: number;
@@ -382,16 +362,7 @@ const initialStorageLocationForm: StorageLocationForm = {
   rack: "",
   shelf: "",
   description: "",
-
   is_active: true,
-  is_blocked: false,
-  is_empty: true,
-  allow_mixed_products: false,
-
-  length_cm: "",
-  width_cm: "",
-  height_cm: "",
-  max_weight_kg: "",
 };
 
 
@@ -663,7 +634,6 @@ const [suppliers, setSuppliers] = useState<Supplier[]>([]);
 
   const [movementProductId, setMovementProductId] = useState("");
   const [movementQuantity, setMovementQuantity] = useState("");
-  const [movementStorageLocationId, setMovementStorageLocationId] = useState("");
   const [movementReferenceNumber, setMovementReferenceNumber] = useState("");
   const [movementNote, setMovementNote] = useState("");
   const [movementSaving, setMovementSaving] = useState(false);
@@ -1858,41 +1828,30 @@ if (role === "einkauf") {
       setMovementSaving(false);
       return;
     }
-
     try {
-        const response = await apiFetch("/inventory-api/stock-movements/", {
-          method: "POST",
-          body: JSON.stringify({
-            product: Number(movementProductId),
-            movement_type: "IN",
-            quantity: Number(movementQuantity),
-            storage_location: movementStorageLocationId
-              ? Number(movementStorageLocationId)
-              : null,
-            reference_number: movementReferenceNumber,
-            note: movementNote,
-          }),
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(JSON.stringify(errorData));
-        }
-
-        setMovementProductId("");
-        setMovementQuantity("");
-        setMovementReferenceNumber("");
-        setMovementNote("");
-        setMovementStorageLocationId("");
-
-        await loadProducts();
-        await loadMovements();
-
-        setSuccess("📥 Wareneingang erfolgreich gebucht!");
-        setTimeout(() => goodsInProductRef.current?.focus(), 0);
+      const response = await apiFetch("/inventory-api/stock-movements/", {
+        method: "POST",
+        body: JSON.stringify({
+          product: Number(movementProductId),
+          movement_type: "IN",
+          quantity: Number(movementQuantity),
+          reference_number: movementReferenceNumber,
+          note: movementNote,
+        }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(JSON.stringify(errorData));
       }
-
-    catch (err) {
+      setMovementProductId("");
+      setMovementQuantity("");
+      setMovementReferenceNumber("");
+      setMovementNote("");
+      await loadProducts();
+      await loadMovements();
+      setSuccess("📥 Wareneingang erfolgreich gebucht!");
+      setTimeout(() => goodsInProductRef.current?.focus(), 0);
+    } catch (err) {
       const message = err instanceof Error ? err.message : "Fehler beim Wareneingang.";
       setError(message);
       if (message.includes("Sitzung abgelaufen")) {
@@ -2601,7 +2560,7 @@ if (role === "einkauf") {
             )}
             {activeSection === "admin-locations" && (
               <StorageLocationsSection
-                title=" Lagerorte anlegen"
+                title="📍 Lagerorte anlegen"
                 locations={storageLocations}
                 loading={storageLocationsLoading}
                 form={storageLocationForm}
@@ -2650,7 +2609,6 @@ if (role === "einkauf") {
             {activeSection === "goods-in" && (
               <GoodsInSection
                 products={products}
-                storageLocations={storageLocations}
                 movementProductId={movementProductId}
                 setMovementProductId={setMovementProductId}
                 movementQuantity={movementQuantity}
@@ -2659,8 +2617,6 @@ if (role === "einkauf") {
                 setMovementReferenceNumber={setMovementReferenceNumber}
                 movementNote={movementNote}
                 setMovementNote={setMovementNote}
-                movementStorageLocationId={movementStorageLocationId}
-                setMovementStorageLocationId={setMovementStorageLocationId}
                 movementSaving={movementSaving}
                 hasPermission={hasPermission}
                 handleGoodsReceipt={handleGoodsReceipt}
@@ -3403,18 +3359,14 @@ function CustomersSection({
             style={{ ...inputStyle, minHeight: "80px", gridColumn: "1 / -1" }}
           />
 
-        <label style={checkboxLabelStyle}>
-          <input
-            type="checkbox"
-            checked={form.is_active}
-            onChange={(event) => onToggleActive(event.target.checked)}
-          />
-          Aktiv
-        </label>
+          <label style={checkboxLabelStyle}>
+            <input type="checkbox" checked={form.is_active} onChange={(event) => onToggleActive(event.target.checked)} />
+            Aktiv
+          </label>
 
-        <button type="submit" disabled={saving} style={primaryButtonStyle}>
-          {saving ? "Speichere..." : "Lagerort anlegen"}
-        </button>
+          <button type="submit" disabled={saving} style={primaryButtonStyle}>
+            {saving ? "Speichere..." : "Kunde anlegen"}
+          </button>
         </form>
       ) : (
         <p style={infoStyle}>Nur-Lese-Modus: Kunden können angesehen, aber nicht angelegt oder bearbeitet werden.</p>
@@ -4183,150 +4135,99 @@ function StorageLocationsSection({
   onSubmit: (event: FormEvent) => void;
 }) {
   const activeLocations = locations.filter((location) => location.is_active);
-  const emptyLocations = locations.filter((location) => location.is_empty);
-  const blockedLocations = locations.filter((location) => location.is_blocked);
 
   return (
     <section style={sectionStyle}>
-      <h2 style={sectionTitleStyle}> {title}</h2>
+      <h2 style={sectionTitleStyle}>{title}</h2>
 
       <p style={infoStyle}>
-        Verwaltung von Lagerorten, Regalen, Fächern, Kapazitäten und Status.
+        Verwaltung von Lagerorten, Regalen und Fächern. Produkte können später
+        einem Lagerort zugeordnet werden.
       </p>
 
       <div style={dashboardGridStyle}>
         <Card title="Lagerorte gesamt" value={String(locations.length)} />
         <Card title="Aktive Lagerorte" value={String(activeLocations.length)} />
-        <Card title="Freie Plätze" value={String(emptyLocations.length)} />
-        <Card title="Gesperrte Plätze" value={String(blockedLocations.length)} danger={blockedLocations.length > 0} />
       </div>
 
       {canManage && (
         <form
           onSubmit={onSubmit}
-          style={{
-            marginTop: "24px",
-            marginBottom: "28px",
-            padding: "22px",
-            borderRadius: "22px",
-            background: "rgba(15, 23, 42, 0.82)",
-            border: "1px solid rgba(148, 163, 184, 0.18)",
-            boxShadow: "0 18px 40px rgba(0,0,0,0.22)",
-          }}
+          style={{ ...formGridStyle, marginTop: "22px", marginBottom: "24px" }}
         >
-          <h3 style={{ marginTop: 0, color: "#f8fafc" }}>
-            Neuen Lagerort anlegen
-          </h3>
+          <input
+            name="code"
+            placeholder="Code z. B. A-R2-F4"
+            value={form.code}
+            onChange={onChange}
+            style={inputStyle}
+          />
 
-          <div style={formGridStyle}>
+          <input
+            name="name"
+            placeholder="Name z. B. Lager A"
+            value={form.name}
+            onChange={onChange}
+            style={inputStyle}
+          />
+
+          <input
+            name="zone"
+            placeholder="Zone"
+            value={form.zone}
+            onChange={onChange}
+            style={inputStyle}
+          />
+
+          <input
+            name="aisle"
+            placeholder="Gang"
+            value={form.aisle}
+            onChange={onChange}
+            style={inputStyle}
+          />
+
+          <input
+            name="rack"
+            placeholder="Regal"
+            value={form.rack}
+            onChange={onChange}
+            style={inputStyle}
+          />
+
+          <input
+            name="shelf"
+            placeholder="Fach"
+            value={form.shelf}
+            onChange={onChange}
+            style={inputStyle}
+          />
+
+          <textarea
+            name="description"
+            placeholder="Beschreibung"
+            value={form.description}
+            onChange={onChange}
+            style={{
+              ...inputStyle,
+              minHeight: "80px",
+              gridColumn: "1 / -1",
+            }}
+          />
+
+          <label style={checkboxLabelStyle}>
             <input
-              name="code"
-              placeholder="Code z. B. A-R2-F4"
-              value={form.code}
-              onChange={onChange}
-              style={inputStyle}
+              type="checkbox"
+              checked={form.is_active}
+              onChange={(event) => onToggleActive(event.target.checked)}
             />
-
-            <input
-              name="name"
-              placeholder="Name z. B. Lager A"
-              value={form.name}
-              onChange={onChange}
-              style={inputStyle}
-            />
-
-            <input
-              name="zone"
-              placeholder="Zone"
-              value={form.zone}
-              onChange={onChange}
-              style={inputStyle}
-            />
-
-            <input
-              name="aisle"
-              placeholder="Gang"
-              value={form.aisle}
-              onChange={onChange}
-              style={inputStyle}
-            />
-
-            <input
-              name="rack"
-              placeholder="Regal"
-              value={form.rack}
-              onChange={onChange}
-              style={inputStyle}
-            />
-
-            <input
-              name="shelf"
-              placeholder="Fach"
-              value={form.shelf}
-              onChange={onChange}
-              style={inputStyle}
-            />
-
-            <input
-              name="length_cm"
-              placeholder="Länge cm"
-              value={form.length_cm}
-              onChange={onChange}
-              style={inputStyle}
-            />
-
-            <input
-              name="width_cm"
-              placeholder="Breite cm"
-              value={form.width_cm}
-              onChange={onChange}
-              style={inputStyle}
-            />
-
-            <input
-              name="height_cm"
-              placeholder="Höhe cm"
-              value={form.height_cm}
-              onChange={onChange}
-              style={inputStyle}
-            />
-
-            <input
-              name="max_weight_kg"
-              placeholder="Max. Gewicht kg"
-              value={form.max_weight_kg}
-              onChange={onChange}
-              style={inputStyle}
-            />
-
-            <textarea
-              name="description"
-              placeholder="Beschreibung"
-              value={form.description}
-              onChange={onChange}
-              style={{
-                ...inputStyle,
-                minHeight: "80px",
-                gridColumn: "1 / -1",
-              }}
-            />
-          </div>
-
-          <div style={{ display: "flex", gap: "18px", flexWrap: "wrap", marginTop: "18px" }}>
-            <label style={checkboxLabelStyle}>
-              <input
-                type="checkbox"
-                checked={form.is_active}
-                onChange={(event) => onToggleActive(event.target.checked)}
-              />
-              Aktiv
-            </label>
-          </div>
+            Aktiv
+          </label>
 
           <button
             type="submit"
             disabled={saving}
-            style={{ ...primaryButtonStyle, marginTop: "20px" }}
+            style={primaryButtonStyle}
           >
             {saving ? "Speichere..." : "Lagerort anlegen"}
           </button>
@@ -4335,7 +4236,8 @@ function StorageLocationsSection({
 
       {!canManage && (
         <p style={infoStyle}>
-          Nur-Lese-Modus: Lagerorte können angesehen, aber nicht angelegt werden.
+          Nur-Lese-Modus: Lagerorte können angesehen, aber nicht angelegt oder
+          bearbeitet werden.
         </p>
       )}
 
@@ -4356,8 +4258,6 @@ function StorageLocationsSection({
                 <th style={tableHeadStyle}>Gang</th>
                 <th style={tableHeadStyle}>Regal</th>
                 <th style={tableHeadStyle}>Fach</th>
-                <th style={tableHeadStyle}>Maße</th>
-                <th style={tableHeadStyle}>Max. kg</th>
                 <th style={tableHeadStyle}>Produkte</th>
                 <th style={tableHeadStyle}>Status</th>
               </tr>
@@ -4369,11 +4269,9 @@ function StorageLocationsSection({
                   key={location.id}
                   style={{
                     borderTop: "1px solid rgba(148, 163, 184, 0.12)",
-                    background: location.is_blocked
-                      ? "rgba(127,29,29,0.12)"
-                      : location.is_empty
-                      ? "rgba(22,101,52,0.10)"
-                      : "rgba(30,64,175,0.10)",
+                    background: location.is_active
+                      ? "rgba(22,101,52,0.08)"
+                      : "rgba(127,29,29,0.08)",
                   }}
                 >
                   <td style={tableCellStyle}>{location.code}</td>
@@ -4382,21 +4280,9 @@ function StorageLocationsSection({
                   <td style={tableCellStyle}>{location.aisle || "—"}</td>
                   <td style={tableCellStyle}>{location.rack || "—"}</td>
                   <td style={tableCellStyle}>{location.shelf || "—"}</td>
-                  <td style={tableCellStyle}>
-                    {location.length_cm || location.width_cm || location.height_cm
-                      ? `${location.length_cm || "?"} × ${location.width_cm || "?"} × ${location.height_cm || "?"} cm`
-                      : "—"}
-                  </td>
-                  <td style={tableCellStyle}>{location.max_weight_kg || "—"}</td>
                   <td style={tableCellStyle}>{location.product_count}</td>
                   <td style={tableCellStyle}>
-                    {location.is_blocked
-                      ? "⛔ Gesperrt"
-                      : location.is_active
-                      ? location.is_empty
-                        ? "✅ Frei"
-                        : "📦 Belegt"
-                      : "⚪ Inaktiv"}
+                    {location.is_active ? "✅ Aktiv" : "⛔ Inaktiv"}
                   </td>
                 </tr>
               ))}
@@ -4603,10 +4489,7 @@ function ReorderSection({
 }
 
 function GoodsInSection({
-  movementStorageLocationId,
-  setMovementStorageLocationId,
   products,
-  storageLocations,
   movementProductId,
   setMovementProductId,
   movementQuantity,
@@ -4623,9 +4506,6 @@ function GoodsInSection({
   focusNextOnEnter,
 }: {
   products: Product[];
-  movementStorageLocationId: string;
-  setMovementStorageLocationId: (value: string) => void;
-  storageLocations: StorageLocation[];
   movementProductId: string;
   setMovementProductId: (value: string) => void;
   movementQuantity: string;
@@ -4644,125 +4524,19 @@ function GoodsInSection({
     next?: HTMLElement | null
   ) => void;
 }) {
-  const selectedProduct =
-    products.find((product) => String(product.id) === movementProductId) ?? null;
-
-  const freeLocations = storageLocations.filter(
-    (location) =>
-      location.is_active &&
-      !location.is_blocked &&
-      (location.is_empty || location.allow_mixed_products)
-  );
-
-  const suggestedLocation =
-    selectedProduct?.storage_location
-      ? storageLocations.find(
-          (location) => location.id === selectedProduct.storage_location
-        ) ?? null
-      : freeLocations[0] ?? null;
-
   return (
     <section style={sectionStyle}>
       <h2 style={sectionTitleStyle}>📥 Wareneingang buchen</h2>
-
-      <p style={infoStyle}>
-        Beim Wareneingang werden freie, aktive und nicht gesperrte Lagerplätze
-        bevorzugt. Belegte Mischlagerplätze werden nur angezeigt, wenn
-        Mischlagerung erlaubt ist.
-      </p>
-
-      <div style={dashboardGridStyle}>
-        <Card title="Freie Plätze" value={String(freeLocations.length)} />
-        <Card
-          title="Gesperrte Plätze"
-          value={String(storageLocations.filter((location) => location.is_blocked).length)}
-          danger={storageLocations.some((location) => location.is_blocked)}
-        />
-        <Card
-          title="Vorschlag"
-          value={suggestedLocation ? suggestedLocation.code : "—"}
-        />
-      </div>
-
-      {suggestedLocation && (
-        <p style={successStyle}>
-          💡 Vorschlag: {suggestedLocation.code} - {suggestedLocation.name}
-          {suggestedLocation.rack ? ` / Regal ${suggestedLocation.rack}` : ""}
-          {suggestedLocation.shelf ? ` / Fach ${suggestedLocation.shelf}` : ""}
-        </p>
-      )}
-
       <form onSubmit={handleGoodsReceipt} style={formGridStyle}>
-        <select
-          ref={goodsInProductRef}
-          value={movementProductId}
-          onChange={(event) => setMovementProductId(event.target.value)}
-          onKeyDown={(event) => focusNextOnEnter(event, goodsInQuantityRef.current)}
-          required
-          style={inputStyle}
-          disabled={!hasPermission("lager")}
-        >
+        <select ref={goodsInProductRef} value={movementProductId} onChange={(event) => setMovementProductId(event.target.value)} onKeyDown={(event) => focusNextOnEnter(event, goodsInQuantityRef.current)} required style={inputStyle} disabled={!hasPermission("lager")}>
           <option value="">Produkt auswählen</option>
-          {products.map((product) => (
-            <option key={product.id} value={product.id}>
-              {product.name} ({product.sku})
-              {product.storage_location_label
-                ? ` - aktuell: ${product.storage_location_label}`
-                : ""}
-            </option>
-          ))}
+          {products.map((product) => <option key={product.id} value={product.id}>{product.name} ({product.sku})</option>)}
         </select>
-
-        <input
-          ref={goodsInQuantityRef}
-          type="number"
-          placeholder="Menge"
-          value={movementQuantity}
-          onChange={(event) => setMovementQuantity(event.target.value)}
-          required
-          min="1"
-          style={inputStyle}
-          disabled={!hasPermission("lager")}
-        />
-        <select
-          value={movementStorageLocationId || suggestedLocation?.id || ""}
-          onChange={(event) => setMovementStorageLocationId(event.target.value)}
-          style={inputStyle}
-          disabled={!hasPermission("lager")}
-        >
-          <option value="">Lagerplatz auswählen</option>
-
-          {freeLocations.map((location) => (
-            <option key={location.id} value={location.id}>
-              {location.code} - {location.name}
-              {location.is_empty ? " / frei" : " / Mischlager"}
-            </option>
-          ))}
-        </select>
-
-        <input
-          type="text"
-          placeholder="Lieferschein / Referenznummer"
-          value={movementReferenceNumber}
-          onChange={(event) => setMovementReferenceNumber(event.target.value)}
-          style={inputStyle}
-          disabled={!hasPermission("lager")}
-        />
-
-        <textarea
-          placeholder="Notiz"
-          value={movementNote}
-          onChange={(event) => setMovementNote(event.target.value)}
-          style={{ ...inputStyle, minHeight: "70px", gridColumn: "1 / -1" }}
-          disabled={!hasPermission("lager")}
-        />
-
+        <input ref={goodsInQuantityRef} type="number" placeholder="Menge" value={movementQuantity} onChange={(event) => setMovementQuantity(event.target.value)} required min="1" style={inputStyle} disabled={!hasPermission("lager")} />
+        <input type="text" placeholder="Lieferschein / Referenznummer" value={movementReferenceNumber} onChange={(event) => setMovementReferenceNumber(event.target.value)} style={inputStyle} disabled={!hasPermission("lager")} />
+        <textarea placeholder="Notiz" value={movementNote} onChange={(event) => setMovementNote(event.target.value)} style={{ ...inputStyle, minHeight: "48px", gridColumn: "1 / -1" }} disabled={!hasPermission("lager")} />
         <div style={{ gridColumn: "1 / -1" }}>
-          <button
-            type="submit"
-            disabled={movementSaving || !hasPermission("lager")}
-            style={hasPermission("lager") ? primaryButtonStyle : disabledButtonStyle}
-          >
+          <button type="submit" disabled={movementSaving || !hasPermission("lager")} style={hasPermission("lager") ? primaryButtonStyle : disabledButtonStyle}>
             {movementSaving ? "Buche..." : "Wareneingang buchen"}
           </button>
         </div>
@@ -4962,62 +4736,18 @@ function ProductGrid({
     <div style={productGridStyle}>
       {products.map((product) => {
         const isLowStock = product.quantity <= product.min_stock;
-
         return (
-          <article
-            key={product.id}
-            style={{
-              background: isLowStock
-                ? "rgba(127, 29, 29, 0.18)"
-                : "rgba(15, 23, 42, 0.78)",
-              border: isLowStock
-                ? "1px solid rgba(248, 113, 113, 0.35)"
-                : "1px solid rgba(148, 163, 184, 0.18)",
-              borderRadius: "20px",
-              padding: "18px",
-              boxShadow: "0 18px 40px rgba(0,0,0,0.22)",
-            }}
-          >
-            <h3 style={{ margin: "0 0 6px 0", color: "#f8fafc" }}>
-              {product.name}
-            </h3>
-
-            <p style={{ margin: "0 0 10px 0", color: "#93c5fd" }}>
-              {product.sku}
-            </p>
-
+          <article key={product.id} style={{ background: isLowStock ? "rgba(127, 29, 29, 0.18)" : "rgba(15, 23, 42, 0.78)", border: isLowStock ? "1px solid rgba(248, 113, 113, 0.35)" : "1px solid rgba(148, 163, 184, 0.18)", borderRadius: "20px", padding: "18px", boxShadow: "0 18px 40px rgba(0,0,0,0.22)" }}>
+            <h3 style={{ margin: "0 0 6px 0", color: "#f8fafc" }}>{product.name}</h3>
+            <p style={{ margin: "0 0 10px 0", color: "#93c5fd" }}>{product.sku}</p>
             <div style={{ color: "#cbd5e1", lineHeight: 1.6 }}>
-              <div>
-                Bestand: {product.quantity} {product.unit}
-              </div>
-
+              <div>Bestand: {product.quantity} {product.unit}</div>
               <div>Mindestbestand: {product.min_stock}</div>
-
-              <div>
-                Lagerplatz:{" "}
-                <strong>
-                  {product.storage_location_label || "Kein Lagerplatz"}
-                </strong>
-              </div>
-
-              {product.description && (
-                <div>Beschreibung: {product.description}</div>
-              )}
+              <div>Lagerort: {product.storage_location_label || "Kein Lagerort"}</div>
+              {product.description && <div>Beschreibung: {product.description}</div>}
             </div>
-
             <div style={{ display: "flex", gap: "10px", marginTop: "16px" }}>
-              <button
-                type="button"
-                onClick={() => hasPermission("admin") && handleEdit(product)}
-                disabled={!hasPermission("admin")}
-                style={
-                  hasPermission("admin")
-                    ? secondaryButtonStyle
-                    : disabledButtonStyle
-                }
-              >
-                Bearbeiten
-              </button>
+              <button type="button" onClick={() => hasPermission("admin") && handleEdit(product)} disabled={!hasPermission("admin")} style={hasPermission("admin") ? secondaryButtonStyle : disabledButtonStyle}>Bearbeiten</button>
             </div>
           </article>
         );
@@ -5119,117 +4849,28 @@ function HistorySection({
       </div>
       {movementsLoading && <p>Lade Bewegungen...</p>}
       {!movementsLoading && filteredMovements.length === 0 && <p>Keine Bewegungen gefunden.</p>}
-      
       {!movementsLoading && filteredMovements.length > 0 && (
         <div style={tableWrapStyle}>
           <table style={dataTableStyle}>
             <thead>
               <tr style={tableHeaderRowStyle}>
-                <th style={tableHeadStyle}>Datum</th>
-                <th style={tableHeadStyle}>Produkt</th>
-                <th style={tableHeadStyle}>Typ</th>
-                <th style={tableHeadStyle}>Menge</th>
-                <th style={tableHeadStyle}>Referenz</th>
-                <th style={tableHeadStyle}>Lagerplatz</th>
-                <th style={tableHeadStyle}>Notiz</th>
-                <th style={tableHeadStyle}>Benutzer</th>
-                <th style={tableHeadStyle}>Aktion</th>
+                <th style={tableHeadStyle}>Datum</th><th style={tableHeadStyle}>Produkt</th><th style={tableHeadStyle}>Typ</th><th style={tableHeadStyle}>Menge</th><th style={tableHeadStyle}>Referenz</th><th style={tableHeadStyle}>Notiz</th><th style={tableHeadStyle}>Benutzer</th><th style={tableHeadStyle}>Aktion</th>
               </tr>
             </thead>
-
             <tbody>
               {filteredMovements.map((movement, index) => {
                 const isIn = movement.movement_type === "IN";
                 const isLatest = index === 0;
-
                 return (
-                  <tr
-                    key={movement.id}
-                    style={{
-                      borderTop: "1px solid rgba(148, 163, 184, 0.12)",
-                      background: isIn
-                        ? "rgba(22,101,52,0.08)"
-                        : "rgba(127,29,29,0.08)",
-                      transition: "0.2s",
-                    }}
-                  >
-                    <td style={tableCellStyle}>
-                      {new Date(movement.created_at).toLocaleString("de-DE")}
-                    </td>
-
+                  <tr key={movement.id} style={{ borderTop: "1px solid rgba(148, 163, 184, 0.12)", background: isIn ? "rgba(22,101,52,0.08)" : "rgba(127,29,29,0.08)", transition: "0.2s" }}>
+                    <td style={tableCellStyle}>{new Date(movement.created_at).toLocaleString("de-DE")}</td>
                     <td style={tableCellStyle}>{movement.product_name}</td>
-
-                    <td style={tableCellStyle}>
-                      <span
-                        style={{
-                          color: isIn ? "#86efac" : "#fca5a5",
-                          fontWeight: 700,
-                        }}
-                      >
-                        {isIn ? "Wareneingang" : "Warenausgang"}
-                      </span>
-                    </td>
-
-                    <td style={tableCellStyle}>
-                      {movement.movement_type === "OUT"
-                        ? `-${movement.quantity}`
-                        : movement.quantity}
-                    </td>
-
-                    <td
-                      style={{
-                        ...tableCellStyle,
-                        color: movement.reference_number ? "#e5e7eb" : "#64748b",
-                      }}
-                    >
-                      {movement.reference_number || "—"}
-                    </td>
-
-                    <td
-                      style={{
-                        ...tableCellStyle,
-                        color: movement.storage_location_label ? "#e5e7eb" : "#64748b",
-                      }}
-                    >
-                      {movement.storage_location_label || "—"}
-                    </td>
-
-                    <td
-                      style={{
-                        ...tableCellStyle,
-                        color: movement.note ? "#e5e7eb" : "#64748b",
-                      }}
-                    >
-                      {movement.note || "—"}
-                    </td>
-
-                    <td
-                      style={{
-                        ...tableCellStyle,
-                        color: movement.created_by_username ? "#e5e7eb" : "#64748b",
-                      }}
-                    >
-                      {movement.created_by_username || "—"}
-                    </td>
-
-                    <td style={tableCellStyle}>
-                      {isLatest && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            hasPermission("admin") && handleUndoMovement(movement)
-                          }
-                          disabled={!hasPermission("admin")}
-                          style={
-                            hasPermission("admin")
-                              ? secondaryButtonStyle
-                              : disabledButtonStyle
-                          }
-                        >
-                          Rückgängig
-                        </button>
-                      )}
-                    </td>
+                    <td style={tableCellStyle}><span style={{ color: isIn ? "#86efac" : "#fca5a5", fontWeight: 700 }}>{isIn ? "Wareneingang" : "Warenausgang"}</span></td>
+                    <td style={tableCellStyle}>{movement.movement_type === "OUT" ? `-${movement.quantity}` : movement.quantity}</td>
+                    <td style={{ ...tableCellStyle, color: movement.reference_number ? "#e5e7eb" : "#64748b" }}>{movement.reference_number || "—"}</td>
+                    <td style={{ ...tableCellStyle, color: movement.note ? "#e5e7eb" : "#64748b" }}>{movement.note || "—"}</td>
+                    <td style={{ ...tableCellStyle, color: movement.created_by_username ? "#e5e7eb" : "#64748b" }}>{movement.created_by_username || "—"}</td>
+                    <td style={tableCellStyle}>{isLatest && <button type="button" onClick={() => hasPermission("admin") && handleUndoMovement(movement)} disabled={!hasPermission("admin")} style={hasPermission("admin") ? secondaryButtonStyle : disabledButtonStyle}>Rückgängig</button>}</td>
                   </tr>
                 );
               })}
@@ -5237,9 +4878,9 @@ function HistorySection({
           </table>
         </div>
       )}
-      </section>
-      );
-      }
+    </section>
+  );
+}
 
 function Card({
   title,
@@ -5622,7 +5263,34 @@ const successStyle: CSSProperties = {
   marginBottom: "16px",
 };
 
+const placeholderHeaderStyle: CSSProperties = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  gap: "12px",
+  flexWrap: "wrap",
+  marginBottom: "16px",
+};
 
+const placeholderBadgeStyle: CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  padding: "7px 10px",
+  borderRadius: "999px",
+  background: "rgba(59, 130, 246, 0.15)",
+  border: "1px solid rgba(96, 165, 250, 0.28)",
+  color: "#bfdbfe",
+  fontSize: "0.85rem",
+  fontWeight: 700,
+};
 
+const placeholderBoxStyle: CSSProperties = {
+  marginTop: "16px",
+  padding: "16px",
+  borderRadius: "14px",
+  background: "rgba(30, 41, 59, 0.72)",
+  border: "1px solid rgba(148, 163, 184, 0.16)",
+  color: "#e5e7eb",
+};
 
 export default App;

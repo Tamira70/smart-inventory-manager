@@ -3,8 +3,6 @@ from django.db import transaction
 from rest_framework import serializers
 
 from .models import (
-    PackagingType,
-    StorageStrategySettings,
     Product,
     InventoryTransaction,
     StockMovement,
@@ -302,52 +300,11 @@ class AuditLogSerializer(serializers.ModelSerializer):
 
 
 class ProductSerializer(serializers.ModelSerializer):
-    storage_location_code = serializers.SerializerMethodField()
-    storage_location_name = serializers.SerializerMethodField()
-    storage_location_label = serializers.SerializerMethodField()
+    is_low_stock = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = Product
-        fields = [
-            "id",
-            "is_low_stock",
-            "name",
-            "sku",
-            "description",
-            "quantity",
-            "min_stock",
-            "unit",
-            "storage_location",
-            "storage_location_code",
-            "storage_location_name",
-            "storage_location_label",
-            "created_at",
-            "updated_at",
-        ]
-        read_only_fields = [
-            "is_low_stock",
-            "storage_location_code",
-            "storage_location_name",
-            "storage_location_label",
-            "created_at",
-            "updated_at",
-        ]
-
-    def get_storage_location_code(self, obj):
-        if not obj.storage_location:
-            return ""
-        return obj.storage_location.code
-
-    def get_storage_location_name(self, obj):
-        if not obj.storage_location:
-            return ""
-        return obj.storage_location.name
-
-    def get_storage_location_label(self, obj):
-        if not obj.storage_location:
-            return "Kein Lagerort"
-        return str(obj.storage_location)
-
+        fields = "__all__"
 
 
 class InventoryTransactionSerializer(serializers.ModelSerializer):
@@ -358,13 +315,7 @@ class InventoryTransactionSerializer(serializers.ModelSerializer):
 
 class StockMovementSerializer(serializers.ModelSerializer):
     product_name = serializers.ReadOnlyField(source="product.name")
-    storage_location_label = serializers.SerializerMethodField()
     created_by_username = serializers.ReadOnlyField(source="created_by.username")
-
-    def get_storage_location_label(self, obj):
-        if obj.storage_location:
-            return str(obj.storage_location)
-        return None
 
     class Meta:
         model = StockMovement
@@ -374,8 +325,6 @@ class StockMovementSerializer(serializers.ModelSerializer):
             "product_name",
             "movement_type",
             "quantity",
-            "storage_location",
-            "storage_location_label",
             "reference_number",
             "note",
             "created_by",
@@ -495,15 +444,3 @@ class InventoryCountSerializer(serializers.ModelSerializer):
         product = validated_data["product"]
         validated_data["expected_quantity"] = product.quantity
         return super().create(validated_data)
-
-
-class PackagingTypeSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = PackagingType
-        fields = "__all__"
-
-
-class StorageStrategySettingsSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = StorageStrategySettings
-        fields = "__all__"
