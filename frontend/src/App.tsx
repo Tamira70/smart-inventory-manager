@@ -1849,9 +1849,11 @@ if (role === "einkauf") {
       setError("Nur-Lese-Modus: Du kannst Wareneingänge ansehen, aber nicht buchen.");
       return;
     }
+
     setMovementSaving(true);
     setError("");
     setSuccess("");
+
     const validationError = validateGoodsReceiptForm();
     if (validationError) {
       setError(validationError);
@@ -1860,41 +1862,41 @@ if (role === "einkauf") {
     }
 
     try {
-        const response = await apiFetch("/inventory-api/stock-movements/", {
-          method: "POST",
-          body: JSON.stringify({
-            product: Number(movementProductId),
-            movement_type: "IN",
-            quantity: Number(movementQuantity),
-            storage_location: movementStorageLocationId
-              ? Number(movementStorageLocationId)
-              : null,
-            reference_number: movementReferenceNumber,
-            note: movementNote,
-          }),
-        });
+      const response = await apiFetch("/inventory-api/stock-movements/", {
+        method: "POST",
+        body: JSON.stringify({
+          product: Number(movementProductId),
+          movement_type: "IN",
+          quantity: Number(movementQuantity),
+          storage_location: movementStorageLocationId
+            ? Number(movementStorageLocationId)
+            : null,
+          reference_number: movementReferenceNumber,
+          note: movementNote,
+        }),
+      });
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(JSON.stringify(errorData));
-        }
-
-        setMovementProductId("");
-        setMovementQuantity("");
-        setMovementReferenceNumber("");
-        setMovementNote("");
-        setMovementStorageLocationId("");
-
-        await loadProducts();
-        await loadMovements();
-
-        setSuccess("📥 Wareneingang erfolgreich gebucht!");
-        setTimeout(() => goodsInProductRef.current?.focus(), 0);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(JSON.stringify(errorData));
       }
 
-    catch (err) {
+      setMovementProductId("");
+      setMovementQuantity("");
+      setMovementStorageLocationId("");
+      setMovementReferenceNumber("");
+      setMovementNote("");
+
+      await loadProducts();
+      await loadMovements();
+      await loadStorageLocations();
+
+      setSuccess("📥 Wareneingang erfolgreich gebucht!");
+      setTimeout(() => goodsInProductRef.current?.focus(), 0);
+    } catch (err) {
       const message = err instanceof Error ? err.message : "Fehler beim Wareneingang.";
       setError(message);
+
       if (message.includes("Sitzung abgelaufen")) {
         clearTokens();
         setLoggedIn(false);
@@ -1917,15 +1919,18 @@ if (role === "einkauf") {
       setError("Nur-Lese-Modus: Du kannst Warenausgänge ansehen, aber nicht buchen.");
       return;
     }
+
     setGoodsOutSaving(true);
     setError("");
     setSuccess("");
+
     const validationError = validateGoodsIssueForm();
     if (validationError) {
       setError(validationError);
       setGoodsOutSaving(false);
       return;
     }
+
     try {
       const response = await apiFetch("/inventory-api/stock-movements/", {
         method: "POST",
@@ -1937,21 +1942,27 @@ if (role === "einkauf") {
           note: goodsOutNote,
         }),
       });
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(JSON.stringify(errorData));
       }
+
       setGoodsOutProductId("");
       setGoodsOutQuantity("");
       setGoodsOutReferenceNumber("");
       setGoodsOutNote("");
+
       await loadProducts();
       await loadMovements();
+      await loadStorageLocations();
+
       setSuccess("📤 Warenausgang erfolgreich gebucht!");
       setTimeout(() => goodsOutProductRef.current?.focus(), 0);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Fehler beim Warenausgang.";
       setError(message);
+
       if (message.includes("Sitzung abgelaufen")) {
         clearTokens();
         setLoggedIn(false);
@@ -2305,29 +2316,48 @@ if (role === "einkauf") {
     }
   };
 
-  const exportMovementsToCsv = () => {
-    const headers = ["Datum", "Produkt", "Typ", "Menge", "Referenz", "Notiz", "Benutzer"];
-    const rows = filteredMovements.map((movement) => [
-      new Date(movement.created_at).toLocaleString("de-DE"),
-      movement.product_name,
-      movement.movement_type === "IN" ? "Wareneingang" : "Warenausgang",
-      String(movement.quantity),
-      movement.reference_number ?? "",
-      movement.note ?? "",
-      movement.created_by_username ?? "",
-    ]);
-    const csvContent = [headers, ...rows]
-      .map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(";"))
-      .join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "bewegungshistorie.csv";
-    link.click();
-    URL.revokeObjectURL(url);
-  };
+ const exportMovementsToCsv = () => {
+  const headers = [
+    "Datum",
+    "Produkt",
+    "Typ",
+    "Menge",
+    "Referenz",
+    "Lagerplatz",
+    "Notiz",
+    "Benutzer",
+  ];
 
+  const rows = filteredMovements.map((movement) => [
+    new Date(movement.created_at).toLocaleString("de-DE"),
+    movement.product_name,
+    movement.movement_type === "IN" ? "Wareneingang" : "Warenausgang",
+    String(movement.quantity),
+    movement.reference_number ?? "",
+    movement.storage_location_label ?? "",
+    movement.note ?? "",
+    movement.created_by_username ?? "",
+  ]);
+
+  const csvContent = [headers, ...rows]
+    .map((row) =>
+      row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(";")
+    )
+    .join("\n");
+
+  const blob = new Blob([csvContent], {
+    type: "text/csv;charset=utf-8;",
+  });
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = "bewegungshistorie.csv";
+  link.click();
+
+  URL.revokeObjectURL(url);
+};
   if (!loggedIn) {
     return (
       <div style={isMobileLayout ? pageStyleMobile : pageStyle}>
@@ -4696,7 +4726,24 @@ function GoodsInSection({
         <select
           ref={goodsInProductRef}
           value={movementProductId}
-          onChange={(event) => setMovementProductId(event.target.value)}
+          onChange={(event) => {
+            const nextProductId = event.target.value;
+            const nextProduct = products.find(
+              (product) => String(product.id) === nextProductId
+            );
+
+            const nextSuggestedLocation =
+              nextProduct?.storage_location
+                ? storageLocations.find(
+                    (location) => location.id === nextProduct.storage_location
+                  ) ?? null
+                : freeLocations[0] ?? null;
+
+            setMovementProductId(nextProductId);
+            setMovementStorageLocationId(
+              nextSuggestedLocation ? String(nextSuggestedLocation.id) : ""
+            );
+          }}
           onKeyDown={(event) => focusNextOnEnter(event, goodsInQuantityRef.current)}
           required
           style={inputStyle}
@@ -5621,8 +5668,5 @@ const successStyle: CSSProperties = {
   padding: "10px 12px",
   marginBottom: "16px",
 };
-
-
-
 
 export default App;
