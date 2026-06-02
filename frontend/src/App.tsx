@@ -20,11 +20,29 @@ type Product = {
   quantity: number;
   min_stock: number;
   unit: string;
+
   storage_location?: number | null;
   storage_location_code?: string | null;
   storage_location_name?: string | null;
   storage_location_label?: string | null;
+
+  packaging_type?: number | null;
+  packaging_type_name?: string | null;
 };
+
+type PackagingType = {
+  id: number;
+  name: string;
+  description: string;
+  category: "PACKAGING" | "LOAD_CARRIER";
+  unit_cost: string | null;
+  is_active: boolean;
+  length_cm: string | null;
+  width_cm: string | null;
+  height_cm: string | null;
+  weight_kg: string | null;
+};
+
 
 type StorageLocation = {
   id: number;
@@ -212,19 +230,30 @@ type CustomerNoteForm = {
   note: string;
 };
 
-  type StockMovement = {
-    id: number;
-    product: number;
-    product_name: string;
-    movement_type: "IN" | "OUT";
-    quantity: number;
-    storage_location?: number | null;
-    storage_location_label?: string | null;
-    reference_number?: string;
-    note?: string;
-    created_by_username?: string;
-    created_at: string;
-  };
+ type StockMovement = {
+  id: number;
+  product: number;
+  product_name: string;
+  movement_type: "IN" | "OUT";
+  quantity: number;
+
+  storage_location?: number | null;
+  storage_location_label?: string | null;
+
+  packaging_type?: number | null;
+  packaging_type_name?: string | null;
+
+  load_carrier_type?: number | null;
+  load_carrier_type_name?: string | null;
+
+  packaging_quantity?: number;
+  packaging_cost_total?: string | null;
+
+  reference_number?: string;
+  note?: string;
+  created_by_username?: string;
+  created_at: string;
+};
 
 type InventorySession = {
   id: number;
@@ -267,6 +296,7 @@ type ProductForm = {
   min_stock: string;
   unit: string;
   storage_location: string;
+  packaging_type: string;
 };
 
 type ActiveSection =
@@ -372,6 +402,7 @@ const initialForm: ProductForm = {
   min_stock: "",
   unit: "Stück",
   storage_location: "",
+  packaging_type: "",
 };
 
 const initialStorageLocationForm: StorageLocationForm = {
@@ -603,6 +634,7 @@ const [loggedIn, setLoggedIn] = useState(isLoggedIn());
   const [movementProductFilter, setMovementProductFilter] = useState("");
 
   const [storageLocations, setStorageLocations] = useState<StorageLocation[]>([]);
+  const [packagingTypes, setPackagingTypes] = useState<PackagingType[]>([]);
   const [storageLocationsLoading, setStorageLocationsLoading] = useState(false);
   const [storageLocationSaving, setStorageLocationSaving] = useState(false);
   const [storageLocationForm, setStorageLocationForm] =
@@ -664,6 +696,9 @@ const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [movementProductId, setMovementProductId] = useState("");
   const [movementQuantity, setMovementQuantity] = useState("");
   const [movementStorageLocationId, setMovementStorageLocationId] = useState("");
+  const [movementPackagingTypeId, setMovementPackagingTypeId] = useState("");
+  const [movementLoadCarrierTypeId, setMovementLoadCarrierTypeId] = useState("");
+  const [movementPackagingQuantity, setMovementPackagingQuantity] = useState("1");
   const [movementReferenceNumber, setMovementReferenceNumber] = useState("");
   const [movementNote, setMovementNote] = useState("");
   const [movementSaving, setMovementSaving] = useState(false);
@@ -697,6 +732,21 @@ const [suppliers, setSuppliers] = useState<Supplier[]>([]);
 
   const inventoryProductRef = useRef<HTMLSelectElement | null>(null);
   const inventoryCountedQuantityRef = useRef<HTMLInputElement | null>(null);
+
+const loadPackagingTypes = async () => {
+  try {
+    const response = await apiFetch("/inventory-api/packaging-types/");
+    const data = (await response.json()) as PackagingType[];
+    setPackagingTypes(data);
+  } catch (err) {
+    const message =
+      err instanceof Error
+        ? err.message
+        : "Fehler beim Laden der Verpackungsarten.";
+    setError(message);
+  }
+};
+
 const toggleMenu = (menuId: string) => {
     setExpandedMenus((current) =>
       current.includes(menuId)
@@ -1054,6 +1104,7 @@ if (role === "einkauf") {
     void loadMovements();
     void loadInventorySessions();
     void loadStorageLocations();
+    void loadPackagingTypes();
     void loadSuppliers();
     void loadCustomers();
     void loadCustomerContacts();
@@ -1728,17 +1779,19 @@ if (role === "einkauf") {
   const handleEdit = (product: Product) => {
     setActiveSection("product");
     setEditingId(product.id);
-    setForm({
-    name: product.name,
-    sku: product.sku,
-    description: product.description,
-    quantity: String(product.quantity),
-    min_stock: String(product.min_stock),
-    unit: product.unit,
-    storage_location: product.storage_location
-      ? String(product.storage_location)
-      : "",
+  setForm({
+  name: product.name,
+  sku: product.sku,
+  description: product.description,
+  quantity: String(product.quantity),
+  min_stock: String(product.min_stock),
+  unit: product.unit,
+  storage_location: product.storage_location
+    ? String(product.storage_location)
+    : "",
+  packaging_type: product.packaging_type ? String(product.packaging_type) : "",
   });
+
     window.scrollTo({ top: 0, behavior: "smooth" });
     setTimeout(() => productNameRef.current?.focus(), 0);
   };
@@ -1778,6 +1831,9 @@ if (role === "einkauf") {
     storage_location: form.storage_location
       ? Number(form.storage_location)
       : null,
+    packaging_type: form.packaging_type
+      ? Number(form.packaging_type)
+      : null,
     };
 
     try {
@@ -1813,6 +1869,13 @@ if (role === "einkauf") {
     try {
       setError("");
       setSuccess("");
+
+      console.log("Wareneingang Payload Debug", {
+      movementPackagingTypeId,
+      movementLoadCarrierTypeId,
+      movementPackagingQuantity,
+      });
+
       const response = await apiFetch("/inventory-api/stock-movements/", {
         method: "POST",
         body: JSON.stringify({
@@ -1862,18 +1925,37 @@ if (role === "einkauf") {
     }
 
     try {
+
+      console.log("Wareneingang Payload Debug", {
+        movementPackagingTypeId,
+        movementLoadCarrierTypeId,
+        movementPackagingQuantity,
+      });
+
       const response = await apiFetch("/inventory-api/stock-movements/", {
         method: "POST",
         body: JSON.stringify({
-          product: Number(movementProductId),
-          movement_type: "IN",
-          quantity: Number(movementQuantity),
-          storage_location: movementStorageLocationId
-            ? Number(movementStorageLocationId)
-            : null,
-          reference_number: movementReferenceNumber,
-          note: movementNote,
-        }),
+        product: Number(movementProductId),
+        movement_type: "IN",
+        quantity: Number(movementQuantity),
+
+        storage_location: movementStorageLocationId
+          ? Number(movementStorageLocationId)
+          : null,
+
+        packaging_type: movementPackagingTypeId
+          ? Number(movementPackagingTypeId)
+          : null,
+
+        load_carrier_type: movementLoadCarrierTypeId
+          ? Number(movementLoadCarrierTypeId)
+          : null,
+
+        packaging_quantity: Number(movementPackagingQuantity || 1),
+
+        reference_number: movementReferenceNumber,
+        note: movementNote,
+      }),
       });
 
       if (!response.ok) {
@@ -1884,6 +1966,9 @@ if (role === "einkauf") {
       setMovementProductId("");
       setMovementQuantity("");
       setMovementStorageLocationId("");
+      setMovementPackagingTypeId("");
+      setMovementLoadCarrierTypeId("");
+      setMovementPackagingQuantity("1");
       setMovementReferenceNumber("");
       setMovementNote("");
 
@@ -2423,6 +2508,7 @@ if (role === "einkauf") {
 
             <section style={topStatsGridStyle}>
               <Card title="Produkte gesamt" value={String(totalProducts)} />
+              <Card title="Verpackungsarten" value={String(packagingTypes.length)} />
               <Card title="Bestand gesamt" value={String(totalUnits)} />
               <Card title="Niedriger Bestand" value={String(lowStockProducts.length)} danger={lowStockProducts.length > 0} />
               <Card title="Inventur-Differenzen" value={String(inventorySummary.differences)} danger={inventorySummary.differences > 0} />
@@ -2667,6 +2753,7 @@ if (role === "einkauf") {
               handleChange={handleChange}
               setForm={setForm}
               storageLocations={storageLocations}
+              packagingTypes={packagingTypes}
               productNameRef={productNameRef}
               productSkuRef={productSkuRef}
               productQuantityRef={productQuantityRef}
@@ -2697,6 +2784,13 @@ if (role === "einkauf") {
                 goodsInProductRef={goodsInProductRef}
                 goodsInQuantityRef={goodsInQuantityRef}
                 focusNextOnEnter={focusNextOnEnter}
+                packagingTypes={packagingTypes}
+                movementPackagingTypeId={movementPackagingTypeId}
+                setMovementPackagingTypeId={setMovementPackagingTypeId}
+                movementLoadCarrierTypeId={movementLoadCarrierTypeId}
+                setMovementLoadCarrierTypeId={setMovementLoadCarrierTypeId}
+                movementPackagingQuantity={movementPackagingQuantity}
+                setMovementPackagingQuantity={setMovementPackagingQuantity}
               />
             )}
 
@@ -4447,6 +4541,7 @@ function ProductFormSection({
   handleChange,
   setForm,
   storageLocations,
+  packagingTypes,
   productNameRef,
   productSkuRef,
   productQuantityRef,
@@ -4465,6 +4560,7 @@ function ProductFormSection({
   ) => void;
   setForm: Dispatch<SetStateAction<ProductForm>>;
   storageLocations: StorageLocation[];
+  packagingTypes: PackagingType[];
   productNameRef: RefObject<HTMLInputElement | null>;
   productSkuRef: RefObject<HTMLInputElement | null>;
   productQuantityRef: RefObject<HTMLInputElement | null>;
@@ -4478,6 +4574,7 @@ function ProductFormSection({
     next?: HTMLElement | null
   ) => void;
 }) {
+
   return (
     <section style={sectionStyle}>
       <h2 style={sectionTitleStyle}>Produkte / Artikelstamm</h2>
@@ -4506,6 +4603,30 @@ function ProductFormSection({
                 {location.code} - {location.name}
                 {location.rack ? ` / Regal ${location.rack}` : ""}
                 {location.shelf ? ` / Fach ${location.shelf}` : ""}
+              </option>
+            ))}
+        </select>
+        <select
+          value={form.packaging_type}
+          onChange={(event) =>
+            setForm({
+              ...form,
+              packaging_type: event.target.value,
+            })
+          }
+          style={inputStyle}
+          disabled={!hasPermission("admin")}
+        >
+          <option value="">Verpackungsart auswählen</option>
+
+          {packagingTypes
+            .filter((packagingType) => packagingType.is_active)
+            .map((packagingType) => (
+              <option
+                key={packagingType.id}
+                value={packagingType.id}
+              >
+                {packagingType.name}
               </option>
             ))}
         </select>
@@ -4637,6 +4758,7 @@ function GoodsInSection({
   setMovementStorageLocationId,
   products,
   storageLocations,
+  packagingTypes,
   movementProductId,
   setMovementProductId,
   movementQuantity,
@@ -4645,6 +4767,12 @@ function GoodsInSection({
   setMovementReferenceNumber,
   movementNote,
   setMovementNote,
+  movementPackagingTypeId,
+  setMovementPackagingTypeId,
+  movementLoadCarrierTypeId,
+  setMovementLoadCarrierTypeId,
+  movementPackagingQuantity,
+  setMovementPackagingQuantity,
   movementSaving,
   hasPermission,
   handleGoodsReceipt,
@@ -4656,6 +4784,7 @@ function GoodsInSection({
   movementStorageLocationId: string;
   setMovementStorageLocationId: (value: string) => void;
   storageLocations: StorageLocation[];
+  packagingTypes: PackagingType[];
   movementProductId: string;
   setMovementProductId: (value: string) => void;
   movementQuantity: string;
@@ -4664,6 +4793,12 @@ function GoodsInSection({
   setMovementReferenceNumber: (value: string) => void;
   movementNote: string;
   setMovementNote: (value: string) => void;
+  movementPackagingTypeId: string;
+  setMovementPackagingTypeId: (value: string) => void;
+  movementLoadCarrierTypeId: string;
+  setMovementLoadCarrierTypeId: (value: string) => void;
+  movementPackagingQuantity: string;
+  setMovementPackagingQuantity: (value: string) => void;
   movementSaving: boolean;
   hasPermission: (required: PermissionRole) => boolean;
   handleGoodsReceipt: (event: FormEvent) => void;
@@ -4674,6 +4809,7 @@ function GoodsInSection({
     next?: HTMLElement | null
   ) => void;
 }) {
+
   const selectedProduct =
     products.find((product) => String(product.id) === movementProductId) ?? null;
 
@@ -4786,6 +4922,58 @@ function GoodsInSection({
             </option>
           ))}
         </select>
+        <select
+          value={movementPackagingTypeId}
+          onChange={(event) => setMovementPackagingTypeId(event.target.value)}
+          style={inputStyle}
+          disabled={!hasPermission("lager")}
+        >
+          <option value="">Verpackung auswählen</option>
+          {packagingTypes
+            .filter(
+              (packagingType) =>
+                packagingType.is_active &&
+                packagingType.category === "PACKAGING"
+            )
+            .map((packagingType) => (
+              <option key={packagingType.id} value={packagingType.id}>
+                {packagingType.name}
+                {packagingType.unit_cost ? ` · ${packagingType.unit_cost} €` : ""}
+              </option>
+            ))}
+        </select>
+
+        <select
+          value={movementLoadCarrierTypeId}
+          onChange={(event) => setMovementLoadCarrierTypeId(event.target.value)}
+          style={inputStyle}
+          disabled={!hasPermission("lager")}
+        >
+          <option value="">Ladungsträger auswählen</option>
+          {packagingTypes
+            .filter(
+              (packagingType) =>
+                packagingType.is_active &&
+                packagingType.category === "LOAD_CARRIER"
+            )
+            .map((packagingType) => (
+              <option key={packagingType.id} value={packagingType.id}>
+                {packagingType.name}
+                {packagingType.unit_cost ? ` · ${packagingType.unit_cost} €` : ""}
+              </option>
+            ))}
+        </select>
+
+        <input
+          type="number"
+          min="1"
+          placeholder="Anzahl Verpackungen"
+          value={movementPackagingQuantity}
+          onChange={(event) => setMovementPackagingQuantity(event.target.value)}
+          style={inputStyle}
+          disabled={!hasPermission("lager")}
+        />
+
 
         <input
           type="text"

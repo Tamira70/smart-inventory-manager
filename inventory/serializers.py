@@ -28,19 +28,27 @@ class SupplierSerializer(serializers.ModelSerializer):
         model = Supplier
         fields = [
             "id",
-            "name",
-            "supplier_number",
-            "contact_person",
-            "email",
-            "phone",
-            "street",
-            "postal_code",
-            "city",
-            "country",
+            "product",
+            "product_name",
+            "movement_type",
+            "quantity",
+            "storage_location",
+            "storage_location_label",
+
+            "packaging_type",
+            "packaging_type_name",
+
+            "load_carrier_type",
+            "load_carrier_type_name",
+
+            "packaging_quantity",
+            "packaging_cost_total",
+
+            "reference_number",
             "note",
-            "is_active",
+            "created_by",
+            "created_by_username",
             "created_at",
-            "updated_at",
         ]
         read_only_fields = ["created_at", "updated_at"]
 
@@ -359,6 +367,8 @@ class InventoryTransactionSerializer(serializers.ModelSerializer):
 class StockMovementSerializer(serializers.ModelSerializer):
     product_name = serializers.ReadOnlyField(source="product.name")
     storage_location_label = serializers.SerializerMethodField()
+    packaging_type_name = serializers.ReadOnlyField(source="packaging_type.name")
+    load_carrier_type_name = serializers.ReadOnlyField(source="load_carrier_type.name")
     created_by_username = serializers.ReadOnlyField(source="created_by.username")
 
     def get_storage_location_label(self, obj):
@@ -376,6 +386,12 @@ class StockMovementSerializer(serializers.ModelSerializer):
             "quantity",
             "storage_location",
             "storage_location_label",
+            "packaging_type",
+            "packaging_type_name",
+            "load_carrier_type",
+            "load_carrier_type_name",
+            "packaging_quantity",
+            "packaging_cost_total",
             "reference_number",
             "note",
             "created_by",
@@ -406,6 +422,20 @@ class StockMovementSerializer(serializers.ModelSerializer):
         product = validated_data["product"]
         movement_type = validated_data["movement_type"]
         quantity = validated_data["quantity"]
+
+        packaging_type = validated_data.get("packaging_type")
+        load_carrier_type = validated_data.get("load_carrier_type")
+        packaging_quantity = validated_data.get("packaging_quantity", 1)
+
+        packaging_cost_total = 0
+
+        if packaging_type and packaging_type.unit_cost is not None:
+            packaging_cost_total += packaging_type.unit_cost * packaging_quantity
+
+        if load_carrier_type and load_carrier_type.unit_cost is not None:
+            packaging_cost_total += load_carrier_type.unit_cost
+
+        validated_data["packaging_cost_total"] = packaging_cost_total
 
         if movement_type == "IN":
             product.quantity += quantity

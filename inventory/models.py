@@ -149,7 +149,6 @@ class InventoryTransaction(models.Model):
     def __str__(self):
         return f"{self.product.name} - {self.transaction_type} ({self.quantity})"
 
-
 class StockMovement(models.Model):
     MOVEMENT_TYPES = [
         ("IN", "Wareneingang"),
@@ -163,7 +162,6 @@ class StockMovement(models.Model):
     )
 
     movement_type = models.CharField(max_length=3, choices=MOVEMENT_TYPES)
-
     quantity = models.PositiveIntegerField()
 
     storage_location = models.ForeignKey(
@@ -172,6 +170,31 @@ class StockMovement(models.Model):
         null=True,
         blank=True,
         related_name="stock_movements",
+    )
+
+    packaging_type = models.ForeignKey(
+        "PackagingType",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="packaging_movements",
+    )
+
+    load_carrier_type = models.ForeignKey(
+        "PackagingType",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="load_carrier_movements",
+    )
+
+    packaging_quantity = models.PositiveIntegerField(default=1)
+
+    packaging_cost_total = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
     )
 
     reference_number = models.CharField(max_length=100, blank=True)
@@ -187,7 +210,8 @@ class StockMovement(models.Model):
 
     def __str__(self):
         return f"{self.product.name} - {self.movement_type} - {self.quantity}"
-    
+
+
 class InventorySession(models.Model):
     STATUS_CHOICES = [
         ("OPEN", "Offen"),
@@ -405,11 +429,53 @@ def save_user_profile(sender, instance, **kwargs):
 
 
 class PackagingType(models.Model):
+    TYPE_CHOICES = [
+        ("PACKAGING", "Verpackung"),
+        ("LOAD_CARRIER", "Ladungsträger"),
+    ]
+
     name = models.CharField(max_length=100, unique=True)
+    description = models.TextField(blank=True)
+
+    category = models.CharField(
+        max_length=30,
+        choices=TYPE_CHOICES,
+        default="PACKAGING",
+    )
+
+    unit_cost = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+
     is_active = models.BooleanField(default=True)
-    length_cm = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    width_cm = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    height_cm = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+
+    length_cm = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+    width_cm = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+    height_cm = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+    weight_kg = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
 
     def __str__(self):
         return self.name

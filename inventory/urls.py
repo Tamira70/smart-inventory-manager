@@ -17,6 +17,7 @@ from .views import (
     CustomerNoteViewSet,
     AdminUserViewSet,
     AuditLogViewSet,
+    PackagingTypeViewSet
 )
 
 router = DefaultRouter()
@@ -33,6 +34,7 @@ router.register(r"delivery-addresses", DeliveryAddressViewSet, basename="deliver
 router.register(r"customer-notes", CustomerNoteViewSet, basename="customer-note")
 router.register(r"admin-users", AdminUserViewSet, basename="admin-user")
 router.register(r"audit-logs", AuditLogViewSet, basename="audit-log")
+router.register(r"packaging-types",PackagingTypeViewSet,basename="packaging-type",)
 
 urlpatterns = [
     path("login/", CustomTokenObtainPairView.as_view(), name="token_obtain_pair"),
