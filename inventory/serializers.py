@@ -28,29 +28,22 @@ class SupplierSerializer(serializers.ModelSerializer):
         model = Supplier
         fields = [
             "id",
-            "product",
-            "product_name",
-            "movement_type",
-            "quantity",
-            "storage_location",
-            "storage_location_label",
-
-            "packaging_type",
-            "packaging_type_name",
-
-            "load_carrier_type",
-            "load_carrier_type_name",
-
-            "packaging_quantity",
-            "packaging_cost_total",
-
-            "reference_number",
+            "name",
+            "supplier_number",
+            "contact_person",
+            "email",
+            "phone",
+            "street",
+            "postal_code",
+            "city",
+            "country",
             "note",
-            "created_by",
-            "created_by_username",
+            "is_active",
             "created_at",
+            "updated_at",
         ]
         read_only_fields = ["created_at", "updated_at"]
+
 
 class UserProfileSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source="user.username", read_only=True)
