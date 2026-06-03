@@ -12,7 +12,10 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
-
+from django.http import HttpResponse
+from rest_framework.decorators import action
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 
 from .models import (
     PackagingType,
@@ -236,7 +239,192 @@ class StockMovementViewSet(viewsets.ModelViewSet):
     queryset = StockMovement.objects.select_related(
         "product",
         "created_by",
+        "storage_location",
+        "packaging_type",
+        "load_carrier_type",
     ).order_by("-created_at")
+
+    serializer_class = StockMovementSerializer
+
+    def get_storage_location_suggestion(self, product):
+        """
+        Ermittelt einen intelligenten Lagerplatzvorschlag.
+        """
+
+        # 1. Festplatzstrategie
+        if (
+            product.putaway_strategy == "FIXED_BIN"
+            and product.fixed_storage_location
+            and product.fixed_storage_location.is_active
+            and not product.fixed_storage_location.is_blocked
+        ):
+            return product.fixed_storage_location
+
+        # 2. Leerplatzsuche
+        empty_location = (
+            StorageLocation.objects.filter(
+                is_active=True,
+                is_blocked=False,
+                is_empty=True,
+            )
+            .order_by("zone", "aisle", "rack", "shelf")
+            .first()
+        )
+
+        if empty_location:
+            return empty_location
+
+        # 3. Zulagerung / Mischlager
+        if product.putaway_strategy == "ADD_TO_STOCK":
+            mixed_location = (
+                StorageLocation.objects.filter(
+                    is_active=True,
+                    is_blocked=False,
+                    allow_mixed_products=True,
+                ).first()
+            )
+
+            if mixed_location:
+                return mixed_location
+
+        return None
+
+    def get_permissions(self):
+        if self.request.method in ["GET", "HEAD", "OPTIONS"]:
+            return [IsAuthenticated()]
+        return [IsAuthenticated(), IsLagerOrAdmin()]
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+    @action(detail=False, methods=["get"], url_path="export-excel")
+    def export_excel(self, request):
+        workbook = Workbook()
+        worksheet = workbook.active
+        worksheet.title = "Bewegungshistorie"
+
+        headers = [
+            "Datum",
+            "Produkt",
+            "Typ",
+            "Menge",
+            "Referenz",
+            "Lagerplatz",
+            "Verpackung",
+            "Ladungsträger",
+            "Packmenge",
+            "Kosten",
+            "Notiz",
+            "Benutzer",
+        ]
+
+        worksheet.append(headers)
+
+        column_widths = {
+            "A": 22,
+            "B": 28,
+            "C": 18,
+            "D": 12,
+            "E": 18,
+            "F": 45,
+            "G": 18,
+            "H": 22,
+            "I": 14,
+            "J": 14,
+            "K": 45,
+            "L": 18,
+        }
+
+        for column, width in column_widths.items():
+            worksheet.column_dimensions[column].width = width
+
+        header_fill = PatternFill(
+            fill_type="solid",
+            fgColor="1E293B",
+        )
+        header_font = Font(
+            bold=True,
+            color="FFFFFF",
+        )
+        border = Border(
+            left=Side(style="thin", color="CBD5E1"),
+            right=Side(style="thin", color="CBD5E1"),
+            top=Side(style="thin", color="CBD5E1"),
+            bottom=Side(style="thin", color="CBD5E1"),
+        )
+
+        for cell in worksheet[1]:
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(
+                horizontal="center",
+                vertical="center",
+                wrap_text=True,
+            )
+            cell.border = border
+
+        movements = self.get_queryset()
+
+        for movement in movements:
+            movement_type = (
+                "Wareneingang"
+                if movement.movement_type == "IN"
+                else "Warenausgang"
+            )
+
+            quantity = (
+                -movement.quantity
+                if movement.movement_type == "OUT"
+                else movement.quantity
+            )
+
+            row = [
+                movement.created_at.strftime("%d.%m.%Y %H:%M:%S"),
+                movement.product.name if movement.product else "",
+                movement_type,
+                quantity,
+                movement.reference_number or "",
+                str(movement.storage_location) if movement.storage_location else "",
+                movement.packaging_type.name if movement.packaging_type else "",
+                movement.load_carrier_type.name if movement.load_carrier_type else "",
+                movement.packaging_quantity
+                if movement.packaging_type or movement.load_carrier_type
+                else "",
+                movement.packaging_cost_total
+                if movement.packaging_cost_total is not None
+                else "",
+                movement.note or "",
+                movement.created_by.username if movement.created_by else "",
+            ]
+
+            worksheet.append(row)
+
+        for row in worksheet.iter_rows(min_row=2):
+            for cell in row:
+                cell.border = border
+                cell.alignment = Alignment(
+                    vertical="top",
+                    wrap_text=True,
+                )
+
+        for cell in worksheet["J"][1:]:
+            cell.number_format = '#,##0.00 €'
+
+        worksheet.freeze_panes = "A2"
+        worksheet.auto_filter.ref = worksheet.dimensions
+
+        response = HttpResponse(
+            content_type=(
+                "application/vnd.openxmlformats-officedocument."
+                "spreadsheetml.sheet"
+            )
+        )
+        response["Content-Disposition"] = (
+            'attachment; filename="bewegungshistorie.xlsx"'
+        )
+
+        workbook.save(response)
+        return response
 
     serializer_class = StockMovementSerializer
 

@@ -1870,12 +1870,6 @@ if (role === "einkauf") {
       setError("");
       setSuccess("");
 
-      console.log("Wareneingang Payload Debug", {
-      movementPackagingTypeId,
-      movementLoadCarrierTypeId,
-      movementPackagingQuantity,
-      });
-
       const response = await apiFetch("/inventory-api/stock-movements/", {
         method: "POST",
         body: JSON.stringify({
@@ -2401,48 +2395,41 @@ if (role === "einkauf") {
     }
   };
 
- const exportMovementsToCsv = () => {
-  const headers = [
-    "Datum",
-    "Produkt",
-    "Typ",
-    "Menge",
-    "Referenz",
-    "Lagerplatz",
-    "Notiz",
-    "Benutzer",
-  ];
+const exportMovementsToCsv = async () => {
+  try {
+    setError("");
+    setSuccess("");
 
-  const rows = filteredMovements.map((movement) => [
-    new Date(movement.created_at).toLocaleString("de-DE"),
-    movement.product_name,
-    movement.movement_type === "IN" ? "Wareneingang" : "Warenausgang",
-    String(movement.quantity),
-    movement.reference_number ?? "",
-    movement.storage_location_label ?? "",
-    movement.note ?? "",
-    movement.created_by_username ?? "",
-  ]);
+    const response = await apiFetch(
+      "/inventory-api/stock-movements/export-excel/"
+    );
 
-  const csvContent = [headers, ...rows]
-    .map((row) =>
-      row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(";")
-    )
-    .join("\n");
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || "Fehler beim Excel-Export.");
+    }
 
-  const blob = new Blob([csvContent], {
-    type: "text/csv;charset=utf-8;",
-  });
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
 
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
+    link.href = url;
+    link.download = "bewegungshistorie.xlsx";
+    link.click();
 
-  link.href = url;
-  link.download = "bewegungshistorie.csv";
-  link.click();
+    URL.revokeObjectURL(url);
 
-  URL.revokeObjectURL(url);
+    setSuccess("📤 Bewegungshistorie erfolgreich als Excel exportiert!");
+  } catch (err) {
+    const message =
+      err instanceof Error
+        ? err.message
+        : "Fehler beim Export der Bewegungshistorie.";
+
+    setError(message);
+  }
 };
+
   if (!loggedIn) {
     return (
       <div style={isMobileLayout ? pageStyleMobile : pageStyle}>
@@ -5340,7 +5327,7 @@ function HistorySection({
     <section style={sectionStyle}>
       <h2 style={sectionTitleStyle}>Bewegungshistorie</h2>
       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "16px" }}>
-        <button type="button" onClick={exportMovementsToCsv} style={secondaryButtonStyle}>CSV exportieren</button>
+        <button type="button" onClick={exportMovementsToCsv} style={secondaryButtonStyle}>Excel exportieren</button>
       </div>
       <div style={filterGridStyle}>
         <input type="text" placeholder="Suche nach Produkt, Referenz oder Notiz" value={movementSearch} onChange={(event) => setMovementSearch(event.target.value)} style={inputStyle} />
@@ -5359,17 +5346,21 @@ function HistorySection({
         <div style={tableWrapStyle}>
           <table style={dataTableStyle}>
             <thead>
-              <tr style={tableHeaderRowStyle}>
-                <th style={tableHeadStyle}>Datum</th>
-                <th style={tableHeadStyle}>Produkt</th>
-                <th style={tableHeadStyle}>Typ</th>
-                <th style={tableHeadStyle}>Menge</th>
-                <th style={tableHeadStyle}>Referenz</th>
-                <th style={tableHeadStyle}>Lagerplatz</th>
-                <th style={tableHeadStyle}>Notiz</th>
-                <th style={tableHeadStyle}>Benutzer</th>
-                <th style={tableHeadStyle}>Aktion</th>
-              </tr>
+             <tr style={tableHeaderRowStyle}>
+              <th style={tableHeadStyle}>Datum</th>
+              <th style={tableHeadStyle}>Produkt</th>
+              <th style={tableHeadStyle}>Typ</th>
+              <th style={tableHeadStyle}>Menge</th>
+              <th style={tableHeadStyle}>Referenz</th>
+              <th style={tableHeadStyle}>Lagerplatz</th>
+              <th style={tableHeadStyle}>Verpackung</th>
+              <th style={tableHeadStyle}>Ladungsträger</th>
+              <th style={tableHeadStyle}>Packmenge</th>
+              <th style={tableHeadStyle}>Kosten</th>
+              <th style={tableHeadStyle}>Notiz</th>
+              <th style={tableHeadStyle}>Benutzer</th>
+              <th style={tableHeadStyle}>Aktion</th>
+            </tr>
             </thead>
 
             <tbody>
@@ -5428,6 +5419,47 @@ function HistorySection({
                     >
                       {movement.storage_location_label || "—"}
                     </td>
+                    <td
+                    style={{
+                      ...tableCellStyle,
+                      color: movement.packaging_type_name ? "#e5e7eb" : "#64748b",
+                    }}
+                  >
+                    {movement.packaging_type_name || "—"}
+                  </td>
+
+                  <td
+                    style={{
+                      ...tableCellStyle,
+                      color: movement.load_carrier_type_name ? "#e5e7eb" : "#64748b",
+                    }}
+                  >
+                    {movement.load_carrier_type_name || "—"}
+                  </td>
+
+                  <td
+                    style={{
+                      ...tableCellStyle,
+                      color: movement.packaging_quantity ? "#e5e7eb" : "#64748b",
+                    }}
+                  >
+                    {movement.packaging_quantity || "—"}
+                  </td>
+
+                  <td
+                    style={{
+                      ...tableCellStyle,
+                      color: movement.packaging_cost_total ? "#e5e7eb" : "#64748b",
+                      fontWeight: movement.packaging_cost_total ? 700 : 400,
+                    }}
+                  >
+                    {movement.packaging_cost_total
+                      ? `${Number(movement.packaging_cost_total).toLocaleString("de-DE", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })} €`
+                      : "—"}
+                  </td>
 
                     <td
                       style={{
@@ -5762,7 +5794,7 @@ const tableWrapStyle: CSSProperties = {
 const dataTableStyle: CSSProperties = {
   width: "100%",
   borderCollapse: "collapse",
-  minWidth: "900px",
+  minWidth: "1250px",
 };
 
 const tableHeaderRowStyle: CSSProperties = {
