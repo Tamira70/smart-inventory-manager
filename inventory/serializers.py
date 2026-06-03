@@ -420,6 +420,52 @@ class StockMovementSerializer(serializers.ModelSerializer):
         load_carrier_type = validated_data.get("load_carrier_type")
         packaging_quantity = validated_data.get("packaging_quantity", 1)
 
+        if movement_type == "OUT":
+            latest_packaging_movement = (
+                StockMovement.objects.filter(
+                    product=product,
+                    movement_type="IN",
+                )
+                .exclude(
+                    packaging_type__isnull=True,
+                    load_carrier_type__isnull=True,
+                )
+                .order_by("-created_at")
+                .first()
+            )
+
+            if latest_packaging_movement:
+                if not packaging_type:
+                    packaging_type = latest_packaging_movement.packaging_type
+                    validated_data["packaging_type"] = packaging_type
+
+                if not load_carrier_type:
+                    load_carrier_type = latest_packaging_movement.load_carrier_type
+                    validated_data["load_carrier_type"] = load_carrier_type
+
+                initial_data = getattr(self, "initial_data", {})
+                packaging_quantity_was_sent = bool(
+                    initial_data.get("packaging_quantity")
+                )
+
+                if not packaging_quantity_was_sent:
+                    source_quantity = latest_packaging_movement.quantity or 1
+                    source_packaging_quantity = (
+                        latest_packaging_movement.packaging_quantity or 1
+                    )
+
+                    units_per_package = max(
+                        1,
+                        source_quantity // source_packaging_quantity,
+                    )
+
+                    packaging_quantity = max(
+                        1,
+                        -(-quantity // units_per_package),
+                    )
+
+                    validated_data["packaging_quantity"] = packaging_quantity
+
         packaging_cost_total = 0
 
         if packaging_type and packaging_type.unit_cost is not None:
