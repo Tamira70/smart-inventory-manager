@@ -64,6 +64,10 @@ type StorageLocation = {
   width_cm: string | null;
   height_cm: string | null;
   max_weight_kg: string | null;
+  available_weight_kg?: string | number | null;
+  available_volume_cm3?: string | number | null;
+  occupied_weight_kg?: string | number | null;
+  occupied_volume_cm3?: string | number | null;
 
   product_count: number;
   created_at: string;
@@ -4918,19 +4922,38 @@ function GoodsInSection({
     const locationVolume = getVolumeCm3(location);
     const maxWeight = toPositiveNumber(location.max_weight_kg);
 
+    const occupiedVolume =
+      toPositiveNumber(location.occupied_volume_cm3) ?? 0;
+    const occupiedWeight =
+      toPositiveNumber(location.occupied_weight_kg) ?? 0;
+
+    const totalVolumeAfterBooking = occupiedVolume + requiredVolume;
+    const totalWeightAfterBooking = occupiedWeight + requiredWeight;
+
+    const availableVolume =
+      locationVolume !== null ? locationVolume - occupiedVolume : null;
+    const availableWeight =
+      maxWeight !== null ? maxWeight - occupiedWeight : null;
+
     const volumeFits =
       requiredVolume === 0 ||
       locationVolume === null ||
-      requiredVolume <= locationVolume;
+      totalVolumeAfterBooking <= locationVolume;
 
     const weightFits =
       requiredWeight === 0 ||
       maxWeight === null ||
-      requiredWeight <= maxWeight;
+      totalWeightAfterBooking <= maxWeight;
 
     return {
       locationVolume,
       maxWeight,
+      occupiedVolume,
+      occupiedWeight,
+      availableVolume,
+      availableWeight,
+      totalVolumeAfterBooking,
+      totalWeightAfterBooking,
       volumeFits,
       weightFits,
       fits: volumeFits && weightFits,
@@ -5221,24 +5244,52 @@ function GoodsInSection({
               </div>
 
               <div>
-                <span style={{ color: "#94a3b8" }}>Volumen benötigt</span>
+                <span style={{ color: "#94a3b8" }}>Volumen belegt</span>
+                <div>
+                  {formatCapacityNumber(selectedLocationCapacity.occupiedVolume)} cm³
+                </div>
+              </div>
+
+              <div>
+                <span style={{ color: "#94a3b8" }}>Volumen neue Buchung</span>
                 <div>{formatCapacityNumber(requiredVolume)} cm³</div>
               </div>
 
               <div>
-                <span style={{ color: "#94a3b8" }}>Volumen verfügbar</span>
+                <span style={{ color: "#94a3b8" }}>Volumen nach Buchung</span>
+                <div>
+                  {formatCapacityNumber(selectedLocationCapacity.totalVolumeAfterBooking)} cm³
+                </div>
+              </div>
+
+              <div>
+                <span style={{ color: "#94a3b8" }}>Volumen maximal</span>
                 <div>
                   {formatCapacityNumber(selectedLocationCapacity.locationVolume)} cm³
                 </div>
               </div>
 
               <div>
-                <span style={{ color: "#94a3b8" }}>Gewicht benötigt</span>
+                <span style={{ color: "#94a3b8" }}>Gewicht belegt</span>
+                <div>
+                  {formatCapacityNumber(selectedLocationCapacity.occupiedWeight)} kg
+                </div>
+              </div>
+
+              <div>
+                <span style={{ color: "#94a3b8" }}>Gewicht neue Buchung</span>
                 <div>{formatCapacityNumber(requiredWeight)} kg</div>
               </div>
 
               <div>
-                <span style={{ color: "#94a3b8" }}>Gewicht erlaubt</span>
+                <span style={{ color: "#94a3b8" }}>Gewicht nach Buchung</span>
+                <div>
+                  {formatCapacityNumber(selectedLocationCapacity.totalWeightAfterBooking)} kg
+                </div>
+              </div>
+
+              <div>
+                <span style={{ color: "#94a3b8" }}>Gewicht maximal</span>
                 <div>{formatCapacityNumber(selectedLocationCapacity.maxWeight)} kg</div>
               </div>
 

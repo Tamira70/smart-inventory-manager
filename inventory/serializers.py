@@ -56,6 +56,10 @@ class UserProfileSerializer(serializers.ModelSerializer):
 class StorageLocationSerializer(serializers.ModelSerializer):
     product_count = serializers.SerializerMethodField()
     volume_cm3 = serializers.ReadOnlyField()
+    occupied_volume_cm3 = serializers.SerializerMethodField()
+    occupied_weight_kg = serializers.SerializerMethodField()
+    available_volume_cm3 = serializers.SerializerMethodField()
+    available_weight_kg = serializers.SerializerMethodField()
 
     class Meta:
         model = StorageLocation
@@ -77,6 +81,10 @@ class StorageLocationSerializer(serializers.ModelSerializer):
             "height_cm",
             "max_weight_kg",
             "volume_cm3",
+            "occupied_volume_cm3",
+            "occupied_weight_kg",
+            "available_volume_cm3",
+            "available_weight_kg",
             "product_count",
             "created_at",
             "updated_at",
@@ -86,10 +94,65 @@ class StorageLocationSerializer(serializers.ModelSerializer):
             "updated_at",
             "product_count",
             "volume_cm3",
+            "occupied_volume_cm3",
+            "occupied_weight_kg",
+            "available_volume_cm3",
+            "available_weight_kg",
         ]
 
     def get_product_count(self, obj):
         return obj.products.count()
+
+    def _format_number(self, value):
+        if value is None:
+            return None
+        return round(float(value), 2)
+
+    def _get_volume_cm3(self, item):
+        if (
+            item
+            and item.length_cm
+            and item.width_cm
+            and item.height_cm
+        ):
+            return item.length_cm * item.width_cm * item.height_cm
+        return None
+
+    def _get_occupied_values(self, obj):
+        occupied_volume = 0
+        occupied_weight = 0
+
+        for product in obj.products.select_related("packaging_type").all():
+            if product.weight_kg is not None:
+                occupied_weight += product.weight_kg * product.quantity
+
+            packaging_volume = self._get_volume_cm3(product.packaging_type)
+            if packaging_volume is not None:
+                occupied_volume += packaging_volume * product.quantity
+
+        return occupied_volume, occupied_weight
+
+    def get_occupied_volume_cm3(self, obj):
+        occupied_volume, _ = self._get_occupied_values(obj)
+        return self._format_number(occupied_volume)
+
+    def get_occupied_weight_kg(self, obj):
+        _, occupied_weight = self._get_occupied_values(obj)
+        return self._format_number(occupied_weight)
+
+    def get_available_volume_cm3(self, obj):
+        if obj.volume_cm3 is None:
+            return None
+
+        occupied_volume, _ = self._get_occupied_values(obj)
+        return self._format_number(obj.volume_cm3 - occupied_volume)
+
+    def get_available_weight_kg(self, obj):
+        if obj.max_weight_kg is None:
+            return None
+
+        _, occupied_weight = self._get_occupied_values(obj)
+        return self._format_number(obj.max_weight_kg - occupied_weight)
 
 
 class CustomerSerializer(serializers.ModelSerializer):
@@ -480,25 +543,58 @@ class StockMovementSerializer(serializers.ModelSerializer):
                     return item.length_cm * item.width_cm * item.height_cm
                 return None
 
+            def get_current_location_load(location):
+                occupied_volume = 0
+                occupied_weight = 0
+
+                for current_product in location.products.select_related(
+                    "packaging_type"
+                ).all():
+                    if current_product.weight_kg is not None:
+                        occupied_weight += (
+                            current_product.weight_kg * current_product.quantity
+                        )
+
+                    current_packaging_volume = get_volume_cm3(
+                        current_product.packaging_type
+                    )
+                    if current_packaging_volume is not None:
+                        occupied_volume += (
+                            current_packaging_volume * current_product.quantity
+                        )
+
+                return occupied_volume, occupied_weight
+
+            occupied_volume, occupied_weight = get_current_location_load(
+                storage_location
+            )
+
             location_volume = storage_location.volume_cm3
             packaging_volume = get_volume_cm3(packaging_type)
             load_carrier_volume = get_volume_cm3(load_carrier_type)
 
+            required_volume = 0
+
+            if packaging_volume is not None:
+                required_volume += (
+                    packaging_volume * packaging_quantity_for_check
+                )
+
+            if load_carrier_volume is not None:
+                required_volume += load_carrier_volume
+
             if location_volume is not None:
-                required_volume = 0
+                total_volume_after_booking = occupied_volume + required_volume
 
-                if packaging_volume is not None:
-                    required_volume += (
-                        packaging_volume * packaging_quantity_for_check
-                    )
-
-                if load_carrier_volume is not None:
-                    required_volume += load_carrier_volume
-
-                if required_volume > 0 and required_volume > location_volume:
+                if (
+                    required_volume > 0
+                    and total_volume_after_booking > location_volume
+                ):
                     storage_location_errors.append(
-                        "Kapazität überschritten: Benötigtes Volumen "
-                        f"{required_volume:.2f} cm³, verfügbar "
+                        "Kapazität überschritten: Bereits belegt "
+                        f"{occupied_volume:.2f} cm³, neue Buchung "
+                        f"{required_volume:.2f} cm³, nach Buchung "
+                        f"{total_volume_after_booking:.2f} cm³, verfügbar "
                         f"{location_volume:.2f} cm³."
                     )
 
@@ -516,16 +612,20 @@ class StockMovementSerializer(serializers.ModelSerializer):
             if load_carrier_type and load_carrier_type.weight_kg is not None:
                 required_weight += load_carrier_type.weight_kg
 
-            if (
-                max_weight is not None
-                and required_weight > 0
-                and required_weight > max_weight
-            ):
-                storage_location_errors.append(
-                    "Gewicht überschritten: Benötigtes Gewicht "
-                    f"{required_weight:.2f} kg, erlaubt "
-                    f"{max_weight:.2f} kg."
-                )
+            if max_weight is not None:
+                total_weight_after_booking = occupied_weight + required_weight
+
+                if (
+                    required_weight > 0
+                    and total_weight_after_booking > max_weight
+                ):
+                    storage_location_errors.append(
+                        "Gewicht überschritten: Bereits belegt "
+                        f"{occupied_weight:.2f} kg, neue Buchung "
+                        f"{required_weight:.2f} kg, nach Buchung "
+                        f"{total_weight_after_booking:.2f} kg, erlaubt "
+                        f"{max_weight:.2f} kg."
+                    )
 
             if storage_location_errors:
                 errors["storage_location"] = storage_location_errors
