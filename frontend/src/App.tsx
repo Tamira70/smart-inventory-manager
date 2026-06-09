@@ -5064,6 +5064,32 @@ function GoodsInSection({
         </p>
       )}
 
+      {hasPermission("lager") &&
+        (!movementStorageLocationId || !movementReferenceNumber.trim()) && (
+          <div
+            style={{
+              border: "1px solid #92400e",
+              borderRadius: "14px",
+              padding: "12px 16px",
+              margin: "14px 0",
+              background: "rgba(120, 53, 15, 0.18)",
+              color: "#fed7aa",
+            }}
+          >
+            <strong>⚠️ Pflichtfelder fehlen im Wareneingang</strong>
+
+            <div style={{ marginTop: "8px", lineHeight: 1.6 }}>
+              {!movementStorageLocationId && (
+                <div>• Bitte einen Lagerplatz auswählen.</div>
+              )}
+
+              {!movementReferenceNumber.trim() && (
+                <div>• Bitte eine Referenz- oder Lieferscheinnummer eintragen.</div>
+              )}
+            </div>
+          </div>
+        )}
+
       <form onSubmit={handleGoodsReceipt} style={formGridStyle}>
         <select
           ref={goodsInProductRef}
@@ -5462,6 +5488,25 @@ function GoodsOutSection({
   return (
     <section style={sectionStyle}>
       <h2 style={sectionTitleStyle}>📤 Warenausgang buchen</h2>
+      {hasPermission("lager") && !goodsOutReferenceNumber.trim() && (
+        <div
+          style={{
+            border: "1px solid #92400e",
+            borderRadius: "14px",
+            padding: "12px 16px",
+            margin: "14px 0",
+            background: "rgba(120, 53, 15, 0.18)",
+            color: "#fed7aa",
+          }}
+        >
+          <strong>⚠️ Pflichtfeld fehlt im Warenausgang</strong>
+
+          <div style={{ marginTop: "8px", lineHeight: 1.6 }}>
+            • Bitte eine Referenznummer eintragen.
+          </div>
+        </div>
+      )}
+
       <form onSubmit={handleGoodsIssue} style={formGridStyle}>
         <select ref={goodsOutProductRef} value={goodsOutProductId} onChange={(event) => setGoodsOutProductId(event.target.value)} onKeyDown={(event) => focusNextOnEnter(event, goodsOutQuantityRef.current)} required style={inputStyle} disabled={!hasPermission("lager")}>
           <option value="">Produkt auswählen</option>
