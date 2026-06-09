@@ -721,7 +721,34 @@ class StockMovementSerializer(serializers.ModelSerializer):
             product.quantity -= quantity
 
         product.save()
-        return super().create(validated_data)
+
+        movement = super().create(validated_data)
+
+        if movement_type == "IN" and movement.storage_location:
+            from .models import StorageLocationStock
+
+            stock_position, _ = StorageLocationStock.objects.get_or_create(
+                product=product,
+                storage_location=movement.storage_location,
+                packaging_type=movement.packaging_type,
+                load_carrier_type=movement.load_carrier_type,
+                defaults={
+                    "quantity": 0,
+                    "packaging_quantity": 0,
+                },
+            )
+
+            stock_position.quantity += quantity
+            stock_position.packaging_quantity += packaging_quantity
+            stock_position.save(
+                update_fields=[
+                    "quantity",
+                    "packaging_quantity",
+                    "updated_at",
+                ]
+            )
+
+        return movement
 
 
 class InventorySessionSerializer(serializers.ModelSerializer):
