@@ -110,6 +110,13 @@ class Product(models.Model):
     quantity = models.IntegerField(default=0)
     min_stock = models.IntegerField(default=0)
     unit = models.CharField(max_length=50, default="Stück")
+    weight_kg = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Produktgewicht pro Einheit in kg",
+    )
 
     storage_location = models.ForeignKey(
         StorageLocation,

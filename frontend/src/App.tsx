@@ -20,6 +20,7 @@ type Product = {
   quantity: number;
   min_stock: number;
   unit: string;
+  weight_kg?: string | number | null;
 
   storage_location?: number | null;
   storage_location_code?: string | null;
@@ -295,6 +296,7 @@ type ProductForm = {
   quantity: string;
   min_stock: string;
   unit: string;
+  weight_kg: string;
   storage_location: string;
   packaging_type: string;
 };
@@ -401,6 +403,7 @@ const initialForm: ProductForm = {
   quantity: "",
   min_stock: "",
   unit: "Stück",
+  weight_kg: "",
   storage_location: "",
   packaging_type: "",
 };
@@ -1786,6 +1789,7 @@ if (role === "einkauf") {
   quantity: String(product.quantity),
   min_stock: String(product.min_stock),
   unit: product.unit,
+  weight_kg: product.weight_kg ? String(product.weight_kg) : "",
   storage_location: product.storage_location
     ? String(product.storage_location)
     : "",
@@ -1802,6 +1806,7 @@ if (role === "einkauf") {
     if (!form.unit.trim()) return "Einheit ist erforderlich.";
     if (form.quantity === "" || Number(form.quantity) < 0) return "Bestand muss 0 oder größer sein.";
     if (form.min_stock === "" || Number(form.min_stock) < 0) return "Mindestbestand muss 0 oder größer sein.";
+    if (form.weight_kg !== "" && Number(form.weight_kg) < 0) return "Produktgewicht muss 0 oder größer sein.";
     return "";
   };
 
@@ -1828,6 +1833,7 @@ if (role === "einkauf") {
     quantity: Number(form.quantity),
     min_stock: Number(form.min_stock),
     unit: form.unit,
+    weight_kg: form.weight_kg ? Number(form.weight_kg) : null,
     storage_location: form.storage_location
       ? Number(form.storage_location)
       : null,
@@ -4597,6 +4603,18 @@ function ProductFormSection({
           {unitOptions.map((unit) => <option key={unit} value={unit}>{unit}</option>)}
         </select>
 
+        <input
+          name="weight_kg"
+          type="number"
+          step="0.01"
+          min="0"
+          placeholder="Produktgewicht kg pro Stück"
+          value={form.weight_kg}
+          onChange={handleChange}
+          style={inputStyle}
+          disabled={!hasPermission("admin")}
+        />
+
         <select
           value={form.storage_location}
           onChange={(event) =>
@@ -4870,10 +4888,13 @@ function GoodsInSection({
     (packagingVolume !== null ? packagingVolume * packagingQuantityForCheck : 0) +
     (loadCarrierVolume !== null ? loadCarrierVolume : 0);
 
+  const productWeight = toPositiveNumber(selectedProduct?.weight_kg);
+  const goodsInQuantityForCheck = Math.max(1, Number(movementQuantity || 1));
   const packagingWeight = toPositiveNumber(selectedPackagingType?.weight_kg);
   const loadCarrierWeight = toPositiveNumber(selectedLoadCarrierType?.weight_kg);
 
   const requiredWeight =
+    (productWeight !== null ? productWeight * goodsInQuantityForCheck : 0) +
     (packagingWeight !== null ? packagingWeight * packagingQuantityForCheck : 0) +
     (loadCarrierWeight !== null ? loadCarrierWeight : 0);
 
@@ -5648,6 +5669,15 @@ function ProductGrid({
               </div>
 
               <div>Mindestbestand: {product.min_stock}</div>
+
+              <div>
+                Gewicht/Stück:{" "}
+                {product.weight_kg
+                  ? `${Number(product.weight_kg).toLocaleString("de-DE", {
+                      maximumFractionDigits: 2,
+                    })} kg`
+                  : "—"}
+              </div>
 
               <div>
                 Lagerplatz:{" "}

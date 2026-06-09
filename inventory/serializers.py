@@ -55,6 +55,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
 class StorageLocationSerializer(serializers.ModelSerializer):
     product_count = serializers.SerializerMethodField()
+    volume_cm3 = serializers.ReadOnlyField()
 
     class Meta:
         model = StorageLocation
@@ -68,15 +69,27 @@ class StorageLocationSerializer(serializers.ModelSerializer):
             "shelf",
             "description",
             "is_active",
+            "is_blocked",
+            "is_empty",
+            "allow_mixed_products",
+            "length_cm",
+            "width_cm",
+            "height_cm",
+            "max_weight_kg",
+            "volume_cm3",
             "product_count",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["created_at", "updated_at", "product_count"]
+        read_only_fields = [
+            "created_at",
+            "updated_at",
+            "product_count",
+            "volume_cm3",
+        ]
 
     def get_product_count(self, obj):
         return obj.products.count()
-
 
 
 class CustomerSerializer(serializers.ModelSerializer):
@@ -318,6 +331,7 @@ class ProductSerializer(serializers.ModelSerializer):
             "quantity",
             "min_stock",
             "unit",
+            "weight_kg",
             "storage_location",
             "storage_location_code",
             "storage_location_name",
@@ -490,6 +504,9 @@ class StockMovementSerializer(serializers.ModelSerializer):
 
             max_weight = storage_location.max_weight_kg
             required_weight = 0
+
+            if product.weight_kg is not None:
+                required_weight += product.weight_kg * quantity
 
             if packaging_type and packaging_type.weight_kg is not None:
                 required_weight += (
