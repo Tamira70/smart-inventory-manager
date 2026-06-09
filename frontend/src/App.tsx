@@ -1920,12 +1920,6 @@ if (role === "einkauf") {
 
     try {
 
-      console.log("Wareneingang Payload Debug", {
-        movementPackagingTypeId,
-        movementLoadCarrierTypeId,
-        movementPackagingQuantity,
-      });
-
       const response = await apiFetch("/inventory-api/stock-movements/", {
         method: "POST",
         body: JSON.stringify({
@@ -1954,7 +1948,34 @@ if (role === "einkauf") {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(JSON.stringify(errorData));
+
+        const formattedError =
+          typeof errorData === "object" && errorData !== null
+            ? Object.entries(errorData as Record<string, unknown>)
+                .map(([field, value]) => {
+                  const label =
+                    field === "storage_location"
+                      ? "Lagerplatz"
+                      : field === "quantity"
+                      ? "Menge"
+                      : field === "packaging_quantity"
+                      ? "Packmenge"
+                      : field === "packaging_type"
+                      ? "Verpackung"
+                      : field === "load_carrier_type"
+                      ? "Ladungsträger"
+                      : field;
+
+                  const text = Array.isArray(value)
+                    ? value.join(" ")
+                    : String(value);
+
+                  return `${label}: ${text}`;
+                })
+                .join("\n")
+            : "Fehler beim Wareneingang.";
+
+        throw new Error(formattedError || "Fehler beim Wareneingang.");
       }
 
       setMovementProductId("");
@@ -4802,19 +4823,154 @@ function GoodsInSection({
   const selectedProduct =
     products.find((product) => String(product.id) === movementProductId) ?? null;
 
-  const freeLocations = storageLocations.filter(
-    (location) =>
-      location.is_active &&
-      !location.is_blocked &&
-      (location.is_empty || location.allow_mixed_products)
+  const selectedPackagingType =
+    packagingTypes.find(
+      (packagingType) => String(packagingType.id) === movementPackagingTypeId
+    ) ?? null;
+
+  const selectedLoadCarrierType =
+    packagingTypes.find(
+      (packagingType) => String(packagingType.id) === movementLoadCarrierTypeId
+    ) ?? null;
+
+  const packagingQuantityForCheck = Math.max(
+    1,
+    Number(movementPackagingQuantity || 1)
   );
 
-  const suggestedLocation =
-    selectedProduct?.storage_location
+  type CapacityItem = {
+    length_cm?: string | number | null;
+    width_cm?: string | number | null;
+    height_cm?: string | number | null;
+    weight_kg?: string | number | null;
+    max_weight_kg?: string | number | null;
+  };
+
+  const toPositiveNumber = (value?: string | number | null) => {
+    const numberValue = Number(value ?? 0);
+    return Number.isFinite(numberValue) && numberValue > 0 ? numberValue : null;
+  };
+
+  const getVolumeCm3 = (item?: CapacityItem | null) => {
+    const length = toPositiveNumber(item?.length_cm);
+    const width = toPositiveNumber(item?.width_cm);
+    const height = toPositiveNumber(item?.height_cm);
+
+    if (length && width && height) {
+      return length * width * height;
+    }
+
+    return null;
+  };
+
+  const packagingVolume = getVolumeCm3(selectedPackagingType);
+  const loadCarrierVolume = getVolumeCm3(selectedLoadCarrierType);
+
+  const requiredVolume =
+    (packagingVolume !== null ? packagingVolume * packagingQuantityForCheck : 0) +
+    (loadCarrierVolume !== null ? loadCarrierVolume : 0);
+
+  const packagingWeight = toPositiveNumber(selectedPackagingType?.weight_kg);
+  const loadCarrierWeight = toPositiveNumber(selectedLoadCarrierType?.weight_kg);
+
+  const requiredWeight =
+    (packagingWeight !== null ? packagingWeight * packagingQuantityForCheck : 0) +
+    (loadCarrierWeight !== null ? loadCarrierWeight : 0);
+
+  const capacityNeedsCheck = requiredVolume > 0 || requiredWeight > 0;
+
+  const isLocationAvailableForProduct = (
+    location: StorageLocation,
+    product?: Product | null
+  ) =>
+    location.is_active &&
+    !location.is_blocked &&
+    (location.is_empty ||
+      location.allow_mixed_products ||
+      product?.storage_location === location.id);
+
+  const freeLocations = storageLocations.filter((location) =>
+    isLocationAvailableForProduct(location, selectedProduct)
+  );
+
+  const getLocationCapacity = (location: StorageLocation) => {
+    const locationVolume = getVolumeCm3(location);
+    const maxWeight = toPositiveNumber(location.max_weight_kg);
+
+    const volumeFits =
+      requiredVolume === 0 ||
+      locationVolume === null ||
+      requiredVolume <= locationVolume;
+
+    const weightFits =
+      requiredWeight === 0 ||
+      maxWeight === null ||
+      requiredWeight <= maxWeight;
+
+    return {
+      locationVolume,
+      maxWeight,
+      volumeFits,
+      weightFits,
+      fits: volumeFits && weightFits,
+    };
+  };
+
+  const getCapacitySuitableLocationsForProduct = (
+    product?: Product | null
+  ) =>
+    storageLocations
+      .filter((location) => isLocationAvailableForProduct(location, product))
+      .filter((location) => getLocationCapacity(location).fits);
+
+  const getPreferredLocationForProduct = (product?: Product | null) => {
+    const availableLocationsForProduct = storageLocations.filter((location) =>
+      isLocationAvailableForProduct(location, product)
+    );
+
+    const capacitySuitableLocationsForProduct =
+      getCapacitySuitableLocationsForProduct(product);
+
+    const fixedLocation = product?.storage_location
       ? storageLocations.find(
-          (location) => location.id === selectedProduct.storage_location
+          (location) => location.id === product.storage_location
         ) ?? null
-      : freeLocations[0] ?? null;
+      : null;
+
+    if (
+      fixedLocation &&
+      availableLocationsForProduct.some(
+        (location) => location.id === fixedLocation.id
+      ) &&
+      getLocationCapacity(fixedLocation).fits
+    ) {
+      return fixedLocation;
+    }
+
+    return capacitySuitableLocationsForProduct[0] ?? null;
+  };
+
+  const suggestedLocation = getPreferredLocationForProduct(selectedProduct);
+
+  const selectedStorageLocationId =
+    movementStorageLocationId ||
+    (suggestedLocation ? String(suggestedLocation.id) : "");
+
+  const selectedStorageLocation =
+    storageLocations.find(
+      (location) => String(location.id) === selectedStorageLocationId
+    ) ?? null;
+
+  const selectedLocationCapacity = selectedStorageLocation
+    ? getLocationCapacity(selectedStorageLocation)
+    : null;
+
+  const formatCapacityNumber = (value: number | null) =>
+    value === null
+      ? "—"
+      : value.toLocaleString("de-DE", {
+          maximumFractionDigits: 0,
+        });
 
   return (
     <section style={sectionStyle}>
@@ -4822,12 +4978,12 @@ function GoodsInSection({
 
       <p style={infoStyle}>
         Beim Wareneingang werden freie, aktive und nicht gesperrte Lagerplätze
-        bevorzugt. Belegte Mischlagerplätze werden nur angezeigt, wenn
-        Mischlagerung erlaubt ist.
+        bevorzugt. Belegte Plätze werden angezeigt, wenn Mischlagerung erlaubt
+        ist oder es sich um den aktuellen Lagerplatz dieses Produkts handelt.
       </p>
 
       <div style={dashboardGridStyle}>
-        <Card title="Freie Plätze" value={String(freeLocations.length)} />
+        <Card title="Verfügbare Plätze" value={String(freeLocations.length)} />
         <Card
           title="Gesperrte Plätze"
           value={String(storageLocations.filter((location) => location.is_blocked).length)}
@@ -4847,6 +5003,22 @@ function GoodsInSection({
         </p>
       )}
 
+      {movementProductId && capacityNeedsCheck && !suggestedLocation && (
+        <p
+          style={{
+            border: "1px solid #92400e",
+            borderRadius: "14px",
+            padding: "12px 16px",
+            background: "rgba(120, 53, 15, 0.18)",
+            color: "#fed7aa",
+          }}
+        >
+          ⚠️ Kein passender verfügbarer Lagerplatz gefunden. Bitte Packmenge
+          reduzieren, Verpackung/Ladungsträger ändern oder einen größeren
+          Lagerplatz anlegen.
+        </p>
+      )}
+
       <form onSubmit={handleGoodsReceipt} style={formGridStyle}>
         <select
           ref={goodsInProductRef}
@@ -4858,11 +5030,7 @@ function GoodsInSection({
             );
 
             const nextSuggestedLocation =
-              nextProduct?.storage_location
-                ? storageLocations.find(
-                    (location) => location.id === nextProduct.storage_location
-                  ) ?? null
-                : freeLocations[0] ?? null;
+              getPreferredLocationForProduct(nextProduct);
 
             setMovementProductId(nextProductId);
             setMovementStorageLocationId(
@@ -4890,30 +5058,55 @@ function GoodsInSection({
           type="number"
           placeholder="Menge"
           value={movementQuantity}
-          onChange={(event) => setMovementQuantity(event.target.value)}
+          onChange={(event) => {
+            setMovementQuantity(event.target.value);
+            setMovementStorageLocationId("");
+          }}
           required
           min="1"
           style={inputStyle}
           disabled={!hasPermission("lager")}
         />
         <select
-          value={movementStorageLocationId || suggestedLocation?.id || ""}
+          value={selectedStorageLocationId}
           onChange={(event) => setMovementStorageLocationId(event.target.value)}
           style={inputStyle}
           disabled={!hasPermission("lager")}
         >
           <option value="">Lagerplatz auswählen</option>
 
-          {freeLocations.map((location) => (
-            <option key={location.id} value={location.id}>
-              {location.code} - {location.name}
-              {location.is_empty ? " / frei" : " / Mischlager"}
-            </option>
-          ))}
+          {freeLocations.map((location) => {
+            const locationCapacity = getLocationCapacity(location);
+            const isSameProductLocation =
+              selectedProduct?.storage_location === location.id;
+
+            return (
+              <option
+                key={location.id}
+                value={location.id}
+                disabled={!locationCapacity.fits}
+              >
+                {location.code} - {location.name}
+                {location.is_empty
+                  ? " / frei"
+                  : isSameProductLocation
+                  ? " / Zulagerung"
+                  : " / Mischlager"}
+                {capacityNeedsCheck
+                  ? locationCapacity.fits
+                    ? " / passt"
+                    : " / zu klein"
+                  : ""}
+              </option>
+            );
+          })}
         </select>
         <select
           value={movementPackagingTypeId}
-          onChange={(event) => setMovementPackagingTypeId(event.target.value)}
+          onChange={(event) => {
+            setMovementPackagingTypeId(event.target.value);
+            setMovementStorageLocationId("");
+          }}
           style={inputStyle}
           disabled={!hasPermission("lager")}
         >
@@ -4934,7 +5127,10 @@ function GoodsInSection({
 
         <select
           value={movementLoadCarrierTypeId}
-          onChange={(event) => setMovementLoadCarrierTypeId(event.target.value)}
+          onChange={(event) => {
+            setMovementLoadCarrierTypeId(event.target.value);
+            setMovementStorageLocationId("");
+          }}
           style={inputStyle}
           disabled={!hasPermission("lager")}
         >
@@ -4958,11 +5154,92 @@ function GoodsInSection({
           min="1"
           placeholder="Anzahl Verpackungen"
           value={movementPackagingQuantity}
-          onChange={(event) => setMovementPackagingQuantity(event.target.value)}
+          onChange={(event) => {
+            setMovementPackagingQuantity(event.target.value);
+            setMovementStorageLocationId("");
+          }}
           style={inputStyle}
           disabled={!hasPermission("lager")}
         />
 
+
+        {selectedStorageLocation && capacityNeedsCheck && selectedLocationCapacity && (
+          <div
+            style={{
+              gridColumn: "1 / -1",
+              border: selectedLocationCapacity.fits
+                ? "1px solid #166534"
+                : "1px solid #7f1d1d",
+              borderRadius: "14px",
+              padding: "14px 16px",
+              background: selectedLocationCapacity.fits
+                ? "rgba(22, 101, 52, 0.16)"
+                : "rgba(127, 29, 29, 0.18)",
+            }}
+          >
+            <strong
+              style={{
+                display: "block",
+                color: selectedLocationCapacity.fits ? "#bbf7d0" : "#fecaca",
+                marginBottom: "10px",
+              }}
+            >
+              📐 Kapazitätsvorschau
+            </strong>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
+                gap: "10px",
+              }}
+            >
+              <div>
+                <span style={{ color: "#94a3b8" }}>Lagerplatz</span>
+                <div>{selectedStorageLocation.code}</div>
+              </div>
+
+              <div>
+                <span style={{ color: "#94a3b8" }}>Volumen benötigt</span>
+                <div>{formatCapacityNumber(requiredVolume)} cm³</div>
+              </div>
+
+              <div>
+                <span style={{ color: "#94a3b8" }}>Volumen verfügbar</span>
+                <div>
+                  {formatCapacityNumber(selectedLocationCapacity.locationVolume)} cm³
+                </div>
+              </div>
+
+              <div>
+                <span style={{ color: "#94a3b8" }}>Gewicht benötigt</span>
+                <div>{formatCapacityNumber(requiredWeight)} kg</div>
+              </div>
+
+              <div>
+                <span style={{ color: "#94a3b8" }}>Gewicht erlaubt</span>
+                <div>{formatCapacityNumber(selectedLocationCapacity.maxWeight)} kg</div>
+              </div>
+
+              <div>
+                <span style={{ color: "#94a3b8" }}>Status</span>
+                <div>
+                  {selectedLocationCapacity.fits
+                    ? "✅ passt"
+                    : "⚠️ passt nicht"}
+                </div>
+              </div>
+            </div>
+
+            {!selectedLocationCapacity.fits && (
+              <p style={{ margin: "10px 0 0", color: "#fecaca" }}>
+                Dieser Lagerplatz wird beim Buchen vom Backend abgelehnt. Bitte
+                Packmenge reduzieren, Ladungsträger ändern oder einen größeren
+                Lagerplatz wählen.
+              </p>
+            )}
+          </div>
+        )}
 
         <input
           type="text"

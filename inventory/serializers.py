@@ -443,9 +443,14 @@ class StockMovementSerializer(serializers.ModelSerializer):
                     "Dieser Lagerplatz ist gesperrt."
                 )
 
+            is_same_product_location = (
+                getattr(product, "storage_location_id", None) == storage_location.id
+            )
+
             if (
                 not storage_location.is_empty
                 and not storage_location.allow_mixed_products
+                and not is_same_product_location
             ):
                 storage_location_errors.append(
                     "Dieser Lagerplatz ist belegt und erlaubt keine Mischlagerung."
