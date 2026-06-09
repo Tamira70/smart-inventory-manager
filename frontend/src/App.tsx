@@ -5019,6 +5019,76 @@ function GoodsInSection({
           maximumFractionDigits: 0,
         });
 
+  const getCapacityPercent = (
+    used?: number | null,
+    max?: number | null
+  ) => {
+    if (
+      used === null ||
+      used === undefined ||
+      max === null ||
+      max === undefined ||
+      max <= 0
+    ) {
+      return null;
+    }
+
+    return Math.round((used / max) * 100);
+  };
+
+  const getCapacityColor = (percent: number | null) => {
+    if (percent === null) return "#64748b";
+    if (percent > 100) return "#dc2626";
+    if (percent >= 85) return "#f97316";
+    if (percent >= 70) return "#eab308";
+    return "#22c55e";
+  };
+
+  const getCapacityLabel = (percent: number | null) => {
+    if (percent === null) return "unbekannt";
+    if (percent > 100) return "überschritten";
+    if (percent >= 85) return "kritisch";
+    if (percent >= 70) return "hoch";
+    return "okay";
+  };
+
+  const volumeUsagePercent = selectedLocationCapacity
+    ? getCapacityPercent(
+        selectedLocationCapacity.totalVolumeAfterBooking,
+        selectedLocationCapacity.locationVolume
+      )
+    : null;
+
+  const weightUsagePercent = selectedLocationCapacity
+    ? getCapacityPercent(
+        selectedLocationCapacity.totalWeightAfterBooking,
+        selectedLocationCapacity.maxWeight
+      )
+    : null;
+
+  const highestCapacityPercent =
+    volumeUsagePercent !== null && weightUsagePercent !== null
+      ? Math.max(volumeUsagePercent, weightUsagePercent)
+      : volumeUsagePercent ?? weightUsagePercent;
+
+  const capacitySignal =
+    selectedLocationCapacity?.fits === false
+      ? "🔴"
+      : highestCapacityPercent === null
+      ? "⚪"
+      : highestCapacityPercent >= 85
+      ? "🟡"
+      : "🟢";
+
+  const capacityStatusText =
+    selectedLocationCapacity?.fits === false
+      ? "passt nicht"
+      : highestCapacityPercent === null
+      ? "Kapazität unbekannt"
+      : highestCapacityPercent >= 85
+      ? "passt, aber knapp"
+      : "passt";
+
   return (
     <section style={sectionStyle}>
       <h2 style={sectionTitleStyle}>📥 Wareneingang buchen</h2>
@@ -5271,6 +5341,88 @@ function GoodsInSection({
               📐 Kapazitätsvorschau
             </strong>
 
+            <div style={{ marginBottom: "14px" }}>
+              <strong
+                style={{
+                  display: "block",
+                  color: "#e2e8f0",
+                  marginBottom: "8px",
+                }}
+              >
+                Kapazitätsauslastung
+              </strong>
+
+              {volumeUsagePercent !== null && (
+                <div style={{ marginBottom: "10px" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      marginBottom: "4px",
+                      color: "#cbd5e1",
+                    }}
+                  >
+                    <span>Volumen</span>
+                    <span>
+                      {volumeUsagePercent}% · {getCapacityLabel(volumeUsagePercent)}
+                    </span>
+                  </div>
+
+                  <div
+                    style={{
+                      height: "12px",
+                      borderRadius: "999px",
+                      overflow: "hidden",
+                      background: "rgba(148, 163, 184, 0.22)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: `${Math.min(Math.max(volumeUsagePercent, 0), 100)}%`,
+                        height: "100%",
+                        background: getCapacityColor(volumeUsagePercent),
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {weightUsagePercent !== null && (
+                <div>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      marginBottom: "4px",
+                      color: "#cbd5e1",
+                    }}
+                  >
+                    <span>Gewicht</span>
+                    <span>
+                      {weightUsagePercent}% · {getCapacityLabel(weightUsagePercent)}
+                    </span>
+                  </div>
+
+                  <div
+                    style={{
+                      height: "12px",
+                      borderRadius: "999px",
+                      overflow: "hidden",
+                      background: "rgba(148, 163, 184, 0.22)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: `${Math.min(Math.max(weightUsagePercent, 0), 100)}%`,
+                        height: "100%",
+                        background: getCapacityColor(weightUsagePercent),
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div
               style={{
                 display: "grid",
@@ -5336,9 +5488,7 @@ function GoodsInSection({
               <div>
                 <span style={{ color: "#94a3b8" }}>Status</span>
                 <div>
-                  {selectedLocationCapacity.fits
-                    ? "✅ passt"
-                    : "⚠️ passt nicht"}
+                  {capacitySignal} {capacityStatusText}
                 </div>
               </div>
             </div>
