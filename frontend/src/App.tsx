@@ -1907,6 +1907,8 @@ if (role === "einkauf") {
     if (!movementProductId) return "Bitte ein Produkt für den Wareneingang auswählen.";
     if (movementQuantity === "" || Number(movementQuantity) <= 0) return "Die Wareneingangs-Menge muss größer als 0 sein.";
     if (!movementStorageLocationId) return "Bitte einen Lagerplatz für den Wareneingang auswählen.";
+    if (!movementPackagingTypeId) return "Bitte eine Verpackung für den Wareneingang auswählen.";
+    if (!movementLoadCarrierTypeId) return "Bitte einen Ladungsträger für den Wareneingang auswählen.";
     if (!movementReferenceNumber.trim()) return "Bitte eine Referenznummer oder Lieferscheinnummer eintragen.";
     return "";
   };
@@ -5065,7 +5067,10 @@ function GoodsInSection({
       )}
 
       {hasPermission("lager") &&
-        (!movementStorageLocationId || !movementReferenceNumber.trim()) && (
+        (!movementStorageLocationId ||
+          !movementPackagingTypeId ||
+          !movementLoadCarrierTypeId ||
+          !movementReferenceNumber.trim()) && (
           <div
             style={{
               border: "1px solid #92400e",
@@ -5081,6 +5086,14 @@ function GoodsInSection({
             <div style={{ marginTop: "8px", lineHeight: 1.6 }}>
               {!movementStorageLocationId && (
                 <div>• Bitte einen Lagerplatz auswählen.</div>
+              )}
+
+              {!movementPackagingTypeId && (
+                <div>• Bitte eine Verpackung auswählen.</div>
+              )}
+
+              {!movementLoadCarrierTypeId && (
+                <div>• Bitte einen Ladungsträger auswählen.</div>
               )}
 
               {!movementReferenceNumber.trim() && (
@@ -5364,6 +5377,8 @@ function GoodsInSection({
               movementSaving ||
               !hasPermission("lager") ||
               !movementStorageLocationId ||
+              !movementPackagingTypeId ||
+              !movementLoadCarrierTypeId ||
               !movementReferenceNumber.trim()
             }
             style={hasPermission("lager") ? primaryButtonStyle : disabledButtonStyle}

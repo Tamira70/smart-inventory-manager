@@ -512,6 +512,12 @@ class StockMovementSerializer(serializers.ModelSerializer):
         if movement_type == "IN" and not storage_location:
             errors["storage_location"] = "Bitte einen Lagerplatz auswählen."
 
+        if movement_type == "IN" and not packaging_type:
+            errors["packaging_type"] = "Bitte eine Verpackung auswählen."
+
+        if movement_type == "IN" and not load_carrier_type:
+            errors["load_carrier_type"] = "Bitte einen Ladungsträger auswählen."
+
         if movement_type == "OUT" and product.quantity < quantity:
             errors["quantity"] = "Nicht genug Bestand für diesen Warenausgang."
 
