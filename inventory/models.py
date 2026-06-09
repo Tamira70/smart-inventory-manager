@@ -219,6 +219,55 @@ class StockMovement(models.Model):
         return f"{self.product.name} - {self.movement_type} - {self.quantity}"
 
 
+class StorageLocationStock(models.Model):
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name="location_stocks",
+    )
+
+    storage_location = models.ForeignKey(
+        "StorageLocation",
+        on_delete=models.CASCADE,
+        related_name="stock_positions",
+    )
+
+    quantity = models.PositiveIntegerField(default=0)
+
+    packaging_type = models.ForeignKey(
+        "PackagingType",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="location_packaging_stocks",
+    )
+
+    load_carrier_type = models.ForeignKey(
+        "PackagingType",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="location_load_carrier_stocks",
+    )
+
+    packaging_quantity = models.PositiveIntegerField(default=0)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = (
+            "product",
+            "storage_location",
+            "packaging_type",
+            "load_carrier_type",
+        )
+        ordering = ["storage_location__code", "product__name"]
+
+    def __str__(self):
+        return f"{self.storage_location.code} - {self.product.name}: {self.quantity}"
+
+
 class InventorySession(models.Model):
     STATUS_CHOICES = [
         ("OPEN", "Offen"),
