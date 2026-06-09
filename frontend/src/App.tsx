@@ -1906,6 +1906,8 @@ if (role === "einkauf") {
   const validateGoodsReceiptForm = () => {
     if (!movementProductId) return "Bitte ein Produkt für den Wareneingang auswählen.";
     if (movementQuantity === "" || Number(movementQuantity) <= 0) return "Die Wareneingangs-Menge muss größer als 0 sein.";
+    if (!movementStorageLocationId) return "Bitte einen Lagerplatz für den Wareneingang auswählen.";
+    if (!movementReferenceNumber.trim()) return "Bitte eine Referenznummer oder Lieferscheinnummer eintragen.";
     return "";
   };
 
@@ -1951,7 +1953,7 @@ if (role === "einkauf") {
 
         packaging_quantity: Number(movementPackagingQuantity || 1),
 
-        reference_number: movementReferenceNumber,
+        reference_number: movementReferenceNumber.trim(),
         note: movementNote,
       }),
       });
@@ -2019,6 +2021,7 @@ if (role === "einkauf") {
   const validateGoodsIssueForm = () => {
     if (!goodsOutProductId) return "Bitte ein Produkt für den Warenausgang auswählen.";
     if (goodsOutQuantity === "" || Number(goodsOutQuantity) <= 0) return "Die Warenausgangs-Menge muss größer als 0 sein.";
+    if (!goodsOutReferenceNumber.trim()) return "Bitte eine Referenznummer für den Warenausgang eintragen.";
     return "";
   };
 
@@ -2048,7 +2051,7 @@ if (role === "einkauf") {
           product: Number(goodsOutProductId),
           movement_type: "OUT",
           quantity: Number(goodsOutQuantity),
-          reference_number: goodsOutReferenceNumber,
+          reference_number: goodsOutReferenceNumber.trim(),
           note: goodsOutNote,
         }),
       });
@@ -4996,9 +4999,7 @@ function GoodsInSection({
 
   const suggestedLocation = getPreferredLocationForProduct(selectedProduct);
 
-  const selectedStorageLocationId =
-    movementStorageLocationId ||
-    (suggestedLocation ? String(suggestedLocation.id) : "");
+  const selectedStorageLocationId = movementStorageLocationId;
 
   const selectedStorageLocation =
     storageLocations.find(
@@ -5333,7 +5334,12 @@ function GoodsInSection({
         <div style={{ gridColumn: "1 / -1" }}>
           <button
             type="submit"
-            disabled={movementSaving || !hasPermission("lager")}
+            disabled={
+              movementSaving ||
+              !hasPermission("lager") ||
+              !movementStorageLocationId ||
+              !movementReferenceNumber.trim()
+            }
             style={hasPermission("lager") ? primaryButtonStyle : disabledButtonStyle}
           >
             {movementSaving ? "Buche..." : "Wareneingang buchen"}

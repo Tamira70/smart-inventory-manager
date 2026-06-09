@@ -504,6 +504,14 @@ class StockMovementSerializer(serializers.ModelSerializer):
                 "Hier darf nur ein Ladungsträger ausgewählt werden."
             )
 
+        reference_number = attrs.get("reference_number", "")
+
+        if not str(reference_number).strip():
+            errors["reference_number"] = "Bitte eine Referenznummer eintragen."
+
+        if movement_type == "IN" and not storage_location:
+            errors["storage_location"] = "Bitte einen Lagerplatz auswählen."
+
         if movement_type == "OUT" and product.quantity < quantity:
             errors["quantity"] = "Nicht genug Bestand für diesen Warenausgang."
 
