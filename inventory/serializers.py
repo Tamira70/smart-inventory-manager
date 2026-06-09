@@ -402,11 +402,114 @@ class StockMovementSerializer(serializers.ModelSerializer):
         product = attrs["product"]
         movement_type = attrs["movement_type"]
         quantity = attrs["quantity"]
+        storage_location = attrs.get("storage_location")
+        packaging_type = attrs.get("packaging_type")
+        load_carrier_type = attrs.get("load_carrier_type")
+        packaging_quantity = attrs.get("packaging_quantity")
+
+        errors = {}
+
+        if packaging_quantity is None:
+            packaging_quantity_for_check = 1
+        elif packaging_quantity <= 0:
+            packaging_quantity_for_check = 1
+            errors["packaging_quantity"] = "Packmenge muss größer als 0 sein."
+        else:
+            packaging_quantity_for_check = packaging_quantity
+
+        if packaging_type and packaging_type.category != "PACKAGING":
+            errors["packaging_type"] = (
+                "Hier darf nur eine Verpackung ausgewählt werden."
+            )
+
+        if load_carrier_type and load_carrier_type.category != "LOAD_CARRIER":
+            errors["load_carrier_type"] = (
+                "Hier darf nur ein Ladungsträger ausgewählt werden."
+            )
 
         if movement_type == "OUT" and product.quantity < quantity:
-            raise serializers.ValidationError(
-                {"quantity": "Nicht genug Bestand für diesen Warenausgang."}
-            )
+            errors["quantity"] = "Nicht genug Bestand für diesen Warenausgang."
+
+        if movement_type == "IN" and storage_location:
+            storage_location_errors = []
+
+            if not storage_location.is_active:
+                storage_location_errors.append(
+                    "Dieser Lagerplatz ist nicht aktiv."
+                )
+
+            if storage_location.is_blocked:
+                storage_location_errors.append(
+                    "Dieser Lagerplatz ist gesperrt."
+                )
+
+            if (
+                not storage_location.is_empty
+                and not storage_location.allow_mixed_products
+            ):
+                storage_location_errors.append(
+                    "Dieser Lagerplatz ist belegt und erlaubt keine Mischlagerung."
+                )
+
+            def get_volume_cm3(item):
+                if (
+                    item
+                    and item.length_cm
+                    and item.width_cm
+                    and item.height_cm
+                ):
+                    return item.length_cm * item.width_cm * item.height_cm
+                return None
+
+            location_volume = storage_location.volume_cm3
+            packaging_volume = get_volume_cm3(packaging_type)
+            load_carrier_volume = get_volume_cm3(load_carrier_type)
+
+            if location_volume is not None:
+                required_volume = 0
+
+                if packaging_volume is not None:
+                    required_volume += (
+                        packaging_volume * packaging_quantity_for_check
+                    )
+
+                if load_carrier_volume is not None:
+                    required_volume += load_carrier_volume
+
+                if required_volume > 0 and required_volume > location_volume:
+                    storage_location_errors.append(
+                        "Kapazität überschritten: Benötigtes Volumen "
+                        f"{required_volume:.2f} cm³, verfügbar "
+                        f"{location_volume:.2f} cm³."
+                    )
+
+            max_weight = storage_location.max_weight_kg
+            required_weight = 0
+
+            if packaging_type and packaging_type.weight_kg is not None:
+                required_weight += (
+                    packaging_type.weight_kg * packaging_quantity_for_check
+                )
+
+            if load_carrier_type and load_carrier_type.weight_kg is not None:
+                required_weight += load_carrier_type.weight_kg
+
+            if (
+                max_weight is not None
+                and required_weight > 0
+                and required_weight > max_weight
+            ):
+                storage_location_errors.append(
+                    "Gewicht überschritten: Benötigtes Gewicht "
+                    f"{required_weight:.2f} kg, erlaubt "
+                    f"{max_weight:.2f} kg."
+                )
+
+            if storage_location_errors:
+                errors["storage_location"] = storage_location_errors
+
+        if errors:
+            raise serializers.ValidationError(errors)
 
         return attrs
 
