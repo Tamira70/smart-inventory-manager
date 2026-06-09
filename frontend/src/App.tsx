@@ -2784,6 +2784,8 @@ const exportMovementsToCsv = async () => {
             {activeSection === "goods-out" && (
               <GoodsOutSection
                 products={products}
+                movements={movements}
+                packagingTypes={packagingTypes}
                 goodsOutProductId={goodsOutProductId}
                 setGoodsOutProductId={setGoodsOutProductId}
                 goodsOutQuantity={goodsOutQuantity}
@@ -4995,6 +4997,8 @@ function GoodsInSection({
 
 function GoodsOutSection({
   products,
+  movements,
+  packagingTypes,
   goodsOutProductId,
   setGoodsOutProductId,
   goodsOutQuantity,
@@ -5011,6 +5015,8 @@ function GoodsOutSection({
   focusNextOnEnter,
 }: {
   products: Product[];
+  movements: StockMovement[];
+  packagingTypes: PackagingType[];
   goodsOutProductId: string;
   setGoodsOutProductId: (value: string) => void;
   goodsOutQuantity: string;
@@ -5029,6 +5035,75 @@ function GoodsOutSection({
     next?: HTMLElement | null
   ) => void;
 }) {
+  const selectedProductId = Number(goodsOutProductId);
+  const goodsOutQuantityNumber = Number(goodsOutQuantity || 0);
+
+  const latestPackagingMovement = movements
+    .filter(
+      (movement) =>
+        movement.product === selectedProductId &&
+        movement.movement_type === "IN" &&
+        Boolean(
+          movement.packaging_type ||
+            movement.load_carrier_type ||
+            movement.packaging_type_name ||
+            movement.load_carrier_type_name
+        )
+    )
+    .sort(
+      (a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    )[0];
+
+  const sourceQuantity = Math.max(
+    1,
+    Math.abs(latestPackagingMovement?.quantity || 1)
+  );
+
+  const sourcePackagingQuantity = Math.max(
+    1,
+    latestPackagingMovement?.packaging_quantity || 1
+  );
+
+  const unitsPerPackage = Math.max(
+    1,
+    Math.floor(sourceQuantity / sourcePackagingQuantity)
+  );
+
+  const previewPackagingQuantity =
+    latestPackagingMovement && goodsOutQuantityNumber > 0
+      ? Math.max(1, Math.ceil(goodsOutQuantityNumber / unitsPerPackage))
+      : null;
+
+  const findPackagingType = (id?: number | null, name?: string | null) =>
+    packagingTypes.find((packagingType) => packagingType.id === id) ??
+    packagingTypes.find((packagingType) => packagingType.name === name);
+
+  const previewPackagingType = findPackagingType(
+    latestPackagingMovement?.packaging_type,
+    latestPackagingMovement?.packaging_type_name
+  );
+
+  const previewLoadCarrierType = findPackagingType(
+    latestPackagingMovement?.load_carrier_type,
+    latestPackagingMovement?.load_carrier_type_name
+  );
+
+  const previewCost =
+    latestPackagingMovement && previewPackagingQuantity !== null
+      ? Number(previewPackagingType?.unit_cost ?? 0) *
+          previewPackagingQuantity +
+        Number(previewLoadCarrierType?.unit_cost ?? 0)
+      : null;
+
+  const previewCostLabel =
+    previewCost !== null
+      ? `${previewCost.toLocaleString("de-DE", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })} €`
+      : "—";
+
   return (
     <section style={sectionStyle}>
       <h2 style={sectionTitleStyle}>📤 Warenausgang buchen</h2>
@@ -5040,6 +5115,88 @@ function GoodsOutSection({
         <input ref={goodsOutQuantityRef} type="number" placeholder="Menge" value={goodsOutQuantity} onChange={(event) => setGoodsOutQuantity(event.target.value)} required min="1" style={inputStyle} disabled={!hasPermission("lager")} />
         <input type="text" placeholder="Referenznummer" value={goodsOutReferenceNumber} onChange={(event) => setGoodsOutReferenceNumber(event.target.value)} style={inputStyle} disabled={!hasPermission("lager")} />
         <textarea placeholder="Notiz" value={goodsOutNote} onChange={(event) => setGoodsOutNote(event.target.value)} style={{ ...inputStyle, minHeight: "48px", gridColumn: "1 / -1" }} disabled={!hasPermission("lager")} />
+        {goodsOutProductId && latestPackagingMovement && (
+          <div
+            style={{
+              gridColumn: "1 / -1",
+              border: "1px solid #334155",
+              borderRadius: "14px",
+              padding: "14px 16px",
+              background: "rgba(15, 23, 42, 0.92)",
+            }}
+          >
+            <strong
+              style={{
+                display: "block",
+                color: "#bae6fd",
+                marginBottom: "10px",
+              }}
+            >
+              📦 Automatische Verpackungsvorschau
+            </strong>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                gap: "10px",
+              }}
+            >
+              <div>
+                <span style={{ color: "#94a3b8" }}>Verpackung</span>
+                <div>
+                  {latestPackagingMovement.packaging_type_name ||
+                    previewPackagingType?.name ||
+                    "—"}
+                </div>
+              </div>
+
+              <div>
+                <span style={{ color: "#94a3b8" }}>Ladungsträger</span>
+                <div>
+                  {latestPackagingMovement.load_carrier_type_name ||
+                    previewLoadCarrierType?.name ||
+                    "—"}
+                </div>
+              </div>
+
+              <div>
+                <span style={{ color: "#94a3b8" }}>Packmenge</span>
+                <div>{previewPackagingQuantity ?? "Menge eingeben"}</div>
+              </div>
+
+              <div>
+                <span style={{ color: "#94a3b8" }}>Kosten</span>
+                <div>
+                  {previewPackagingQuantity ? previewCostLabel : "Menge eingeben"}
+                </div>
+              </div>
+            </div>
+
+            <p style={{ margin: "10px 0 0", color: "#94a3b8" }}>
+              Grundlage: letzter Wareneingang mit Verpackungsdaten für dieses
+              Produkt. Beim Buchen übernimmt das Backend diese Werte automatisch.
+            </p>
+          </div>
+        )}
+
+        {goodsOutProductId && !latestPackagingMovement && (
+          <div
+            style={{
+              gridColumn: "1 / -1",
+              border: "1px solid #92400e",
+              borderRadius: "14px",
+              padding: "14px 16px",
+              background: "rgba(120, 53, 15, 0.18)",
+              color: "#fed7aa",
+            }}
+          >
+            Für dieses Produkt gibt es noch keinen Wareneingang mit
+            Verpackungsdaten. Der Warenausgang wird trotzdem gebucht, aber ohne
+            automatische Verpackungsvorschau.
+          </div>
+        )}
+
         <div style={{ gridColumn: "1 / -1" }}>
           <button type="submit" disabled={goodsOutSaving || !hasPermission("lager")} style={hasPermission("lager") ? primaryButtonStyle : disabledButtonStyle}>
             {goodsOutSaving ? "Buche..." : "Warenausgang buchen"}
