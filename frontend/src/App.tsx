@@ -713,6 +713,7 @@ const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [movementTypeFilter, setMovementTypeFilter] = useState<"" | "IN" | "OUT">("");
 
   const [goodsOutProductId, setGoodsOutProductId] = useState("");
+  const [goodsOutStorageLocationId, setGoodsOutStorageLocationId] = useState("");
   const [goodsOutQuantity, setGoodsOutQuantity] = useState("");
   const [goodsOutReferenceNumber, setGoodsOutReferenceNumber] = useState("");
   const [goodsOutNote, setGoodsOutNote] = useState("");
@@ -2053,6 +2054,9 @@ if (role === "einkauf") {
           product: Number(goodsOutProductId),
           movement_type: "OUT",
           quantity: Number(goodsOutQuantity),
+          storage_location: goodsOutStorageLocationId
+            ? Number(goodsOutStorageLocationId)
+            : null,
           reference_number: goodsOutReferenceNumber.trim(),
           note: goodsOutNote,
         }),
@@ -2064,6 +2068,7 @@ if (role === "einkauf") {
       }
 
       setGoodsOutProductId("");
+      setGoodsOutStorageLocationId("");
       setGoodsOutQuantity("");
       setGoodsOutReferenceNumber("");
       setGoodsOutNote("");
@@ -2820,9 +2825,12 @@ const exportMovementsToCsv = async () => {
             {activeSection === "goods-out" && (
               <GoodsOutSection
                 products={products}
+                storageLocations={storageLocations}
                 movements={movements}
                 packagingTypes={packagingTypes}
                 goodsOutProductId={goodsOutProductId}
+                goodsOutStorageLocationId={goodsOutStorageLocationId}
+                setGoodsOutStorageLocationId={setGoodsOutStorageLocationId}
                 setGoodsOutProductId={setGoodsOutProductId}
                 goodsOutQuantity={goodsOutQuantity}
                 setGoodsOutQuantity={setGoodsOutQuantity}
@@ -5543,9 +5551,12 @@ function GoodsInSection({
 
 function GoodsOutSection({
   products,
+  storageLocations,
   movements,
   packagingTypes,
   goodsOutProductId,
+  goodsOutStorageLocationId,
+  setGoodsOutStorageLocationId,
   setGoodsOutProductId,
   goodsOutQuantity,
   setGoodsOutQuantity,
@@ -5561,9 +5572,12 @@ function GoodsOutSection({
   focusNextOnEnter,
 }: {
   products: Product[];
+  storageLocations: StorageLocation[];
   movements: StockMovement[];
   packagingTypes: PackagingType[];
   goodsOutProductId: string;
+  goodsOutStorageLocationId: string;
+  setGoodsOutStorageLocationId: (value: string) => void;
   setGoodsOutProductId: (value: string) => void;
   goodsOutQuantity: string;
   setGoodsOutQuantity: (value: string) => void;
@@ -5583,6 +5597,27 @@ function GoodsOutSection({
 }) {
   const selectedProductId = Number(goodsOutProductId);
   const goodsOutQuantityNumber = Number(goodsOutQuantity || 0);
+
+  const selectedGoodsOutProduct =
+    products.find((product) => product.id === selectedProductId) ?? null;
+
+  const goodsOutAvailableLocations = storageLocations.filter((location) => {
+    if (!location.is_active || location.is_blocked || !selectedGoodsOutProduct) {
+      return false;
+    }
+
+    const isCurrentProductLocation =
+      selectedGoodsOutProduct.storage_location === location.id;
+
+    const hadProductGoodsReceiptOnLocation = movements.some(
+      (movement) =>
+        movement.product === selectedProductId &&
+        movement.storage_location === location.id &&
+        movement.movement_type === "IN"
+    );
+
+    return isCurrentProductLocation || hadProductGoodsReceiptOnLocation;
+  });
 
   const latestPackagingMovement = movements
     .filter(
@@ -5653,7 +5688,8 @@ function GoodsOutSection({
   return (
     <section style={sectionStyle}>
       <h2 style={sectionTitleStyle}>📤 Warenausgang buchen</h2>
-      {hasPermission("lager") && !goodsOutReferenceNumber.trim() && (
+      {hasPermission("lager") &&
+        (!goodsOutStorageLocationId || !goodsOutReferenceNumber.trim()) && (
         <div
           style={{
             border: "1px solid #92400e",
@@ -5667,7 +5703,13 @@ function GoodsOutSection({
           <strong>⚠️ Pflichtfeld fehlt im Warenausgang</strong>
 
           <div style={{ marginTop: "8px", lineHeight: 1.6 }}>
-            • Bitte eine Referenznummer eintragen.
+            {!goodsOutStorageLocationId && (
+              <div>• Bitte einen Lagerplatz auswählen.</div>
+            )}
+
+            {!goodsOutReferenceNumber.trim() && (
+              <div>• Bitte eine Referenznummer eintragen.</div>
+            )}
           </div>
         </div>
       )}
@@ -5678,6 +5720,22 @@ function GoodsOutSection({
           {products.map((product) => <option key={product.id} value={product.id}>{product.name} ({product.sku})</option>)}
         </select>
         <input ref={goodsOutQuantityRef} type="number" placeholder="Menge" value={goodsOutQuantity} onChange={(event) => setGoodsOutQuantity(event.target.value)} required min="1" style={inputStyle} disabled={!hasPermission("lager")} />
+        <select
+          value={goodsOutStorageLocationId}
+          onChange={(event) => setGoodsOutStorageLocationId(event.target.value)}
+          required
+          style={inputStyle}
+          disabled={!hasPermission("lager") || !goodsOutProductId}
+        >
+          <option value="">Lagerplatz auswählen</option>
+          {goodsOutAvailableLocations.map((location) => (
+            <option key={location.id} value={location.id}>
+              {location.code} - {location.name}
+              {location.rack ? ` / Regal ${location.rack}` : ""}
+              {location.shelf ? ` / Fach ${location.shelf}` : ""}
+            </option>
+          ))}
+        </select>
         <input type="text" placeholder="Referenznummer" value={goodsOutReferenceNumber} onChange={(event) => setGoodsOutReferenceNumber(event.target.value)} style={inputStyle} disabled={!hasPermission("lager")} />
         <textarea placeholder="Notiz" value={goodsOutNote} onChange={(event) => setGoodsOutNote(event.target.value)} style={{ ...inputStyle, minHeight: "48px", gridColumn: "1 / -1" }} disabled={!hasPermission("lager")} />
         {goodsOutProductId && latestPackagingMovement && (

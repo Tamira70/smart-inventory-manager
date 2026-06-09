@@ -518,6 +518,32 @@ class StockMovementSerializer(serializers.ModelSerializer):
         if movement_type == "IN" and not load_carrier_type:
             errors["load_carrier_type"] = "Bitte einen Ladungsträger auswählen."
 
+        if movement_type == "OUT" and not storage_location:
+            errors["storage_location"] = (
+                "Bitte einen Lagerplatz für den Warenausgang auswählen."
+            )
+
+        if movement_type == "OUT" and storage_location:
+            if storage_location.is_blocked:
+                errors["storage_location"] = "Dieser Lagerplatz ist gesperrt."
+
+            from .models import StorageLocationStock
+
+            available_quantity = sum(
+                stock.quantity
+                for stock in StorageLocationStock.objects.filter(
+                    product=product,
+                    storage_location=storage_location,
+                    quantity__gt=0,
+                )
+            )
+
+            if available_quantity < quantity:
+                errors["storage_location"] = (
+                    "Auf diesem Lagerplatz liegen nur "
+                    f"{available_quantity} Stück von {product.name}."
+                )
+
         if movement_type == "OUT" and product.quantity < quantity:
             errors["quantity"] = "Nicht genug Bestand für diesen Warenausgang."
 
@@ -654,12 +680,60 @@ class StockMovementSerializer(serializers.ModelSerializer):
         product = validated_data["product"]
         movement_type = validated_data["movement_type"]
         quantity = validated_data["quantity"]
+        storage_location = validated_data.get("storage_location")
 
         packaging_type = validated_data.get("packaging_type")
         load_carrier_type = validated_data.get("load_carrier_type")
         packaging_quantity = validated_data.get("packaging_quantity", 1)
 
-        if movement_type == "OUT":
+        selected_stock_position = None
+
+        if movement_type == "OUT" and storage_location:
+            from .models import StorageLocationStock
+
+            selected_stock_position = (
+                StorageLocationStock.objects.filter(
+                    product=product,
+                    storage_location=storage_location,
+                    quantity__gt=0,
+                )
+                .order_by("updated_at", "id")
+                .first()
+            )
+
+            if selected_stock_position:
+                if not packaging_type:
+                    packaging_type = selected_stock_position.packaging_type
+                    validated_data["packaging_type"] = packaging_type
+
+                if not load_carrier_type:
+                    load_carrier_type = selected_stock_position.load_carrier_type
+                    validated_data["load_carrier_type"] = load_carrier_type
+
+                initial_data = getattr(self, "initial_data", {})
+                packaging_quantity_was_sent = bool(
+                    initial_data.get("packaging_quantity")
+                )
+
+                if not packaging_quantity_was_sent:
+                    source_quantity = selected_stock_position.quantity or 1
+                    source_packaging_quantity = (
+                        selected_stock_position.packaging_quantity or 1
+                    )
+
+                    units_per_package = max(
+                        1,
+                        source_quantity // source_packaging_quantity,
+                    )
+
+                    packaging_quantity = max(
+                        1,
+                        -(-quantity // units_per_package),
+                    )
+
+                    validated_data["packaging_quantity"] = packaging_quantity
+
+        if movement_type == "OUT" and not selected_stock_position:
             latest_packaging_movement = (
                 StockMovement.objects.filter(
                     product=product,
@@ -724,29 +798,88 @@ class StockMovementSerializer(serializers.ModelSerializer):
 
         movement = super().create(validated_data)
 
-        if movement_type == "IN" and movement.storage_location:
+        if movement.storage_location:
             from .models import StorageLocationStock
 
-            stock_position, _ = StorageLocationStock.objects.get_or_create(
-                product=product,
-                storage_location=movement.storage_location,
-                packaging_type=movement.packaging_type,
-                load_carrier_type=movement.load_carrier_type,
-                defaults={
-                    "quantity": 0,
-                    "packaging_quantity": 0,
-                },
-            )
+            if movement_type == "IN":
+                stock_position, _ = StorageLocationStock.objects.get_or_create(
+                    product=product,
+                    storage_location=movement.storage_location,
+                    packaging_type=movement.packaging_type,
+                    load_carrier_type=movement.load_carrier_type,
+                    defaults={
+                        "quantity": 0,
+                        "packaging_quantity": 0,
+                    },
+                )
 
-            stock_position.quantity += quantity
-            stock_position.packaging_quantity += packaging_quantity
-            stock_position.save(
-                update_fields=[
-                    "quantity",
-                    "packaging_quantity",
-                    "updated_at",
-                ]
-            )
+                stock_position.quantity += quantity
+                stock_position.packaging_quantity += packaging_quantity
+                stock_position.save(
+                    update_fields=[
+                        "quantity",
+                        "packaging_quantity",
+                        "updated_at",
+                    ]
+                )
+
+            elif movement_type == "OUT":
+                remaining_quantity = quantity
+
+                stock_positions = (
+                    StorageLocationStock.objects.filter(
+                        product=product,
+                        storage_location=movement.storage_location,
+                        quantity__gt=0,
+                    )
+                    .order_by("updated_at", "id")
+                )
+
+                for stock_position in stock_positions:
+                    if remaining_quantity <= 0:
+                        break
+
+                    deducted_quantity = min(
+                        stock_position.quantity,
+                        remaining_quantity,
+                    )
+
+                    packaging_to_remove = 0
+
+                    if stock_position.packaging_quantity:
+                        source_quantity = stock_position.quantity or 1
+                        source_packaging_quantity = (
+                            stock_position.packaging_quantity or 1
+                        )
+
+                        units_per_package = max(
+                            1,
+                            source_quantity // source_packaging_quantity,
+                        )
+
+                        packaging_to_remove = min(
+                            stock_position.packaging_quantity,
+                            -(-deducted_quantity // units_per_package),
+                        )
+
+                    stock_position.quantity -= deducted_quantity
+                    stock_position.packaging_quantity = max(
+                        0,
+                        stock_position.packaging_quantity - packaging_to_remove,
+                    )
+
+                    remaining_quantity -= deducted_quantity
+
+                    if stock_position.quantity <= 0:
+                        stock_position.delete()
+                    else:
+                        stock_position.save(
+                            update_fields=[
+                                "quantity",
+                                "packaging_quantity",
+                                "updated_at",
+                            ]
+                        )
 
         return movement
 
