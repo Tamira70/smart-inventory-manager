@@ -2024,6 +2024,7 @@ if (role === "einkauf") {
   const validateGoodsIssueForm = () => {
     if (!goodsOutProductId) return "Bitte ein Produkt für den Warenausgang auswählen.";
     if (goodsOutQuantity === "" || Number(goodsOutQuantity) <= 0) return "Die Warenausgangs-Menge muss größer als 0 sein.";
+    if (!goodsOutStorageLocationId) return "Bitte einen Lagerplatz für den Warenausgang auswählen.";
     if (!goodsOutReferenceNumber.trim()) return "Bitte eine Referenznummer für den Warenausgang eintragen.";
     return "";
   };
