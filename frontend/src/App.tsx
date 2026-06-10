@@ -21,6 +21,10 @@ type Product = {
   min_stock: number;
   unit: string;
   weight_kg?: string | number | null;
+  removal_strategy?: string;
+  putaway_strategy?: string;
+  fixed_storage_location?: number | null;
+  fixed_storage_location_label?: string | null;
 
   storage_location?: number | null;
   storage_location_code?: string | null;
@@ -321,6 +325,9 @@ type ProductForm = {
   min_stock: string;
   unit: string;
   weight_kg: string;
+  removal_strategy: string;
+  putaway_strategy: string;
+  fixed_storage_location: string;
   storage_location: string;
   packaging_type: string;
 };
@@ -428,6 +435,9 @@ const initialForm: ProductForm = {
   min_stock: "",
   unit: "Stück",
   weight_kg: "",
+  removal_strategy: "FIFO",
+  putaway_strategy: "EMPTY_BIN",
+  fixed_storage_location: "",
   storage_location: "",
   packaging_type: "",
 };
@@ -1838,6 +1848,11 @@ if (role === "einkauf") {
   min_stock: String(product.min_stock),
   unit: product.unit,
   weight_kg: product.weight_kg ? String(product.weight_kg) : "",
+  removal_strategy: product.removal_strategy || "FIFO",
+  putaway_strategy: product.putaway_strategy || "EMPTY_BIN",
+  fixed_storage_location: product.fixed_storage_location
+    ? String(product.fixed_storage_location)
+    : "",
   storage_location: product.storage_location
     ? String(product.storage_location)
     : "",
@@ -1855,6 +1870,7 @@ if (role === "einkauf") {
     if (form.quantity === "" || Number(form.quantity) < 0) return "Bestand muss 0 oder größer sein.";
     if (form.min_stock === "" || Number(form.min_stock) < 0) return "Mindestbestand muss 0 oder größer sein.";
     if (form.weight_kg !== "" && Number(form.weight_kg) < 0) return "Produktgewicht muss 0 oder größer sein.";
+    if (form.putaway_strategy === "FIXED_BIN" && !form.fixed_storage_location) return "Bei Festplatz-Strategie bitte einen Festplatz auswählen.";
     return "";
   };
 
@@ -1882,6 +1898,11 @@ if (role === "einkauf") {
     min_stock: Number(form.min_stock),
     unit: form.unit,
     weight_kg: form.weight_kg ? Number(form.weight_kg) : null,
+    removal_strategy: form.removal_strategy,
+    putaway_strategy: form.putaway_strategy,
+    fixed_storage_location: form.fixed_storage_location
+      ? Number(form.fixed_storage_location)
+      : null,
     storage_location: form.storage_location
       ? Number(form.storage_location)
       : null,
@@ -4687,6 +4708,54 @@ function ProductFormSection({
         />
 
         <select
+          value={form.putaway_strategy}
+          onChange={(event) =>
+            setForm({ ...form, putaway_strategy: event.target.value })
+          }
+          style={inputStyle}
+          disabled={!hasPermission("admin")}
+        >
+          <option value="EMPTY_BIN">Einlagerstrategie: Leerplatzsuche</option>
+          <option value="FIXED_BIN">Einlagerstrategie: Festplatz</option>
+          <option value="ADD_TO_STOCK">Einlagerstrategie: Zulagerung</option>
+        </select>
+
+        <select
+          value={form.fixed_storage_location}
+          onChange={(event) =>
+            setForm({ ...form, fixed_storage_location: event.target.value })
+          }
+          style={inputStyle}
+          disabled={!hasPermission("admin")}
+        >
+          <option value="">Kein Festplatz</option>
+          {storageLocations
+            .filter((location) => location.is_active)
+            .map((location) => (
+              <option key={location.id} value={location.id}>
+                {location.code} - {location.name}
+                {location.rack ? ` / Regal ${location.rack}` : ""}
+                {location.shelf ? ` / Fach ${location.shelf}` : ""}
+              </option>
+            ))}
+        </select>
+
+        <select
+          value={form.removal_strategy}
+          onChange={(event) =>
+            setForm({ ...form, removal_strategy: event.target.value })
+          }
+          style={inputStyle}
+          disabled={!hasPermission("admin")}
+        >
+          <option value="FIFO">Auslagerstrategie: FIFO</option>
+          <option value="LIFO">Auslagerstrategie: LIFO</option>
+          <option value="FEFO">Auslagerstrategie: FEFO</option>
+          <option value="HIFO">Auslagerstrategie: HIFO</option>
+          <option value="LOFO">Auslagerstrategie: LOFO</option>
+        </select>
+
+        <select
           value={form.storage_location}
           onChange={(event) =>
             setForm({ ...form, storage_location: event.target.value })
@@ -5042,20 +5111,59 @@ function GoodsInSection({
     const capacitySuitableLocationsForProduct =
       getCapacitySuitableLocationsForProduct(product);
 
-    const fixedLocation = product?.storage_location
+    const fixedLocation = product?.fixed_storage_location
+      ? storageLocations.find(
+          (location) => location.id === product.fixed_storage_location
+        ) ?? null
+      : null;
+
+    const currentProductLocation = product?.storage_location
       ? storageLocations.find(
           (location) => location.id === product.storage_location
         ) ?? null
       : null;
 
+    if (product?.putaway_strategy === "FIXED_BIN") {
+      if (
+        fixedLocation &&
+        availableLocationsForProduct.some(
+          (location) => location.id === fixedLocation.id
+        ) &&
+        getLocationCapacity(fixedLocation).fits
+      ) {
+        return fixedLocation;
+      }
+
+      return null;
+    }
+
     if (
-      fixedLocation &&
+      product?.putaway_strategy === "ADD_TO_STOCK" &&
+      currentProductLocation &&
       availableLocationsForProduct.some(
-        (location) => location.id === fixedLocation.id
+        (location) => location.id === currentProductLocation.id
       ) &&
-      getLocationCapacity(fixedLocation).fits
+      getLocationCapacity(currentProductLocation).fits
     ) {
-      return fixedLocation;
+      return currentProductLocation;
+    }
+
+    if (product?.putaway_strategy === "EMPTY_BIN") {
+      const emptyLocation = capacitySuitableLocationsForProduct.find(
+        (location) => location.is_empty
+      );
+
+      return emptyLocation ?? capacitySuitableLocationsForProduct[0] ?? null;
+    }
+
+    if (
+      currentProductLocation &&
+      availableLocationsForProduct.some(
+        (location) => location.id === currentProductLocation.id
+      ) &&
+      getLocationCapacity(currentProductLocation).fits
+    ) {
+      return currentProductLocation;
     }
 
     return capacitySuitableLocationsForProduct[0] ?? null;

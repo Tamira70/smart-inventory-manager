@@ -420,6 +420,7 @@ class ProductSerializer(serializers.ModelSerializer):
     storage_location_code = serializers.SerializerMethodField()
     storage_location_name = serializers.SerializerMethodField()
     storage_location_label = serializers.SerializerMethodField()
+    fixed_storage_location_label = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
@@ -433,10 +434,16 @@ class ProductSerializer(serializers.ModelSerializer):
             "min_stock",
             "unit",
             "weight_kg",
+            "removal_strategy",
+            "putaway_strategy",
+            "packaging_type",
+            "fixed_storage_location",
+            "fixed_storage_location_label",
             "storage_location",
             "storage_location_code",
             "storage_location_name",
             "storage_location_label",
+            "fixed_storage_location_label",
             "created_at",
             "updated_at",
         ]
@@ -463,6 +470,12 @@ class ProductSerializer(serializers.ModelSerializer):
         if not obj.storage_location:
             return "Kein Lagerort"
         return str(obj.storage_location)
+
+
+    def get_fixed_storage_location_label(self, obj):
+        if not obj.fixed_storage_location:
+            return ""
+        return str(obj.fixed_storage_location)
 
 
 
