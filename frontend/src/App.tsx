@@ -5847,9 +5847,34 @@ function GoodsOutSection({
         })} €`
       : "—";
 
+  const goodsOutRemovalStrategy =
+    selectedGoodsOutProduct?.removal_strategy || "FIFO";
+
+  const goodsOutRemovalStrategyLabel =
+    {
+      FIFO: "FIFO - älteste Lagerplatzposition zuerst",
+      LIFO: "LIFO - neueste Lagerplatzposition zuerst",
+      FEFO: "FEFO - MHD zuerst",
+      HIFO: "HIFO - höchster Preis zuerst",
+      LOFO: "LOFO - niedrigster Preis zuerst",
+    }[goodsOutRemovalStrategy] || goodsOutRemovalStrategy;
+
+  const goodsOutUsesFallbackStrategy = ["FEFO", "HIFO", "LOFO"].includes(
+    goodsOutRemovalStrategy
+  );
+
   return (
     <section style={sectionStyle}>
       <h2 style={sectionTitleStyle}>📤 Warenausgang buchen</h2>
+
+      {selectedGoodsOutProduct && (
+        <p style={infoStyle}>
+          📦 Aktive Auslagerstrategie: {goodsOutRemovalStrategyLabel}
+          {goodsOutUsesFallbackStrategy
+            ? " · Hinweis: Diese Strategie nutzt aktuell FIFO als Fallback, bis MHD-/Preisfelder je Lagerplatzbestand vorhanden sind."
+            : ""}
+        </p>
+      )}
       {hasPermission("lager") &&
         (!goodsOutStorageLocationId || !goodsOutReferenceNumber.trim()) && (
         <div

@@ -737,6 +737,15 @@ class StockMovementSerializer(serializers.ModelSerializer):
         load_carrier_type = validated_data.get("load_carrier_type")
         packaging_quantity = validated_data.get("packaging_quantity", 1)
 
+        def get_stock_position_ordering():
+            if product.removal_strategy == "LIFO":
+                return ("-updated_at", "-id")
+
+            # FIFO ist Standard.
+            # FEFO/HIFO/LOFO fallen vorerst auf FIFO zurück,
+            # bis MHD- bzw. Preisfelder je Lagerplatzbestand vorhanden sind.
+            return ("updated_at", "id")
+
         selected_stock_position = None
 
         if movement_type == "OUT" and storage_location:
@@ -748,7 +757,7 @@ class StockMovementSerializer(serializers.ModelSerializer):
                     storage_location=storage_location,
                     quantity__gt=0,
                 )
-                .order_by("updated_at", "id")
+                .order_by(*get_stock_position_ordering())
                 .first()
             )
 
@@ -883,7 +892,7 @@ class StockMovementSerializer(serializers.ModelSerializer):
                         storage_location=movement.storage_location,
                         quantity__gt=0,
                     )
-                    .order_by("updated_at", "id")
+                    .order_by(*get_stock_position_ordering())
                 )
 
                 for stock_position in stock_positions:
