@@ -94,6 +94,7 @@ type StorageLocationStock = {
   load_carrier_type?: number | null;
   load_carrier_type_name?: string | null;
   packaging_quantity?: number;
+  unit_purchase_price?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -277,6 +278,7 @@ type CustomerNoteForm = {
 
   packaging_quantity?: number;
   packaging_cost_total?: string | null;
+  unit_purchase_price?: string | null;
 
   reference_number?: string;
   note?: string;
@@ -738,6 +740,7 @@ const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [movementPackagingTypeId, setMovementPackagingTypeId] = useState("");
   const [movementLoadCarrierTypeId, setMovementLoadCarrierTypeId] = useState("");
   const [movementPackagingQuantity, setMovementPackagingQuantity] = useState("1");
+  const [movementUnitPurchasePrice, setMovementUnitPurchasePrice] = useState("");
   const [movementReferenceNumber, setMovementReferenceNumber] = useState("");
   const [movementNote, setMovementNote] = useState("");
   const [movementSaving, setMovementSaving] = useState(false);
@@ -2020,6 +2023,10 @@ if (role === "einkauf") {
 
         packaging_quantity: Number(movementPackagingQuantity || 1),
 
+        unit_purchase_price: movementUnitPurchasePrice
+          ? Number(movementUnitPurchasePrice)
+          : null,
+
         reference_number: movementReferenceNumber.trim(),
         note: movementNote,
       }),
@@ -2063,6 +2070,7 @@ if (role === "einkauf") {
       setMovementPackagingTypeId("");
       setMovementLoadCarrierTypeId("");
       setMovementPackagingQuantity("1");
+      setMovementUnitPurchasePrice("");
       setMovementReferenceNumber("");
       setMovementNote("");
 
@@ -2886,6 +2894,8 @@ const exportMovementsToCsv = async () => {
                 setMovementLoadCarrierTypeId={setMovementLoadCarrierTypeId}
                 movementPackagingQuantity={movementPackagingQuantity}
                 setMovementPackagingQuantity={setMovementPackagingQuantity}
+                movementUnitPurchasePrice={movementUnitPurchasePrice}
+                setMovementUnitPurchasePrice={setMovementUnitPurchasePrice}
               />
             )}
 
@@ -4941,6 +4951,8 @@ function GoodsInSection({
   setMovementLoadCarrierTypeId,
   movementPackagingQuantity,
   setMovementPackagingQuantity,
+  movementUnitPurchasePrice,
+  setMovementUnitPurchasePrice,
   movementSaving,
   hasPermission,
   handleGoodsReceipt,
@@ -4967,6 +4979,8 @@ function GoodsInSection({
   setMovementLoadCarrierTypeId: (value: string) => void;
   movementPackagingQuantity: string;
   setMovementPackagingQuantity: (value: string) => void;
+  movementUnitPurchasePrice: string;
+  setMovementUnitPurchasePrice: (value: string) => void;
   movementSaving: boolean;
   hasPermission: (required: PermissionRole) => boolean;
   handleGoodsReceipt: (event: FormEvent) => void;
@@ -5482,6 +5496,17 @@ function GoodsInSection({
             setMovementPackagingQuantity(event.target.value);
             setMovementStorageLocationId("");
           }}
+          style={inputStyle}
+          disabled={!hasPermission("lager")}
+        />
+
+        <input
+          type="number"
+          min="0"
+          step="0.01"
+          placeholder="Einstandspreis pro Stück"
+          value={movementUnitPurchasePrice}
+          onChange={(event) => setMovementUnitPurchasePrice(event.target.value)}
           style={inputStyle}
           disabled={!hasPermission("lager")}
         />
@@ -6199,6 +6224,7 @@ function LocationStockOverview({
               <th style={tableHeadStyle}>Verpackung</th>
               <th style={tableHeadStyle}>Ladungsträger</th>
               <th style={tableHeadStyle}>Packmenge</th>
+              <th style={tableHeadStyle}>Einstandspreis</th>
               <th style={tableHeadStyle}>Aktualisiert</th>
             </tr>
           </thead>
@@ -6231,6 +6257,14 @@ function LocationStockOverview({
                 </td>
                 <td style={tableCellStyle}>
                   {stock.packaging_quantity ?? "—"}
+                </td>
+                <td style={tableCellStyle}>
+                  {stock.unit_purchase_price
+                    ? `${Number(stock.unit_purchase_price).toLocaleString("de-DE", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })} €`
+                    : "—"}
                 </td>
                 <td style={tableCellStyle}>
                   {new Date(stock.updated_at).toLocaleString("de-DE")}

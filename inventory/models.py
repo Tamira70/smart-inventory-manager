@@ -204,6 +204,14 @@ class StockMovement(models.Model):
         blank=True,
     )
 
+    unit_purchase_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Einstandspreis pro Stück",
+    )
+
     reference_number = models.CharField(max_length=100, blank=True)
     note = models.TextField(blank=True)
 
@@ -252,6 +260,14 @@ class StorageLocationStock(models.Model):
 
     packaging_quantity = models.PositiveIntegerField(default=0)
 
+    unit_purchase_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Einstandspreis pro Stück",
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -261,6 +277,7 @@ class StorageLocationStock(models.Model):
             "storage_location",
             "packaging_type",
             "load_carrier_type",
+            "unit_purchase_price",
         )
         ordering = ["storage_location__code", "product__name"]
 
