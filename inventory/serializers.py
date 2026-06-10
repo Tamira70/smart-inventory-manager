@@ -408,6 +408,7 @@ class StorageLocationStockSerializer(serializers.ModelSerializer):
             "load_carrier_type_name",
             "packaging_quantity",
             "unit_purchase_price",
+            "expiry_date",
             "created_at",
             "updated_at",
         ]
@@ -515,6 +516,7 @@ class StockMovementSerializer(serializers.ModelSerializer):
             "packaging_quantity",
             "packaging_cost_total",
             "unit_purchase_price",
+            "expiry_date",
             "reference_number",
             "note",
             "created_by",
@@ -739,6 +741,7 @@ class StockMovementSerializer(serializers.ModelSerializer):
         load_carrier_type = validated_data.get("load_carrier_type")
         packaging_quantity = validated_data.get("packaging_quantity", 1)
         unit_purchase_price = validated_data.get("unit_purchase_price")
+        expiry_date = validated_data.get("expiry_date")
 
         def get_stock_position_ordering():
             if product.removal_strategy == "LIFO":
@@ -754,9 +757,12 @@ class StockMovementSerializer(serializers.ModelSerializer):
 
                 return (F("unit_purchase_price").asc(nulls_last=True), "updated_at", "id")
 
+            if product.removal_strategy == "FEFO":
+                from django.db.models import F
+
+                return (F("expiry_date").asc(nulls_last=True), "updated_at", "id")
+
             # FIFO ist Standard.
-            # FEFO fällt vorerst auf FIFO zurück,
-            # bis ein MHD-Feld je Lagerplatzbestand vorhanden ist.
             return ("updated_at", "id")
 
         selected_stock_position = None
@@ -789,6 +795,10 @@ class StockMovementSerializer(serializers.ModelSerializer):
                 ):
                     unit_purchase_price = selected_stock_position.unit_purchase_price
                     validated_data["unit_purchase_price"] = unit_purchase_price
+
+                if expiry_date is None and selected_stock_position.expiry_date is not None:
+                    expiry_date = selected_stock_position.expiry_date
+                    validated_data["expiry_date"] = expiry_date
 
                 initial_data = getattr(self, "initial_data", {})
                 packaging_quantity_was_sent = bool(
@@ -888,6 +898,7 @@ class StockMovementSerializer(serializers.ModelSerializer):
                     packaging_type=movement.packaging_type,
                     load_carrier_type=movement.load_carrier_type,
                     unit_purchase_price=movement.unit_purchase_price,
+                    expiry_date=movement.expiry_date,
                     defaults={
                         "quantity": 0,
                         "packaging_quantity": 0,

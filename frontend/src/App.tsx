@@ -95,6 +95,7 @@ type StorageLocationStock = {
   load_carrier_type_name?: string | null;
   packaging_quantity?: number;
   unit_purchase_price?: string | null;
+  expiry_date?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -279,6 +280,7 @@ type CustomerNoteForm = {
   packaging_quantity?: number;
   packaging_cost_total?: string | null;
   unit_purchase_price?: string | null;
+  expiry_date?: string | null;
 
   reference_number?: string;
   note?: string;
@@ -741,6 +743,7 @@ const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [movementLoadCarrierTypeId, setMovementLoadCarrierTypeId] = useState("");
   const [movementPackagingQuantity, setMovementPackagingQuantity] = useState("1");
   const [movementUnitPurchasePrice, setMovementUnitPurchasePrice] = useState("");
+  const [movementExpiryDate, setMovementExpiryDate] = useState("");
   const [movementReferenceNumber, setMovementReferenceNumber] = useState("");
   const [movementNote, setMovementNote] = useState("");
   const [movementSaving, setMovementSaving] = useState(false);
@@ -2027,6 +2030,8 @@ if (role === "einkauf") {
           ? Number(movementUnitPurchasePrice)
           : null,
 
+        expiry_date: movementExpiryDate || null,
+
         reference_number: movementReferenceNumber.trim(),
         note: movementNote,
       }),
@@ -2071,6 +2076,7 @@ if (role === "einkauf") {
       setMovementLoadCarrierTypeId("");
       setMovementPackagingQuantity("1");
       setMovementUnitPurchasePrice("");
+      setMovementExpiryDate("");
       setMovementReferenceNumber("");
       setMovementNote("");
 
@@ -2896,6 +2902,8 @@ const exportMovementsToCsv = async () => {
                 setMovementPackagingQuantity={setMovementPackagingQuantity}
                 movementUnitPurchasePrice={movementUnitPurchasePrice}
                 setMovementUnitPurchasePrice={setMovementUnitPurchasePrice}
+                movementExpiryDate={movementExpiryDate}
+                setMovementExpiryDate={setMovementExpiryDate}
               />
             )}
 
@@ -4953,6 +4961,8 @@ function GoodsInSection({
   setMovementPackagingQuantity,
   movementUnitPurchasePrice,
   setMovementUnitPurchasePrice,
+  movementExpiryDate,
+  setMovementExpiryDate,
   movementSaving,
   hasPermission,
   handleGoodsReceipt,
@@ -4981,6 +4991,8 @@ function GoodsInSection({
   setMovementPackagingQuantity: (value: string) => void;
   movementUnitPurchasePrice: string;
   setMovementUnitPurchasePrice: (value: string) => void;
+  movementExpiryDate: string;
+  setMovementExpiryDate: (value: string) => void;
   movementSaving: boolean;
   hasPermission: (required: PermissionRole) => boolean;
   handleGoodsReceipt: (event: FormEvent) => void;
@@ -5511,6 +5523,15 @@ function GoodsInSection({
           disabled={!hasPermission("lager")}
         />
 
+        <input
+          type="date"
+          placeholder="MHD / Ablaufdatum"
+          value={movementExpiryDate}
+          onChange={(event) => setMovementExpiryDate(event.target.value)}
+          style={inputStyle}
+          disabled={!hasPermission("lager")}
+        />
+
 
         {selectedStorageLocation && capacityNeedsCheck && selectedLocationCapacity && (
           <div
@@ -5879,14 +5900,12 @@ function GoodsOutSection({
     {
       FIFO: "FIFO - älteste Lagerplatzposition zuerst",
       LIFO: "LIFO - neueste Lagerplatzposition zuerst",
-      FEFO: "FEFO - MHD zuerst",
+      FEFO: "FEFO - frühestes MHD zuerst",
       HIFO: "HIFO - höchster Preis zuerst",
       LOFO: "LOFO - niedrigster Preis zuerst",
     }[goodsOutRemovalStrategy] || goodsOutRemovalStrategy;
 
-  const goodsOutUsesFallbackStrategy = ["FEFO", "HIFO", "LOFO"].includes(
-    goodsOutRemovalStrategy
-  );
+  const goodsOutUsesFallbackStrategy = false;
 
   return (
     <section style={sectionStyle}>
@@ -6185,6 +6204,7 @@ function LocationStockOverview({
       stock.storage_location_label,
       stock.packaging_type_name ?? "",
       stock.load_carrier_type_name ?? "",
+      stock.expiry_date ?? "",
     ]
       .join(" ")
       .toLowerCase()
@@ -6225,6 +6245,7 @@ function LocationStockOverview({
               <th style={tableHeadStyle}>Ladungsträger</th>
               <th style={tableHeadStyle}>Packmenge</th>
               <th style={tableHeadStyle}>Einstandspreis</th>
+              <th style={tableHeadStyle}>MHD</th>
               <th style={tableHeadStyle}>Aktualisiert</th>
             </tr>
           </thead>
@@ -6264,6 +6285,11 @@ function LocationStockOverview({
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
                       })} €`
+                    : "—"}
+                </td>
+                <td style={tableCellStyle}>
+                  {stock.expiry_date
+                    ? new Date(stock.expiry_date).toLocaleDateString("de-DE")
                     : "—"}
                 </td>
                 <td style={tableCellStyle}>

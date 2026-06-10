@@ -212,6 +212,12 @@ class StockMovement(models.Model):
         help_text="Einstandspreis pro Stück",
     )
 
+    expiry_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="MHD oder Ablaufdatum",
+    )
+
     reference_number = models.CharField(max_length=100, blank=True)
     note = models.TextField(blank=True)
 
@@ -268,6 +274,12 @@ class StorageLocationStock(models.Model):
         help_text="Einstandspreis pro Stück",
     )
 
+    expiry_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="MHD oder Ablaufdatum",
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -278,6 +290,7 @@ class StorageLocationStock(models.Model):
             "packaging_type",
             "load_carrier_type",
             "unit_purchase_price",
+            "expiry_date",
         )
         ordering = ["storage_location__code", "product__name"]
 
