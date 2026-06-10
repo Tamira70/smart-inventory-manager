@@ -10,6 +10,7 @@ from .views import (
     InventorySessionViewSet,
     InventoryCountViewSet,
     StorageLocationViewSet,
+    StorageLocationStockViewSet,
     SupplierViewSet,
     CustomerViewSet,
     CustomerContactViewSet,
@@ -27,6 +28,7 @@ router.register(r"stock-movements", StockMovementViewSet, basename="stock-moveme
 router.register(r"inventory-sessions", InventorySessionViewSet, basename="inventory-session")
 router.register(r"inventory-counts", InventoryCountViewSet, basename="inventory-count")
 router.register(r"storage-locations", StorageLocationViewSet, basename="storage-location")
+router.register(r"location-stocks", StorageLocationStockViewSet, basename="location-stock")
 router.register(r"suppliers", SupplierViewSet, basename="supplier")
 router.register(r"customers", CustomerViewSet, basename="customer")
 router.register(r"customer-contacts", CustomerContactViewSet, basename="customer-contact")

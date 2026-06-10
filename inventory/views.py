@@ -26,6 +26,7 @@ from .models import (
     InventorySession,
     InventoryCount,
     StorageLocation,
+    StorageLocationStock,
     Supplier,
     Customer,
     CustomerContact,
@@ -42,6 +43,7 @@ from .serializers import (
     InventorySessionSerializer,
     InventoryCountSerializer,
     StorageLocationSerializer,
+    StorageLocationStockSerializer,
     SupplierSerializer,
 
     CustomerSerializer,
@@ -803,6 +805,21 @@ class InventoryCountViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(inventory_count)
         return Response(serializer.data)
     
+
+
+class StorageLocationStockViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = (
+        StorageLocationStock.objects.select_related(
+            "product",
+            "storage_location",
+            "packaging_type",
+            "load_carrier_type",
+        )
+        .filter(quantity__gt=0)
+        .order_by("storage_location__code", "product__name")
+    )
+    serializer_class = StorageLocationStockSerializer
+    permission_classes = [IsAuthenticated]
 
 
 class PackagingTypeViewSet(viewsets.ModelViewSet):

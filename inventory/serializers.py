@@ -12,6 +12,7 @@ from .models import (
     InventorySession,
     InventoryCount,
     StorageLocation,
+    StorageLocationStock,
     Supplier,
 
     Customer,
@@ -376,6 +377,43 @@ class AuditLogSerializer(serializers.ModelSerializer):
             "created_by_username",
             "created_at",
         ]
+
+
+class StorageLocationStockSerializer(serializers.ModelSerializer):
+    product_name = serializers.ReadOnlyField(source="product.name")
+    product_sku = serializers.ReadOnlyField(source="product.sku")
+    product_unit = serializers.ReadOnlyField(source="product.unit")
+    storage_location_code = serializers.ReadOnlyField(source="storage_location.code")
+    storage_location_name = serializers.ReadOnlyField(source="storage_location.name")
+    storage_location_label = serializers.SerializerMethodField()
+    packaging_type_name = serializers.ReadOnlyField(source="packaging_type.name")
+    load_carrier_type_name = serializers.ReadOnlyField(source="load_carrier_type.name")
+
+    class Meta:
+        model = StorageLocationStock
+        fields = [
+            "id",
+            "product",
+            "product_name",
+            "product_sku",
+            "product_unit",
+            "storage_location",
+            "storage_location_code",
+            "storage_location_name",
+            "storage_location_label",
+            "quantity",
+            "packaging_type",
+            "packaging_type_name",
+            "load_carrier_type",
+            "load_carrier_type_name",
+            "packaging_quantity",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = fields
+
+    def get_storage_location_label(self, obj):
+        return str(obj.storage_location)
 
 
 class ProductSerializer(serializers.ModelSerializer):

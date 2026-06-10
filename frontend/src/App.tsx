@@ -74,6 +74,26 @@ type StorageLocation = {
   updated_at: string;
 };
 
+type StorageLocationStock = {
+  id: number;
+  product: number;
+  product_name: string;
+  product_sku: string;
+  product_unit: string;
+  storage_location: number;
+  storage_location_code: string;
+  storage_location_name: string;
+  storage_location_label: string;
+  quantity: number;
+  packaging_type?: number | null;
+  packaging_type_name?: string | null;
+  load_carrier_type?: number | null;
+  load_carrier_type_name?: string | null;
+  packaging_quantity?: number;
+  created_at: string;
+  updated_at: string;
+};
+
 type StorageLocationForm = {
   code: string;
   name: string;
@@ -641,6 +661,8 @@ const [loggedIn, setLoggedIn] = useState(isLoggedIn());
   const [movementProductFilter, setMovementProductFilter] = useState("");
 
   const [storageLocations, setStorageLocations] = useState<StorageLocation[]>([]);
+  const [locationStocks, setLocationStocks] = useState<StorageLocationStock[]>([]);
+  const [locationStocksLoading, setLocationStocksLoading] = useState(false);
   const [packagingTypes, setPackagingTypes] = useState<PackagingType[]>([]);
   const [storageLocationsLoading, setStorageLocationsLoading] = useState(false);
   const [storageLocationSaving, setStorageLocationSaving] = useState(false);
@@ -938,6 +960,26 @@ if (role === "einkauf") {
   };
 
 
+  const loadLocationStocks = async () => {
+    try {
+      setLocationStocksLoading(true);
+
+      const response = await apiFetch("/inventory-api/location-stocks/");
+      const data = (await response.json()) as StorageLocationStock[];
+
+      setLocationStocks(data);
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Fehler beim Laden der Lagerplatzbestände.";
+      setError(message);
+    } finally {
+      setLocationStocksLoading(false);
+    }
+  };
+
+
   const loadSuppliers = async () => {
     try {
       setSuppliersLoading(true);
@@ -1112,6 +1154,7 @@ if (role === "einkauf") {
     void loadMovements();
     void loadInventorySessions();
     void loadStorageLocations();
+    void loadLocationStocks();
     void loadPackagingTypes();
     void loadSuppliers();
     void loadCustomers();
@@ -2005,6 +2048,7 @@ if (role === "einkauf") {
       await loadProducts();
       await loadMovements();
       await loadStorageLocations();
+      await loadLocationStocks();
 
       setSuccess("📥 Wareneingang erfolgreich gebucht!");
       setTimeout(() => goodsInProductRef.current?.focus(), 0);
@@ -2077,6 +2121,7 @@ if (role === "einkauf") {
       await loadProducts();
       await loadMovements();
       await loadStorageLocations();
+      await loadLocationStocks();
 
       setSuccess("📤 Warenausgang erfolgreich gebucht!");
       setTimeout(() => goodsOutProductRef.current?.focus(), 0);
@@ -2909,9 +2954,17 @@ const exportMovementsToCsv = async () => {
                   </div>
                 </section>
 
-                {loading && <p>Lade Produkte...</p>}
-                {!loading && !error && visibleProducts.length === 0 && <p>Keine Produkte passen zur aktuellen Suche oder zum Filter.</p>}
-                {!loading && !error && visibleProducts.length > 0 && (
+                {activeSection === "stock-overview" && (
+                  <LocationStockOverview
+                    locationStocks={locationStocks}
+                    loading={locationStocksLoading}
+                    search={search}
+                  />
+                )}
+
+                {activeSection !== "stock-overview" && loading && <p>Lade Produkte...</p>}
+                {activeSection !== "stock-overview" && !loading && !error && visibleProducts.length === 0 && <p>Keine Produkte passen zur aktuellen Suche oder zum Filter.</p>}
+                {activeSection !== "stock-overview" && !loading && !error && visibleProducts.length > 0 && (
                   <ProductGrid products={visibleProducts} hasPermission={hasPermission} handleEdit={handleEdit} />
                 )}
               </>
@@ -5951,6 +6004,113 @@ function InventorySection({
     </section>
   );
 }
+
+function LocationStockOverview({
+  locationStocks,
+  loading,
+  search,
+}: {
+  locationStocks: StorageLocationStock[];
+  loading: boolean;
+  search: string;
+}) {
+  const normalizedSearch = search.trim().toLowerCase();
+
+  const filteredLocationStocks = locationStocks.filter((stock) => {
+    if (!normalizedSearch) return true;
+
+    return [
+      stock.product_name,
+      stock.product_sku,
+      stock.storage_location_code,
+      stock.storage_location_name,
+      stock.storage_location_label,
+      stock.packaging_type_name ?? "",
+      stock.load_carrier_type_name ?? "",
+    ]
+      .join(" ")
+      .toLowerCase()
+      .includes(normalizedSearch);
+  });
+
+  const totalQuantity = filteredLocationStocks.reduce(
+    (sum, stock) => sum + stock.quantity,
+    0
+  );
+
+  if (loading) {
+    return <p>Lade Lagerplatzbestände...</p>;
+  }
+
+  if (filteredLocationStocks.length === 0) {
+    return <p>Keine Lagerplatzbestände passen zur aktuellen Suche.</p>;
+  }
+
+  return (
+    <section style={sectionStyle}>
+      <h3 style={{ marginTop: 0 }}>📦 Lagerplatzbestand</h3>
+
+      <div style={dashboardGridStyle}>
+        <Card title="Positionen" value={String(filteredLocationStocks.length)} />
+        <Card title="Menge gesamt" value={String(totalQuantity)} />
+      </div>
+
+      <div style={{ ...tableWrapStyle, marginTop: "22px" }}>
+        <table style={dataTableStyle}>
+          <thead>
+            <tr style={tableHeaderRowStyle}>
+              <th style={tableHeadStyle}>Lagerplatz</th>
+              <th style={tableHeadStyle}>Produkt</th>
+              <th style={tableHeadStyle}>SKU</th>
+              <th style={tableHeadStyle}>Menge</th>
+              <th style={tableHeadStyle}>Verpackung</th>
+              <th style={tableHeadStyle}>Ladungsträger</th>
+              <th style={tableHeadStyle}>Packmenge</th>
+              <th style={tableHeadStyle}>Aktualisiert</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {filteredLocationStocks.map((stock) => (
+              <tr
+                key={stock.id}
+                style={{
+                  borderTop: "1px solid rgba(148, 163, 184, 0.12)",
+                  background: "rgba(30, 41, 59, 0.35)",
+                }}
+              >
+                <td style={tableCellStyle}>
+                  <strong>{stock.storage_location_code}</strong>
+                  <div style={{ color: "#94a3b8" }}>
+                    {stock.storage_location_name}
+                  </div>
+                </td>
+                <td style={tableCellStyle}>{stock.product_name}</td>
+                <td style={tableCellStyle}>{stock.product_sku}</td>
+                <td style={tableCellStyle}>
+                  {stock.quantity} {stock.product_unit}
+                </td>
+                <td style={tableCellStyle}>
+                  {stock.packaging_type_name || "—"}
+                </td>
+                <td style={tableCellStyle}>
+                  {stock.load_carrier_type_name || "—"}
+                </td>
+                <td style={tableCellStyle}>
+                  {stock.packaging_quantity ?? "—"}
+                </td>
+                <td style={tableCellStyle}>
+                  {new Date(stock.updated_at).toLocaleString("de-DE")}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
 
 function ProductGrid({
   products,
