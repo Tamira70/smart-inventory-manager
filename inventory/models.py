@@ -8,15 +8,34 @@ from django.utils import timezone
 class StorageLocation(models.Model):
     code = models.CharField(max_length=50, unique=True)
     name = models.CharField(max_length=120)
+
     zone = models.CharField(max_length=80, blank=True)
     aisle = models.CharField(max_length=50, blank=True)
     rack = models.CharField(max_length=50, blank=True)
     shelf = models.CharField(max_length=50, blank=True)
+
     description = models.TextField(blank=True)
+
     is_active = models.BooleanField(default=True)
+    is_blocked = models.BooleanField(default=False)
+    is_empty = models.BooleanField(default=True)
+
+    allow_mixed_products = models.BooleanField(default=False)
+
+    length_cm = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    width_cm = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    height_cm = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+
+    max_weight_kg = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    @property
+    def volume_cm3(self):
+        if self.length_cm and self.width_cm and self.height_cm:
+            return self.length_cm * self.width_cm * self.height_cm
+        return None
 
     def __str__(self):
         parts = [self.code, self.name]
@@ -60,12 +79,44 @@ class Supplier(models.Model):
 
 
 class Product(models.Model):
+
+    REMOVAL_STRATEGIES = [
+        ("FIFO", "FIFO - Ältestes zuerst"),
+        ("LIFO", "LIFO - Neuestes zuerst"),
+        ("FEFO", "FEFO - Kürzestes MHD zuerst"),
+        ("HIFO", "HIFO - Höchster Preis zuerst"),
+        ("LOFO", "LOFO - Niedrigster Preis zuerst"),
+    ]
+
+    PUTAWAY_STRATEGIES = [
+        ("FIXED_BIN", "Festplatz"),
+        ("EMPTY_BIN", "Leerplatzsuche"),
+        ("ADD_TO_STOCK", "Zulagerung"),
+    ]
+
+    removal_strategy = models.CharField(max_length=20, choices=REMOVAL_STRATEGIES, default="FIFO")
+    putaway_strategy = models.CharField(max_length=30, choices=PUTAWAY_STRATEGIES, default="EMPTY_BIN")
+    packaging_type = models.ForeignKey("PackagingType", on_delete=models.SET_NULL, null=True, blank=True)
+    fixed_storage_location = models.ForeignKey(
+        "StorageLocation",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="fixed_products",
+    )
     name = models.CharField(max_length=255)
     sku = models.CharField(max_length=100, unique=True)
     description = models.TextField(blank=True)
     quantity = models.IntegerField(default=0)
     min_stock = models.IntegerField(default=0)
     unit = models.CharField(max_length=50, default="Stück")
+    weight_kg = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Produktgewicht pro Einheit in kg",
+    )
 
     storage_location = models.ForeignKey(
         StorageLocation,
@@ -105,7 +156,6 @@ class InventoryTransaction(models.Model):
     def __str__(self):
         return f"{self.product.name} - {self.transaction_type} ({self.quantity})"
 
-
 class StockMovement(models.Model):
     MOVEMENT_TYPES = [
         ("IN", "Wareneingang"),
@@ -117,15 +167,135 @@ class StockMovement(models.Model):
         on_delete=models.CASCADE,
         related_name="stock_movements",
     )
+
     movement_type = models.CharField(max_length=3, choices=MOVEMENT_TYPES)
     quantity = models.PositiveIntegerField()
+
+    storage_location = models.ForeignKey(
+        "StorageLocation",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="stock_movements",
+    )
+
+    packaging_type = models.ForeignKey(
+        "PackagingType",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="packaging_movements",
+    )
+
+    load_carrier_type = models.ForeignKey(
+        "PackagingType",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="load_carrier_movements",
+    )
+
+    packaging_quantity = models.PositiveIntegerField(default=1)
+
+    packaging_cost_total = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+
+    unit_purchase_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Einstandspreis pro Stück",
+    )
+
+    expiry_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="MHD oder Ablaufdatum",
+    )
+
     reference_number = models.CharField(max_length=100, blank=True)
     note = models.TextField(blank=True)
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"{self.product.name} - {self.movement_type} - {self.quantity}"
+
+
+class StorageLocationStock(models.Model):
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name="location_stocks",
+    )
+
+    storage_location = models.ForeignKey(
+        "StorageLocation",
+        on_delete=models.CASCADE,
+        related_name="stock_positions",
+    )
+
+    quantity = models.PositiveIntegerField(default=0)
+
+    packaging_type = models.ForeignKey(
+        "PackagingType",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="location_packaging_stocks",
+    )
+
+    load_carrier_type = models.ForeignKey(
+        "PackagingType",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="location_load_carrier_stocks",
+    )
+
+    packaging_quantity = models.PositiveIntegerField(default=0)
+
+    unit_purchase_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Einstandspreis pro Stück",
+    )
+
+    expiry_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="MHD oder Ablaufdatum",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = (
+            "product",
+            "storage_location",
+            "packaging_type",
+            "load_carrier_type",
+            "unit_purchase_price",
+            "expiry_date",
+        )
+        ordering = ["storage_location__code", "product__name"]
+
+    def __str__(self):
+        return f"{self.storage_location.code} - {self.product.name}: {self.quantity}"
 
 
 class InventorySession(models.Model):
@@ -342,3 +512,79 @@ class UserProfile(models.Model):
 @receiver(post_save, sender=User)
 def save_user_profile(sender, instance, **kwargs):
     UserProfile.objects.get_or_create(user=instance)
+
+
+class PackagingType(models.Model):
+    TYPE_CHOICES = [
+        ("PACKAGING", "Verpackung"),
+        ("LOAD_CARRIER", "Ladungsträger"),
+    ]
+
+    name = models.CharField(max_length=100, unique=True)
+    description = models.TextField(blank=True)
+
+    category = models.CharField(
+        max_length=30,
+        choices=TYPE_CHOICES,
+        default="PACKAGING",
+    )
+
+    unit_cost = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+
+    is_active = models.BooleanField(default=True)
+
+    length_cm = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+    width_cm = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+    height_cm = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+    weight_kg = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+
+    def __str__(self):
+        return self.name
+
+
+class StorageStrategySettings(models.Model):
+    REMOVAL_STRATEGIES = [
+        ("FIFO", "FIFO - Ältestes zuerst"),
+        ("LIFO", "LIFO - Neuestes zuerst"),
+        ("FEFO", "FEFO - Kürzestes MHD zuerst"),
+        ("HIFO", "HIFO - Höchster Preis zuerst"),
+        ("LOFO", "LOFO - Niedrigster Preis zuerst"),
+    ]
+
+    PUTAWAY_STRATEGIES = [
+        ("FIXED_BIN", "Festplatz"),
+        ("EMPTY_BIN", "Leerplatzsuche"),
+        ("ADD_TO_STOCK", "Zulagerung"),
+    ]
+
+    removal_strategy = models.CharField(max_length=20, choices=REMOVAL_STRATEGIES, default="FIFO")
+    putaway_strategy = models.CharField(max_length=30, choices=PUTAWAY_STRATEGIES, default="EMPTY_BIN")
+    capacity_check_enabled = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f"{self.removal_strategy} / {self.putaway_strategy}"

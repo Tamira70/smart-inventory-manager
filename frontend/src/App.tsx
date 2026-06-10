@@ -20,11 +20,34 @@ type Product = {
   quantity: number;
   min_stock: number;
   unit: string;
+  weight_kg?: string | number | null;
+  removal_strategy?: string;
+  putaway_strategy?: string;
+  fixed_storage_location?: number | null;
+  fixed_storage_location_label?: string | null;
+
   storage_location?: number | null;
   storage_location_code?: string | null;
   storage_location_name?: string | null;
   storage_location_label?: string | null;
+
+  packaging_type?: number | null;
+  packaging_type_name?: string | null;
 };
+
+type PackagingType = {
+  id: number;
+  name: string;
+  description: string;
+  category: "PACKAGING" | "LOAD_CARRIER";
+  unit_cost: string | null;
+  is_active: boolean;
+  length_cm: string | null;
+  width_cm: string | null;
+  height_cm: string | null;
+  weight_kg: string | null;
+};
+
 
 type StorageLocation = {
   id: number;
@@ -35,8 +58,44 @@ type StorageLocation = {
   rack: string;
   shelf: string;
   description: string;
+
   is_active: boolean;
+  is_blocked: boolean;
+  is_empty: boolean;
+  allow_mixed_products: boolean;
+
+  length_cm: string | null;
+  width_cm: string | null;
+  height_cm: string | null;
+  max_weight_kg: string | null;
+  available_weight_kg?: string | number | null;
+  available_volume_cm3?: string | number | null;
+  occupied_weight_kg?: string | number | null;
+  occupied_volume_cm3?: string | number | null;
+
   product_count: number;
+  created_at: string;
+  updated_at: string;
+};
+
+type StorageLocationStock = {
+  id: number;
+  product: number;
+  product_name: string;
+  product_sku: string;
+  product_unit: string;
+  storage_location: number;
+  storage_location_code: string;
+  storage_location_name: string;
+  storage_location_label: string;
+  quantity: number;
+  packaging_type?: number | null;
+  packaging_type_name?: string | null;
+  load_carrier_type?: number | null;
+  load_carrier_type_name?: string | null;
+  packaging_quantity?: number;
+  unit_purchase_price?: string | null;
+  expiry_date?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -49,9 +108,17 @@ type StorageLocationForm = {
   rack: string;
   shelf: string;
   description: string;
-  is_active: boolean;
-};
 
+  is_active: boolean;
+  is_blocked: boolean;
+  is_empty: boolean;
+  allow_mixed_products: boolean;
+
+  length_cm: string;
+  width_cm: string;
+  height_cm: string;
+  max_weight_kg: string;
+};
 
 type Supplier = {
   id: number;
@@ -194,12 +261,27 @@ type CustomerNoteForm = {
   note: string;
 };
 
-type StockMovement = {
+ type StockMovement = {
   id: number;
   product: number;
   product_name: string;
   movement_type: "IN" | "OUT";
   quantity: number;
+
+  storage_location?: number | null;
+  storage_location_label?: string | null;
+
+  packaging_type?: number | null;
+  packaging_type_name?: string | null;
+
+  load_carrier_type?: number | null;
+  load_carrier_type_name?: string | null;
+
+  packaging_quantity?: number;
+  packaging_cost_total?: string | null;
+  unit_purchase_price?: string | null;
+  expiry_date?: string | null;
+
   reference_number?: string;
   note?: string;
   created_by_username?: string;
@@ -246,7 +328,12 @@ type ProductForm = {
   quantity: string;
   min_stock: string;
   unit: string;
+  weight_kg: string;
+  removal_strategy: string;
+  putaway_strategy: string;
+  fixed_storage_location: string;
   storage_location: string;
+  packaging_type: string;
 };
 
 type ActiveSection =
@@ -351,7 +438,12 @@ const initialForm: ProductForm = {
   quantity: "",
   min_stock: "",
   unit: "Stück",
+  weight_kg: "",
+  removal_strategy: "FIFO",
+  putaway_strategy: "EMPTY_BIN",
+  fixed_storage_location: "",
   storage_location: "",
+  packaging_type: "",
 };
 
 const initialStorageLocationForm: StorageLocationForm = {
@@ -362,7 +454,16 @@ const initialStorageLocationForm: StorageLocationForm = {
   rack: "",
   shelf: "",
   description: "",
+
   is_active: true,
+  is_blocked: false,
+  is_empty: true,
+  allow_mixed_products: false,
+
+  length_cm: "",
+  width_cm: "",
+  height_cm: "",
+  max_weight_kg: "",
 };
 
 
@@ -574,6 +675,9 @@ const [loggedIn, setLoggedIn] = useState(isLoggedIn());
   const [movementProductFilter, setMovementProductFilter] = useState("");
 
   const [storageLocations, setStorageLocations] = useState<StorageLocation[]>([]);
+  const [locationStocks, setLocationStocks] = useState<StorageLocationStock[]>([]);
+  const [locationStocksLoading, setLocationStocksLoading] = useState(false);
+  const [packagingTypes, setPackagingTypes] = useState<PackagingType[]>([]);
   const [storageLocationsLoading, setStorageLocationsLoading] = useState(false);
   const [storageLocationSaving, setStorageLocationSaving] = useState(false);
   const [storageLocationForm, setStorageLocationForm] =
@@ -634,6 +738,12 @@ const [suppliers, setSuppliers] = useState<Supplier[]>([]);
 
   const [movementProductId, setMovementProductId] = useState("");
   const [movementQuantity, setMovementQuantity] = useState("");
+  const [movementStorageLocationId, setMovementStorageLocationId] = useState("");
+  const [movementPackagingTypeId, setMovementPackagingTypeId] = useState("");
+  const [movementLoadCarrierTypeId, setMovementLoadCarrierTypeId] = useState("");
+  const [movementPackagingQuantity, setMovementPackagingQuantity] = useState("1");
+  const [movementUnitPurchasePrice, setMovementUnitPurchasePrice] = useState("");
+  const [movementExpiryDate, setMovementExpiryDate] = useState("");
   const [movementReferenceNumber, setMovementReferenceNumber] = useState("");
   const [movementNote, setMovementNote] = useState("");
   const [movementSaving, setMovementSaving] = useState(false);
@@ -641,6 +751,7 @@ const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [movementTypeFilter, setMovementTypeFilter] = useState<"" | "IN" | "OUT">("");
 
   const [goodsOutProductId, setGoodsOutProductId] = useState("");
+  const [goodsOutStorageLocationId, setGoodsOutStorageLocationId] = useState("");
   const [goodsOutQuantity, setGoodsOutQuantity] = useState("");
   const [goodsOutReferenceNumber, setGoodsOutReferenceNumber] = useState("");
   const [goodsOutNote, setGoodsOutNote] = useState("");
@@ -667,6 +778,21 @@ const [suppliers, setSuppliers] = useState<Supplier[]>([]);
 
   const inventoryProductRef = useRef<HTMLSelectElement | null>(null);
   const inventoryCountedQuantityRef = useRef<HTMLInputElement | null>(null);
+
+const loadPackagingTypes = async () => {
+  try {
+    const response = await apiFetch("/inventory-api/packaging-types/");
+    const data = (await response.json()) as PackagingType[];
+    setPackagingTypes(data);
+  } catch (err) {
+    const message =
+      err instanceof Error
+        ? err.message
+        : "Fehler beim Laden der Verpackungsarten.";
+    setError(message);
+  }
+};
+
 const toggleMenu = (menuId: string) => {
     setExpandedMenus((current) =>
       current.includes(menuId)
@@ -850,6 +976,26 @@ if (role === "einkauf") {
   };
 
 
+  const loadLocationStocks = async () => {
+    try {
+      setLocationStocksLoading(true);
+
+      const response = await apiFetch("/inventory-api/location-stocks/");
+      const data = (await response.json()) as StorageLocationStock[];
+
+      setLocationStocks(data);
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Fehler beim Laden der Lagerplatzbestände.";
+      setError(message);
+    } finally {
+      setLocationStocksLoading(false);
+    }
+  };
+
+
   const loadSuppliers = async () => {
     try {
       setSuppliersLoading(true);
@@ -1024,6 +1170,8 @@ if (role === "einkauf") {
     void loadMovements();
     void loadInventorySessions();
     void loadStorageLocations();
+    void loadLocationStocks();
+    void loadPackagingTypes();
     void loadSuppliers();
     void loadCustomers();
     void loadCustomerContacts();
@@ -1698,17 +1846,25 @@ if (role === "einkauf") {
   const handleEdit = (product: Product) => {
     setActiveSection("product");
     setEditingId(product.id);
-    setForm({
-    name: product.name,
-    sku: product.sku,
-    description: product.description,
-    quantity: String(product.quantity),
-    min_stock: String(product.min_stock),
-    unit: product.unit,
-    storage_location: product.storage_location
-      ? String(product.storage_location)
-      : "",
+  setForm({
+  name: product.name,
+  sku: product.sku,
+  description: product.description,
+  quantity: String(product.quantity),
+  min_stock: String(product.min_stock),
+  unit: product.unit,
+  weight_kg: product.weight_kg ? String(product.weight_kg) : "",
+  removal_strategy: product.removal_strategy || "FIFO",
+  putaway_strategy: product.putaway_strategy || "EMPTY_BIN",
+  fixed_storage_location: product.fixed_storage_location
+    ? String(product.fixed_storage_location)
+    : "",
+  storage_location: product.storage_location
+    ? String(product.storage_location)
+    : "",
+  packaging_type: product.packaging_type ? String(product.packaging_type) : "",
   });
+
     window.scrollTo({ top: 0, behavior: "smooth" });
     setTimeout(() => productNameRef.current?.focus(), 0);
   };
@@ -1719,6 +1875,8 @@ if (role === "einkauf") {
     if (!form.unit.trim()) return "Einheit ist erforderlich.";
     if (form.quantity === "" || Number(form.quantity) < 0) return "Bestand muss 0 oder größer sein.";
     if (form.min_stock === "" || Number(form.min_stock) < 0) return "Mindestbestand muss 0 oder größer sein.";
+    if (form.weight_kg !== "" && Number(form.weight_kg) < 0) return "Produktgewicht muss 0 oder größer sein.";
+    if (form.putaway_strategy === "FIXED_BIN" && !form.fixed_storage_location) return "Bei Festplatz-Strategie bitte einen Festplatz auswählen.";
     return "";
   };
 
@@ -1745,8 +1903,17 @@ if (role === "einkauf") {
     quantity: Number(form.quantity),
     min_stock: Number(form.min_stock),
     unit: form.unit,
+    weight_kg: form.weight_kg ? Number(form.weight_kg) : null,
+    removal_strategy: form.removal_strategy,
+    putaway_strategy: form.putaway_strategy,
+    fixed_storage_location: form.fixed_storage_location
+      ? Number(form.fixed_storage_location)
+      : null,
     storage_location: form.storage_location
       ? Number(form.storage_location)
+      : null,
+    packaging_type: form.packaging_type
+      ? Number(form.packaging_type)
       : null,
     };
 
@@ -1783,6 +1950,7 @@ if (role === "einkauf") {
     try {
       setError("");
       setSuccess("");
+
       const response = await apiFetch("/inventory-api/stock-movements/", {
         method: "POST",
         body: JSON.stringify({
@@ -1809,6 +1977,10 @@ if (role === "einkauf") {
   const validateGoodsReceiptForm = () => {
     if (!movementProductId) return "Bitte ein Produkt für den Wareneingang auswählen.";
     if (movementQuantity === "" || Number(movementQuantity) <= 0) return "Die Wareneingangs-Menge muss größer als 0 sein.";
+    if (!movementStorageLocationId) return "Bitte einen Lagerplatz für den Wareneingang auswählen.";
+    if (!movementPackagingTypeId) return "Bitte eine Verpackung für den Wareneingang auswählen.";
+    if (!movementLoadCarrierTypeId) return "Bitte einen Ladungsträger für den Wareneingang auswählen.";
+    if (!movementReferenceNumber.trim()) return "Bitte eine Referenznummer oder Lieferscheinnummer eintragen.";
     return "";
   };
 
@@ -1819,41 +1991,106 @@ if (role === "einkauf") {
       setError("Nur-Lese-Modus: Du kannst Wareneingänge ansehen, aber nicht buchen.");
       return;
     }
+
     setMovementSaving(true);
     setError("");
     setSuccess("");
+
     const validationError = validateGoodsReceiptForm();
     if (validationError) {
       setError(validationError);
       setMovementSaving(false);
       return;
     }
+
     try {
+
       const response = await apiFetch("/inventory-api/stock-movements/", {
         method: "POST",
         body: JSON.stringify({
-          product: Number(movementProductId),
-          movement_type: "IN",
-          quantity: Number(movementQuantity),
-          reference_number: movementReferenceNumber,
-          note: movementNote,
-        }),
+        product: Number(movementProductId),
+        movement_type: "IN",
+        quantity: Number(movementQuantity),
+
+        storage_location: movementStorageLocationId
+          ? Number(movementStorageLocationId)
+          : null,
+
+        packaging_type: movementPackagingTypeId
+          ? Number(movementPackagingTypeId)
+          : null,
+
+        load_carrier_type: movementLoadCarrierTypeId
+          ? Number(movementLoadCarrierTypeId)
+          : null,
+
+        packaging_quantity: Number(movementPackagingQuantity || 1),
+
+        unit_purchase_price: movementUnitPurchasePrice
+          ? Number(movementUnitPurchasePrice)
+          : null,
+
+        expiry_date: movementExpiryDate || null,
+
+        reference_number: movementReferenceNumber.trim(),
+        note: movementNote,
+      }),
       });
+
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(JSON.stringify(errorData));
+
+        const formattedError =
+          typeof errorData === "object" && errorData !== null
+            ? Object.entries(errorData as Record<string, unknown>)
+                .map(([field, value]) => {
+                  const label =
+                    field === "storage_location"
+                      ? "Lagerplatz"
+                      : field === "quantity"
+                      ? "Menge"
+                      : field === "packaging_quantity"
+                      ? "Packmenge"
+                      : field === "packaging_type"
+                      ? "Verpackung"
+                      : field === "load_carrier_type"
+                      ? "Ladungsträger"
+                      : field;
+
+                  const text = Array.isArray(value)
+                    ? value.join(" ")
+                    : String(value);
+
+                  return `${label}: ${text}`;
+                })
+                .join("\n")
+            : "Fehler beim Wareneingang.";
+
+        throw new Error(formattedError || "Fehler beim Wareneingang.");
       }
+
       setMovementProductId("");
       setMovementQuantity("");
+      setMovementStorageLocationId("");
+      setMovementPackagingTypeId("");
+      setMovementLoadCarrierTypeId("");
+      setMovementPackagingQuantity("1");
+      setMovementUnitPurchasePrice("");
+      setMovementExpiryDate("");
       setMovementReferenceNumber("");
       setMovementNote("");
+
       await loadProducts();
       await loadMovements();
+      await loadStorageLocations();
+      await loadLocationStocks();
+
       setSuccess("📥 Wareneingang erfolgreich gebucht!");
       setTimeout(() => goodsInProductRef.current?.focus(), 0);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Fehler beim Wareneingang.";
       setError(message);
+
       if (message.includes("Sitzung abgelaufen")) {
         clearTokens();
         setLoggedIn(false);
@@ -1866,6 +2103,8 @@ if (role === "einkauf") {
   const validateGoodsIssueForm = () => {
     if (!goodsOutProductId) return "Bitte ein Produkt für den Warenausgang auswählen.";
     if (goodsOutQuantity === "" || Number(goodsOutQuantity) <= 0) return "Die Warenausgangs-Menge muss größer als 0 sein.";
+    if (!goodsOutStorageLocationId) return "Bitte einen Lagerplatz für den Warenausgang auswählen.";
+    if (!goodsOutReferenceNumber.trim()) return "Bitte eine Referenznummer für den Warenausgang eintragen.";
     return "";
   };
 
@@ -1876,15 +2115,18 @@ if (role === "einkauf") {
       setError("Nur-Lese-Modus: Du kannst Warenausgänge ansehen, aber nicht buchen.");
       return;
     }
+
     setGoodsOutSaving(true);
     setError("");
     setSuccess("");
+
     const validationError = validateGoodsIssueForm();
     if (validationError) {
       setError(validationError);
       setGoodsOutSaving(false);
       return;
     }
+
     try {
       const response = await apiFetch("/inventory-api/stock-movements/", {
         method: "POST",
@@ -1892,25 +2134,36 @@ if (role === "einkauf") {
           product: Number(goodsOutProductId),
           movement_type: "OUT",
           quantity: Number(goodsOutQuantity),
-          reference_number: goodsOutReferenceNumber,
+          storage_location: goodsOutStorageLocationId
+            ? Number(goodsOutStorageLocationId)
+            : null,
+          reference_number: goodsOutReferenceNumber.trim(),
           note: goodsOutNote,
         }),
       });
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(JSON.stringify(errorData));
       }
+
       setGoodsOutProductId("");
+      setGoodsOutStorageLocationId("");
       setGoodsOutQuantity("");
       setGoodsOutReferenceNumber("");
       setGoodsOutNote("");
+
       await loadProducts();
       await loadMovements();
+      await loadStorageLocations();
+      await loadLocationStocks();
+
       setSuccess("📤 Warenausgang erfolgreich gebucht!");
       setTimeout(() => goodsOutProductRef.current?.focus(), 0);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Fehler beim Warenausgang.";
       setError(message);
+
       if (message.includes("Sitzung abgelaufen")) {
         clearTokens();
         setLoggedIn(false);
@@ -2264,28 +2517,40 @@ if (role === "einkauf") {
     }
   };
 
-  const exportMovementsToCsv = () => {
-    const headers = ["Datum", "Produkt", "Typ", "Menge", "Referenz", "Notiz", "Benutzer"];
-    const rows = filteredMovements.map((movement) => [
-      new Date(movement.created_at).toLocaleString("de-DE"),
-      movement.product_name,
-      movement.movement_type === "IN" ? "Wareneingang" : "Warenausgang",
-      String(movement.quantity),
-      movement.reference_number ?? "",
-      movement.note ?? "",
-      movement.created_by_username ?? "",
-    ]);
-    const csvContent = [headers, ...rows]
-      .map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(";"))
-      .join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+const exportMovementsToCsv = async () => {
+  try {
+    setError("");
+    setSuccess("");
+
+    const response = await apiFetch(
+      "/inventory-api/stock-movements/export-excel/"
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || "Fehler beim Excel-Export.");
+    }
+
+    const blob = await response.blob();
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
+
     link.href = url;
-    link.download = "bewegungshistorie.csv";
+    link.download = "bewegungshistorie.xlsx";
     link.click();
+
     URL.revokeObjectURL(url);
-  };
+
+    setSuccess("📤 Bewegungshistorie erfolgreich als Excel exportiert!");
+  } catch (err) {
+    const message =
+      err instanceof Error
+        ? err.message
+        : "Fehler beim Export der Bewegungshistorie.";
+
+    setError(message);
+  }
+};
 
   if (!loggedIn) {
     return (
@@ -2352,6 +2617,7 @@ if (role === "einkauf") {
 
             <section style={topStatsGridStyle}>
               <Card title="Produkte gesamt" value={String(totalProducts)} />
+              <Card title="Verpackungsarten" value={String(packagingTypes.length)} />
               <Card title="Bestand gesamt" value={String(totalUnits)} />
               <Card title="Niedriger Bestand" value={String(lowStockProducts.length)} danger={lowStockProducts.length > 0} />
               <Card title="Inventur-Differenzen" value={String(inventorySummary.differences)} danger={inventorySummary.differences > 0} />
@@ -2560,7 +2826,7 @@ if (role === "einkauf") {
             )}
             {activeSection === "admin-locations" && (
               <StorageLocationsSection
-                title="📍 Lagerorte anlegen"
+                title=" Lagerorte anlegen"
                 locations={storageLocations}
                 loading={storageLocationsLoading}
                 form={storageLocationForm}
@@ -2596,6 +2862,7 @@ if (role === "einkauf") {
               handleChange={handleChange}
               setForm={setForm}
               storageLocations={storageLocations}
+              packagingTypes={packagingTypes}
               productNameRef={productNameRef}
               productSkuRef={productSkuRef}
               productQuantityRef={productQuantityRef}
@@ -2609,6 +2876,7 @@ if (role === "einkauf") {
             {activeSection === "goods-in" && (
               <GoodsInSection
                 products={products}
+                storageLocations={storageLocations}
                 movementProductId={movementProductId}
                 setMovementProductId={setMovementProductId}
                 movementQuantity={movementQuantity}
@@ -2617,19 +2885,37 @@ if (role === "einkauf") {
                 setMovementReferenceNumber={setMovementReferenceNumber}
                 movementNote={movementNote}
                 setMovementNote={setMovementNote}
+                movementStorageLocationId={movementStorageLocationId}
+                setMovementStorageLocationId={setMovementStorageLocationId}
                 movementSaving={movementSaving}
                 hasPermission={hasPermission}
                 handleGoodsReceipt={handleGoodsReceipt}
                 goodsInProductRef={goodsInProductRef}
                 goodsInQuantityRef={goodsInQuantityRef}
                 focusNextOnEnter={focusNextOnEnter}
+                packagingTypes={packagingTypes}
+                movementPackagingTypeId={movementPackagingTypeId}
+                setMovementPackagingTypeId={setMovementPackagingTypeId}
+                movementLoadCarrierTypeId={movementLoadCarrierTypeId}
+                setMovementLoadCarrierTypeId={setMovementLoadCarrierTypeId}
+                movementPackagingQuantity={movementPackagingQuantity}
+                setMovementPackagingQuantity={setMovementPackagingQuantity}
+                movementUnitPurchasePrice={movementUnitPurchasePrice}
+                setMovementUnitPurchasePrice={setMovementUnitPurchasePrice}
+                movementExpiryDate={movementExpiryDate}
+                setMovementExpiryDate={setMovementExpiryDate}
               />
             )}
 
             {activeSection === "goods-out" && (
               <GoodsOutSection
                 products={products}
+                storageLocations={storageLocations}
+                movements={movements}
+                packagingTypes={packagingTypes}
                 goodsOutProductId={goodsOutProductId}
+                goodsOutStorageLocationId={goodsOutStorageLocationId}
+                setGoodsOutStorageLocationId={setGoodsOutStorageLocationId}
                 setGoodsOutProductId={setGoodsOutProductId}
                 goodsOutQuantity={goodsOutQuantity}
                 setGoodsOutQuantity={setGoodsOutQuantity}
@@ -2707,9 +2993,17 @@ if (role === "einkauf") {
                   </div>
                 </section>
 
-                {loading && <p>Lade Produkte...</p>}
-                {!loading && !error && visibleProducts.length === 0 && <p>Keine Produkte passen zur aktuellen Suche oder zum Filter.</p>}
-                {!loading && !error && visibleProducts.length > 0 && (
+                {activeSection === "stock-overview" && (
+                  <LocationStockOverview
+                    locationStocks={locationStocks}
+                    loading={locationStocksLoading}
+                    search={search}
+                  />
+                )}
+
+                {activeSection !== "stock-overview" && loading && <p>Lade Produkte...</p>}
+                {activeSection !== "stock-overview" && !loading && !error && visibleProducts.length === 0 && <p>Keine Produkte passen zur aktuellen Suche oder zum Filter.</p>}
+                {activeSection !== "stock-overview" && !loading && !error && visibleProducts.length > 0 && (
                   <ProductGrid products={visibleProducts} hasPermission={hasPermission} handleEdit={handleEdit} />
                 )}
               </>
@@ -3359,14 +3653,18 @@ function CustomersSection({
             style={{ ...inputStyle, minHeight: "80px", gridColumn: "1 / -1" }}
           />
 
-          <label style={checkboxLabelStyle}>
-            <input type="checkbox" checked={form.is_active} onChange={(event) => onToggleActive(event.target.checked)} />
-            Aktiv
-          </label>
+        <label style={checkboxLabelStyle}>
+          <input
+            type="checkbox"
+            checked={form.is_active}
+            onChange={(event) => onToggleActive(event.target.checked)}
+          />
+          Aktiv
+        </label>
 
-          <button type="submit" disabled={saving} style={primaryButtonStyle}>
-            {saving ? "Speichere..." : "Kunde anlegen"}
-          </button>
+        <button type="submit" disabled={saving} style={primaryButtonStyle}>
+          {saving ? "Speichere..." : "Lagerort anlegen"}
+        </button>
         </form>
       ) : (
         <p style={infoStyle}>Nur-Lese-Modus: Kunden können angesehen, aber nicht angelegt oder bearbeitet werden.</p>
@@ -4135,99 +4433,150 @@ function StorageLocationsSection({
   onSubmit: (event: FormEvent) => void;
 }) {
   const activeLocations = locations.filter((location) => location.is_active);
+  const emptyLocations = locations.filter((location) => location.is_empty);
+  const blockedLocations = locations.filter((location) => location.is_blocked);
 
   return (
     <section style={sectionStyle}>
-      <h2 style={sectionTitleStyle}>{title}</h2>
+      <h2 style={sectionTitleStyle}> {title}</h2>
 
       <p style={infoStyle}>
-        Verwaltung von Lagerorten, Regalen und Fächern. Produkte können später
-        einem Lagerort zugeordnet werden.
+        Verwaltung von Lagerorten, Regalen, Fächern, Kapazitäten und Status.
       </p>
 
       <div style={dashboardGridStyle}>
         <Card title="Lagerorte gesamt" value={String(locations.length)} />
         <Card title="Aktive Lagerorte" value={String(activeLocations.length)} />
+        <Card title="Freie Plätze" value={String(emptyLocations.length)} />
+        <Card title="Gesperrte Plätze" value={String(blockedLocations.length)} danger={blockedLocations.length > 0} />
       </div>
 
       {canManage && (
         <form
           onSubmit={onSubmit}
-          style={{ ...formGridStyle, marginTop: "22px", marginBottom: "24px" }}
+          style={{
+            marginTop: "24px",
+            marginBottom: "28px",
+            padding: "22px",
+            borderRadius: "22px",
+            background: "rgba(15, 23, 42, 0.82)",
+            border: "1px solid rgba(148, 163, 184, 0.18)",
+            boxShadow: "0 18px 40px rgba(0,0,0,0.22)",
+          }}
         >
-          <input
-            name="code"
-            placeholder="Code z. B. A-R2-F4"
-            value={form.code}
-            onChange={onChange}
-            style={inputStyle}
-          />
+          <h3 style={{ marginTop: 0, color: "#f8fafc" }}>
+            Neuen Lagerort anlegen
+          </h3>
 
-          <input
-            name="name"
-            placeholder="Name z. B. Lager A"
-            value={form.name}
-            onChange={onChange}
-            style={inputStyle}
-          />
-
-          <input
-            name="zone"
-            placeholder="Zone"
-            value={form.zone}
-            onChange={onChange}
-            style={inputStyle}
-          />
-
-          <input
-            name="aisle"
-            placeholder="Gang"
-            value={form.aisle}
-            onChange={onChange}
-            style={inputStyle}
-          />
-
-          <input
-            name="rack"
-            placeholder="Regal"
-            value={form.rack}
-            onChange={onChange}
-            style={inputStyle}
-          />
-
-          <input
-            name="shelf"
-            placeholder="Fach"
-            value={form.shelf}
-            onChange={onChange}
-            style={inputStyle}
-          />
-
-          <textarea
-            name="description"
-            placeholder="Beschreibung"
-            value={form.description}
-            onChange={onChange}
-            style={{
-              ...inputStyle,
-              minHeight: "80px",
-              gridColumn: "1 / -1",
-            }}
-          />
-
-          <label style={checkboxLabelStyle}>
+          <div style={formGridStyle}>
             <input
-              type="checkbox"
-              checked={form.is_active}
-              onChange={(event) => onToggleActive(event.target.checked)}
+              name="code"
+              placeholder="Code z. B. A-R2-F4"
+              value={form.code}
+              onChange={onChange}
+              style={inputStyle}
             />
-            Aktiv
-          </label>
+
+            <input
+              name="name"
+              placeholder="Name z. B. Lager A"
+              value={form.name}
+              onChange={onChange}
+              style={inputStyle}
+            />
+
+            <input
+              name="zone"
+              placeholder="Zone"
+              value={form.zone}
+              onChange={onChange}
+              style={inputStyle}
+            />
+
+            <input
+              name="aisle"
+              placeholder="Gang"
+              value={form.aisle}
+              onChange={onChange}
+              style={inputStyle}
+            />
+
+            <input
+              name="rack"
+              placeholder="Regal"
+              value={form.rack}
+              onChange={onChange}
+              style={inputStyle}
+            />
+
+            <input
+              name="shelf"
+              placeholder="Fach"
+              value={form.shelf}
+              onChange={onChange}
+              style={inputStyle}
+            />
+
+            <input
+              name="length_cm"
+              placeholder="Länge cm"
+              value={form.length_cm}
+              onChange={onChange}
+              style={inputStyle}
+            />
+
+            <input
+              name="width_cm"
+              placeholder="Breite cm"
+              value={form.width_cm}
+              onChange={onChange}
+              style={inputStyle}
+            />
+
+            <input
+              name="height_cm"
+              placeholder="Höhe cm"
+              value={form.height_cm}
+              onChange={onChange}
+              style={inputStyle}
+            />
+
+            <input
+              name="max_weight_kg"
+              placeholder="Max. Gewicht kg"
+              value={form.max_weight_kg}
+              onChange={onChange}
+              style={inputStyle}
+            />
+
+            <textarea
+              name="description"
+              placeholder="Beschreibung"
+              value={form.description}
+              onChange={onChange}
+              style={{
+                ...inputStyle,
+                minHeight: "80px",
+                gridColumn: "1 / -1",
+              }}
+            />
+          </div>
+
+          <div style={{ display: "flex", gap: "18px", flexWrap: "wrap", marginTop: "18px" }}>
+            <label style={checkboxLabelStyle}>
+              <input
+                type="checkbox"
+                checked={form.is_active}
+                onChange={(event) => onToggleActive(event.target.checked)}
+              />
+              Aktiv
+            </label>
+          </div>
 
           <button
             type="submit"
             disabled={saving}
-            style={primaryButtonStyle}
+            style={{ ...primaryButtonStyle, marginTop: "20px" }}
           >
             {saving ? "Speichere..." : "Lagerort anlegen"}
           </button>
@@ -4236,8 +4585,7 @@ function StorageLocationsSection({
 
       {!canManage && (
         <p style={infoStyle}>
-          Nur-Lese-Modus: Lagerorte können angesehen, aber nicht angelegt oder
-          bearbeitet werden.
+          Nur-Lese-Modus: Lagerorte können angesehen, aber nicht angelegt werden.
         </p>
       )}
 
@@ -4258,6 +4606,8 @@ function StorageLocationsSection({
                 <th style={tableHeadStyle}>Gang</th>
                 <th style={tableHeadStyle}>Regal</th>
                 <th style={tableHeadStyle}>Fach</th>
+                <th style={tableHeadStyle}>Maße</th>
+                <th style={tableHeadStyle}>Max. kg</th>
                 <th style={tableHeadStyle}>Produkte</th>
                 <th style={tableHeadStyle}>Status</th>
               </tr>
@@ -4269,9 +4619,11 @@ function StorageLocationsSection({
                   key={location.id}
                   style={{
                     borderTop: "1px solid rgba(148, 163, 184, 0.12)",
-                    background: location.is_active
-                      ? "rgba(22,101,52,0.08)"
-                      : "rgba(127,29,29,0.08)",
+                    background: location.is_blocked
+                      ? "rgba(127,29,29,0.12)"
+                      : location.is_empty
+                      ? "rgba(22,101,52,0.10)"
+                      : "rgba(30,64,175,0.10)",
                   }}
                 >
                   <td style={tableCellStyle}>{location.code}</td>
@@ -4280,9 +4632,21 @@ function StorageLocationsSection({
                   <td style={tableCellStyle}>{location.aisle || "—"}</td>
                   <td style={tableCellStyle}>{location.rack || "—"}</td>
                   <td style={tableCellStyle}>{location.shelf || "—"}</td>
+                  <td style={tableCellStyle}>
+                    {location.length_cm || location.width_cm || location.height_cm
+                      ? `${location.length_cm || "?"} × ${location.width_cm || "?"} × ${location.height_cm || "?"} cm`
+                      : "—"}
+                  </td>
+                  <td style={tableCellStyle}>{location.max_weight_kg || "—"}</td>
                   <td style={tableCellStyle}>{location.product_count}</td>
                   <td style={tableCellStyle}>
-                    {location.is_active ? "✅ Aktiv" : "⛔ Inaktiv"}
+                    {location.is_blocked
+                      ? "⛔ Gesperrt"
+                      : location.is_active
+                      ? location.is_empty
+                        ? "✅ Frei"
+                        : "📦 Belegt"
+                      : "⚪ Inaktiv"}
                   </td>
                 </tr>
               ))}
@@ -4303,6 +4667,7 @@ function ProductFormSection({
   handleChange,
   setForm,
   storageLocations,
+  packagingTypes,
   productNameRef,
   productSkuRef,
   productQuantityRef,
@@ -4321,6 +4686,7 @@ function ProductFormSection({
   ) => void;
   setForm: Dispatch<SetStateAction<ProductForm>>;
   storageLocations: StorageLocation[];
+  packagingTypes: PackagingType[];
   productNameRef: RefObject<HTMLInputElement | null>;
   productSkuRef: RefObject<HTMLInputElement | null>;
   productQuantityRef: RefObject<HTMLInputElement | null>;
@@ -4334,6 +4700,7 @@ function ProductFormSection({
     next?: HTMLElement | null
   ) => void;
 }) {
+
   return (
     <section style={sectionStyle}>
       <h2 style={sectionTitleStyle}>Produkte / Artikelstamm</h2>
@@ -4344,6 +4711,66 @@ function ProductFormSection({
         <input ref={productMinStockRef} name="min_stock" type="number" placeholder="Mindestbestand" value={form.min_stock} onChange={handleChange} onKeyDown={(event) => focusNextOnEnter(event, productUnitRef.current)} min="0" style={inputStyle} disabled={!hasPermission("admin")} />
         <select ref={productUnitRef} value={form.unit} onChange={(event) => setForm({ ...form, unit: event.target.value })} onKeyDown={(event) => focusNextOnEnter(event, productDescriptionRef.current)} style={inputStyle} disabled={!hasPermission("admin")}>
           {unitOptions.map((unit) => <option key={unit} value={unit}>{unit}</option>)}
+        </select>
+
+        <input
+          name="weight_kg"
+          type="number"
+          step="0.01"
+          min="0"
+          placeholder="Produktgewicht kg pro Stück"
+          value={form.weight_kg}
+          onChange={handleChange}
+          style={inputStyle}
+          disabled={!hasPermission("admin")}
+        />
+
+        <select
+          value={form.putaway_strategy}
+          onChange={(event) =>
+            setForm({ ...form, putaway_strategy: event.target.value })
+          }
+          style={inputStyle}
+          disabled={!hasPermission("admin")}
+        >
+          <option value="EMPTY_BIN">Einlagerstrategie: Leerplatzsuche</option>
+          <option value="FIXED_BIN">Einlagerstrategie: Festplatz</option>
+          <option value="ADD_TO_STOCK">Einlagerstrategie: Zulagerung</option>
+        </select>
+
+        <select
+          value={form.fixed_storage_location}
+          onChange={(event) =>
+            setForm({ ...form, fixed_storage_location: event.target.value })
+          }
+          style={inputStyle}
+          disabled={!hasPermission("admin")}
+        >
+          <option value="">Kein Festplatz</option>
+          {storageLocations
+            .filter((location) => location.is_active)
+            .map((location) => (
+              <option key={location.id} value={location.id}>
+                {location.code} - {location.name}
+                {location.rack ? ` / Regal ${location.rack}` : ""}
+                {location.shelf ? ` / Fach ${location.shelf}` : ""}
+              </option>
+            ))}
+        </select>
+
+        <select
+          value={form.removal_strategy}
+          onChange={(event) =>
+            setForm({ ...form, removal_strategy: event.target.value })
+          }
+          style={inputStyle}
+          disabled={!hasPermission("admin")}
+        >
+          <option value="FIFO">Auslagerstrategie: FIFO</option>
+          <option value="LIFO">Auslagerstrategie: LIFO</option>
+          <option value="FEFO">Auslagerstrategie: FEFO</option>
+          <option value="HIFO">Auslagerstrategie: HIFO</option>
+          <option value="LOFO">Auslagerstrategie: LOFO</option>
         </select>
 
         <select
@@ -4362,6 +4789,30 @@ function ProductFormSection({
                 {location.code} - {location.name}
                 {location.rack ? ` / Regal ${location.rack}` : ""}
                 {location.shelf ? ` / Fach ${location.shelf}` : ""}
+              </option>
+            ))}
+        </select>
+        <select
+          value={form.packaging_type}
+          onChange={(event) =>
+            setForm({
+              ...form,
+              packaging_type: event.target.value,
+            })
+          }
+          style={inputStyle}
+          disabled={!hasPermission("admin")}
+        >
+          <option value="">Verpackungsart auswählen</option>
+
+          {packagingTypes
+            .filter((packagingType) => packagingType.is_active)
+            .map((packagingType) => (
+              <option
+                key={packagingType.id}
+                value={packagingType.id}
+              >
+                {packagingType.name}
               </option>
             ))}
         </select>
@@ -4489,7 +4940,11 @@ function ReorderSection({
 }
 
 function GoodsInSection({
+  movementStorageLocationId,
+  setMovementStorageLocationId,
   products,
+  storageLocations,
+  packagingTypes,
   movementProductId,
   setMovementProductId,
   movementQuantity,
@@ -4498,6 +4953,16 @@ function GoodsInSection({
   setMovementReferenceNumber,
   movementNote,
   setMovementNote,
+  movementPackagingTypeId,
+  setMovementPackagingTypeId,
+  movementLoadCarrierTypeId,
+  setMovementLoadCarrierTypeId,
+  movementPackagingQuantity,
+  setMovementPackagingQuantity,
+  movementUnitPurchasePrice,
+  setMovementUnitPurchasePrice,
+  movementExpiryDate,
+  setMovementExpiryDate,
   movementSaving,
   hasPermission,
   handleGoodsReceipt,
@@ -4506,6 +4971,10 @@ function GoodsInSection({
   focusNextOnEnter,
 }: {
   products: Product[];
+  movementStorageLocationId: string;
+  setMovementStorageLocationId: (value: string) => void;
+  storageLocations: StorageLocation[];
+  packagingTypes: PackagingType[];
   movementProductId: string;
   setMovementProductId: (value: string) => void;
   movementQuantity: string;
@@ -4514,6 +4983,16 @@ function GoodsInSection({
   setMovementReferenceNumber: (value: string) => void;
   movementNote: string;
   setMovementNote: (value: string) => void;
+  movementPackagingTypeId: string;
+  setMovementPackagingTypeId: (value: string) => void;
+  movementLoadCarrierTypeId: string;
+  setMovementLoadCarrierTypeId: (value: string) => void;
+  movementPackagingQuantity: string;
+  setMovementPackagingQuantity: (value: string) => void;
+  movementUnitPurchasePrice: string;
+  setMovementUnitPurchasePrice: (value: string) => void;
+  movementExpiryDate: string;
+  setMovementExpiryDate: (value: string) => void;
   movementSaving: boolean;
   hasPermission: (required: PermissionRole) => boolean;
   handleGoodsReceipt: (event: FormEvent) => void;
@@ -4524,19 +5003,752 @@ function GoodsInSection({
     next?: HTMLElement | null
   ) => void;
 }) {
+
+  const selectedProduct =
+    products.find((product) => String(product.id) === movementProductId) ?? null;
+
+  const selectedPackagingType =
+    packagingTypes.find(
+      (packagingType) => String(packagingType.id) === movementPackagingTypeId
+    ) ?? null;
+
+  const selectedLoadCarrierType =
+    packagingTypes.find(
+      (packagingType) => String(packagingType.id) === movementLoadCarrierTypeId
+    ) ?? null;
+
+  const packagingQuantityForCheck = Math.max(
+    1,
+    Number(movementPackagingQuantity || 1)
+  );
+
+  type CapacityItem = {
+    length_cm?: string | number | null;
+    width_cm?: string | number | null;
+    height_cm?: string | number | null;
+    weight_kg?: string | number | null;
+    max_weight_kg?: string | number | null;
+  };
+
+  const toPositiveNumber = (value?: string | number | null) => {
+    const numberValue = Number(value ?? 0);
+    return Number.isFinite(numberValue) && numberValue > 0 ? numberValue : null;
+  };
+
+  const getVolumeCm3 = (item?: CapacityItem | null) => {
+    const length = toPositiveNumber(item?.length_cm);
+    const width = toPositiveNumber(item?.width_cm);
+    const height = toPositiveNumber(item?.height_cm);
+
+    if (length && width && height) {
+      return length * width * height;
+    }
+
+    return null;
+  };
+
+  const packagingVolume = getVolumeCm3(selectedPackagingType);
+  const loadCarrierVolume = getVolumeCm3(selectedLoadCarrierType);
+
+  const requiredVolume =
+    (packagingVolume !== null ? packagingVolume * packagingQuantityForCheck : 0) +
+    (loadCarrierVolume !== null ? loadCarrierVolume : 0);
+
+  const productWeight = toPositiveNumber(selectedProduct?.weight_kg);
+  const goodsInQuantityForCheck = Math.max(1, Number(movementQuantity || 1));
+  const packagingWeight = toPositiveNumber(selectedPackagingType?.weight_kg);
+  const loadCarrierWeight = toPositiveNumber(selectedLoadCarrierType?.weight_kg);
+
+  const requiredWeight =
+    (productWeight !== null ? productWeight * goodsInQuantityForCheck : 0) +
+    (packagingWeight !== null ? packagingWeight * packagingQuantityForCheck : 0) +
+    (loadCarrierWeight !== null ? loadCarrierWeight : 0);
+
+  const capacityNeedsCheck = requiredVolume > 0 || requiredWeight > 0;
+
+  const isLocationAvailableForProduct = (
+    location: StorageLocation,
+    product?: Product | null
+  ) =>
+    location.is_active &&
+    !location.is_blocked &&
+    (location.is_empty ||
+      location.allow_mixed_products ||
+      product?.storage_location === location.id);
+
+  const freeLocations = storageLocations.filter((location) =>
+    isLocationAvailableForProduct(location, selectedProduct)
+  );
+
+  const getLocationCapacity = (location: StorageLocation) => {
+    const locationVolume = getVolumeCm3(location);
+    const maxWeight = toPositiveNumber(location.max_weight_kg);
+
+    const occupiedVolume =
+      toPositiveNumber(location.occupied_volume_cm3) ?? 0;
+    const occupiedWeight =
+      toPositiveNumber(location.occupied_weight_kg) ?? 0;
+
+    const totalVolumeAfterBooking = occupiedVolume + requiredVolume;
+    const totalWeightAfterBooking = occupiedWeight + requiredWeight;
+
+    const availableVolume =
+      locationVolume !== null ? locationVolume - occupiedVolume : null;
+    const availableWeight =
+      maxWeight !== null ? maxWeight - occupiedWeight : null;
+
+    const volumeFits =
+      requiredVolume === 0 ||
+      locationVolume === null ||
+      totalVolumeAfterBooking <= locationVolume;
+
+    const weightFits =
+      requiredWeight === 0 ||
+      maxWeight === null ||
+      totalWeightAfterBooking <= maxWeight;
+
+    return {
+      locationVolume,
+      maxWeight,
+      occupiedVolume,
+      occupiedWeight,
+      availableVolume,
+      availableWeight,
+      totalVolumeAfterBooking,
+      totalWeightAfterBooking,
+      volumeFits,
+      weightFits,
+      fits: volumeFits && weightFits,
+    };
+  };
+
+  const getCapacitySuitableLocationsForProduct = (
+    product?: Product | null
+  ) =>
+    storageLocations
+      .filter((location) => isLocationAvailableForProduct(location, product))
+      .filter((location) => getLocationCapacity(location).fits);
+
+  const getPreferredLocationForProduct = (product?: Product | null) => {
+    const availableLocationsForProduct = storageLocations.filter((location) =>
+      isLocationAvailableForProduct(location, product)
+    );
+
+    const capacitySuitableLocationsForProduct =
+      getCapacitySuitableLocationsForProduct(product);
+
+    const fixedLocation = product?.fixed_storage_location
+      ? storageLocations.find(
+          (location) => location.id === product.fixed_storage_location
+        ) ?? null
+      : null;
+
+    const currentProductLocation = product?.storage_location
+      ? storageLocations.find(
+          (location) => location.id === product.storage_location
+        ) ?? null
+      : null;
+
+    if (product?.putaway_strategy === "FIXED_BIN") {
+      if (
+        fixedLocation &&
+        availableLocationsForProduct.some(
+          (location) => location.id === fixedLocation.id
+        ) &&
+        getLocationCapacity(fixedLocation).fits
+      ) {
+        return fixedLocation;
+      }
+
+      return null;
+    }
+
+    if (
+      product?.putaway_strategy === "ADD_TO_STOCK" &&
+      currentProductLocation &&
+      availableLocationsForProduct.some(
+        (location) => location.id === currentProductLocation.id
+      ) &&
+      getLocationCapacity(currentProductLocation).fits
+    ) {
+      return currentProductLocation;
+    }
+
+    if (product?.putaway_strategy === "EMPTY_BIN") {
+      const emptyLocation = capacitySuitableLocationsForProduct.find(
+        (location) => location.is_empty
+      );
+
+      return emptyLocation ?? capacitySuitableLocationsForProduct[0] ?? null;
+    }
+
+    if (
+      currentProductLocation &&
+      availableLocationsForProduct.some(
+        (location) => location.id === currentProductLocation.id
+      ) &&
+      getLocationCapacity(currentProductLocation).fits
+    ) {
+      return currentProductLocation;
+    }
+
+    return capacitySuitableLocationsForProduct[0] ?? null;
+  };
+
+  const suggestedLocation = getPreferredLocationForProduct(selectedProduct);
+
+  const selectedStorageLocationId = movementStorageLocationId;
+
+  const selectedStorageLocation =
+    storageLocations.find(
+      (location) => String(location.id) === selectedStorageLocationId
+    ) ?? null;
+
+  const selectedLocationCapacity = selectedStorageLocation
+    ? getLocationCapacity(selectedStorageLocation)
+    : null;
+
+  const formatCapacityNumber = (value: number | null) =>
+    value === null
+      ? "—"
+      : value.toLocaleString("de-DE", {
+          maximumFractionDigits: 0,
+        });
+
+  const getCapacityPercent = (
+    used?: number | null,
+    max?: number | null
+  ) => {
+    if (
+      used === null ||
+      used === undefined ||
+      max === null ||
+      max === undefined ||
+      max <= 0
+    ) {
+      return null;
+    }
+
+    return Math.round((used / max) * 100);
+  };
+
+  const getCapacityColor = (percent: number | null) => {
+    if (percent === null) return "#64748b";
+    if (percent > 100) return "#dc2626";
+    if (percent >= 85) return "#f97316";
+    if (percent >= 70) return "#eab308";
+    return "#22c55e";
+  };
+
+  const getCapacityLabel = (percent: number | null) => {
+    if (percent === null) return "unbekannt";
+    if (percent > 100) return "überschritten";
+    if (percent >= 85) return "kritisch";
+    if (percent >= 70) return "hoch";
+    return "okay";
+  };
+
+  const volumeUsagePercent = selectedLocationCapacity
+    ? getCapacityPercent(
+        selectedLocationCapacity.totalVolumeAfterBooking,
+        selectedLocationCapacity.locationVolume
+      )
+    : null;
+
+  const weightUsagePercent = selectedLocationCapacity
+    ? getCapacityPercent(
+        selectedLocationCapacity.totalWeightAfterBooking,
+        selectedLocationCapacity.maxWeight
+      )
+    : null;
+
+  const highestCapacityPercent =
+    volumeUsagePercent !== null && weightUsagePercent !== null
+      ? Math.max(volumeUsagePercent, weightUsagePercent)
+      : volumeUsagePercent ?? weightUsagePercent;
+
+  const capacitySignal =
+    selectedLocationCapacity?.fits === false
+      ? "🔴"
+      : highestCapacityPercent === null
+      ? "⚪"
+      : highestCapacityPercent >= 85
+      ? "🟡"
+      : "🟢";
+
+  const capacityStatusText =
+    selectedLocationCapacity?.fits === false
+      ? "passt nicht"
+      : highestCapacityPercent === null
+      ? "Kapazität unbekannt"
+      : highestCapacityPercent >= 85
+      ? "passt, aber knapp"
+      : "passt";
+
   return (
     <section style={sectionStyle}>
       <h2 style={sectionTitleStyle}>📥 Wareneingang buchen</h2>
+
+      <p style={infoStyle}>
+        Beim Wareneingang werden freie, aktive und nicht gesperrte Lagerplätze
+        bevorzugt. Belegte Plätze werden angezeigt, wenn Mischlagerung erlaubt
+        ist oder es sich um den aktuellen Lagerplatz dieses Produkts handelt.
+      </p>
+
+      <div style={dashboardGridStyle}>
+        <Card title="Verfügbare Plätze" value={String(freeLocations.length)} />
+        <Card
+          title="Gesperrte Plätze"
+          value={String(storageLocations.filter((location) => location.is_blocked).length)}
+          danger={storageLocations.some((location) => location.is_blocked)}
+        />
+        <Card
+          title="Vorschlag"
+          value={suggestedLocation ? suggestedLocation.code : "—"}
+        />
+      </div>
+
+      {suggestedLocation && (
+        <p style={successStyle}>
+          💡 Vorschlag: {suggestedLocation.code} - {suggestedLocation.name}
+          {suggestedLocation.rack ? ` / Regal ${suggestedLocation.rack}` : ""}
+          {suggestedLocation.shelf ? ` / Fach ${suggestedLocation.shelf}` : ""}
+        </p>
+      )}
+
+      {movementProductId && capacityNeedsCheck && !suggestedLocation && (
+        <p
+          style={{
+            border: "1px solid #92400e",
+            borderRadius: "14px",
+            padding: "12px 16px",
+            background: "rgba(120, 53, 15, 0.18)",
+            color: "#fed7aa",
+          }}
+        >
+          ⚠️ Kein passender verfügbarer Lagerplatz gefunden. Bitte Packmenge
+          reduzieren, Verpackung/Ladungsträger ändern oder einen größeren
+          Lagerplatz anlegen.
+        </p>
+      )}
+
+      {hasPermission("lager") &&
+        (!movementStorageLocationId ||
+          !movementPackagingTypeId ||
+          !movementLoadCarrierTypeId ||
+          !movementReferenceNumber.trim()) && (
+          <div
+            style={{
+              border: "1px solid #92400e",
+              borderRadius: "14px",
+              padding: "12px 16px",
+              margin: "14px 0",
+              background: "rgba(120, 53, 15, 0.18)",
+              color: "#fed7aa",
+            }}
+          >
+            <strong>⚠️ Pflichtfelder fehlen im Wareneingang</strong>
+
+            <div style={{ marginTop: "8px", lineHeight: 1.6 }}>
+              {!movementStorageLocationId && (
+                <div>• Bitte einen Lagerplatz auswählen.</div>
+              )}
+
+              {!movementPackagingTypeId && (
+                <div>• Bitte eine Verpackung auswählen.</div>
+              )}
+
+              {!movementLoadCarrierTypeId && (
+                <div>• Bitte einen Ladungsträger auswählen.</div>
+              )}
+
+              {!movementReferenceNumber.trim() && (
+                <div>• Bitte eine Referenz- oder Lieferscheinnummer eintragen.</div>
+              )}
+            </div>
+          </div>
+        )}
+
       <form onSubmit={handleGoodsReceipt} style={formGridStyle}>
-        <select ref={goodsInProductRef} value={movementProductId} onChange={(event) => setMovementProductId(event.target.value)} onKeyDown={(event) => focusNextOnEnter(event, goodsInQuantityRef.current)} required style={inputStyle} disabled={!hasPermission("lager")}>
+        <select
+          ref={goodsInProductRef}
+          value={movementProductId}
+          onChange={(event) => {
+            const nextProductId = event.target.value;
+            const nextProduct = products.find(
+              (product) => String(product.id) === nextProductId
+            );
+
+            const nextSuggestedLocation =
+              getPreferredLocationForProduct(nextProduct);
+
+            setMovementProductId(nextProductId);
+            setMovementStorageLocationId(
+              nextSuggestedLocation ? String(nextSuggestedLocation.id) : ""
+            );
+          }}
+          onKeyDown={(event) => focusNextOnEnter(event, goodsInQuantityRef.current)}
+          required
+          style={inputStyle}
+          disabled={!hasPermission("lager")}
+        >
           <option value="">Produkt auswählen</option>
-          {products.map((product) => <option key={product.id} value={product.id}>{product.name} ({product.sku})</option>)}
+          {products.map((product) => (
+            <option key={product.id} value={product.id}>
+              {product.name} ({product.sku})
+              {product.storage_location_label
+                ? ` - aktuell: ${product.storage_location_label}`
+                : ""}
+            </option>
+          ))}
         </select>
-        <input ref={goodsInQuantityRef} type="number" placeholder="Menge" value={movementQuantity} onChange={(event) => setMovementQuantity(event.target.value)} required min="1" style={inputStyle} disabled={!hasPermission("lager")} />
-        <input type="text" placeholder="Lieferschein / Referenznummer" value={movementReferenceNumber} onChange={(event) => setMovementReferenceNumber(event.target.value)} style={inputStyle} disabled={!hasPermission("lager")} />
-        <textarea placeholder="Notiz" value={movementNote} onChange={(event) => setMovementNote(event.target.value)} style={{ ...inputStyle, minHeight: "48px", gridColumn: "1 / -1" }} disabled={!hasPermission("lager")} />
+
+        <input
+          ref={goodsInQuantityRef}
+          type="number"
+          placeholder="Menge"
+          value={movementQuantity}
+          onChange={(event) => {
+            setMovementQuantity(event.target.value);
+            setMovementStorageLocationId("");
+          }}
+          required
+          min="1"
+          style={inputStyle}
+          disabled={!hasPermission("lager")}
+        />
+        <select
+          value={selectedStorageLocationId}
+          onChange={(event) => setMovementStorageLocationId(event.target.value)}
+          style={inputStyle}
+          disabled={!hasPermission("lager")}
+        >
+          <option value="">Lagerplatz auswählen</option>
+
+          {freeLocations.map((location) => {
+            const locationCapacity = getLocationCapacity(location);
+            const isSameProductLocation =
+              selectedProduct?.storage_location === location.id;
+
+            return (
+              <option
+                key={location.id}
+                value={location.id}
+                disabled={!locationCapacity.fits}
+              >
+                {location.code} - {location.name}
+                {location.is_empty
+                  ? " / frei"
+                  : isSameProductLocation
+                  ? " / Zulagerung"
+                  : " / Mischlager"}
+                {capacityNeedsCheck
+                  ? locationCapacity.fits
+                    ? " / passt"
+                    : " / zu klein"
+                  : ""}
+              </option>
+            );
+          })}
+        </select>
+        <select
+          value={movementPackagingTypeId}
+          onChange={(event) => {
+            setMovementPackagingTypeId(event.target.value);
+            setMovementStorageLocationId("");
+          }}
+          style={inputStyle}
+          disabled={!hasPermission("lager")}
+        >
+          <option value="">Verpackung auswählen</option>
+          {packagingTypes
+            .filter(
+              (packagingType) =>
+                packagingType.is_active &&
+                packagingType.category === "PACKAGING"
+            )
+            .map((packagingType) => (
+              <option key={packagingType.id} value={packagingType.id}>
+                {packagingType.name}
+                {packagingType.unit_cost ? ` · ${packagingType.unit_cost} €` : ""}
+              </option>
+            ))}
+        </select>
+
+        <select
+          value={movementLoadCarrierTypeId}
+          onChange={(event) => {
+            setMovementLoadCarrierTypeId(event.target.value);
+            setMovementStorageLocationId("");
+          }}
+          style={inputStyle}
+          disabled={!hasPermission("lager")}
+        >
+          <option value="">Ladungsträger auswählen</option>
+          {packagingTypes
+            .filter(
+              (packagingType) =>
+                packagingType.is_active &&
+                packagingType.category === "LOAD_CARRIER"
+            )
+            .map((packagingType) => (
+              <option key={packagingType.id} value={packagingType.id}>
+                {packagingType.name}
+                {packagingType.unit_cost ? ` · ${packagingType.unit_cost} €` : ""}
+              </option>
+            ))}
+        </select>
+
+        <input
+          type="number"
+          min="1"
+          placeholder="Anzahl Verpackungen"
+          value={movementPackagingQuantity}
+          onChange={(event) => {
+            setMovementPackagingQuantity(event.target.value);
+            setMovementStorageLocationId("");
+          }}
+          style={inputStyle}
+          disabled={!hasPermission("lager")}
+        />
+
+        <input
+          type="number"
+          min="0"
+          step="0.01"
+          placeholder="Einstandspreis pro Stück"
+          value={movementUnitPurchasePrice}
+          onChange={(event) => setMovementUnitPurchasePrice(event.target.value)}
+          style={inputStyle}
+          disabled={!hasPermission("lager")}
+        />
+
+        <input
+          type="date"
+          placeholder="MHD / Ablaufdatum"
+          value={movementExpiryDate}
+          onChange={(event) => setMovementExpiryDate(event.target.value)}
+          style={inputStyle}
+          disabled={!hasPermission("lager")}
+        />
+
+
+        {selectedStorageLocation && capacityNeedsCheck && selectedLocationCapacity && (
+          <div
+            style={{
+              gridColumn: "1 / -1",
+              border: selectedLocationCapacity.fits
+                ? "1px solid #166534"
+                : "1px solid #7f1d1d",
+              borderRadius: "14px",
+              padding: "14px 16px",
+              background: selectedLocationCapacity.fits
+                ? "rgba(22, 101, 52, 0.16)"
+                : "rgba(127, 29, 29, 0.18)",
+            }}
+          >
+            <strong
+              style={{
+                display: "block",
+                color: selectedLocationCapacity.fits ? "#bbf7d0" : "#fecaca",
+                marginBottom: "10px",
+              }}
+            >
+              📐 Kapazitätsvorschau
+            </strong>
+
+            <div style={{ marginBottom: "14px" }}>
+              <strong
+                style={{
+                  display: "block",
+                  color: "#e2e8f0",
+                  marginBottom: "8px",
+                }}
+              >
+                Kapazitätsauslastung
+              </strong>
+
+              {volumeUsagePercent !== null && (
+                <div style={{ marginBottom: "10px" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      marginBottom: "4px",
+                      color: "#cbd5e1",
+                    }}
+                  >
+                    <span>Volumen</span>
+                    <span>
+                      {volumeUsagePercent}% · {getCapacityLabel(volumeUsagePercent)}
+                    </span>
+                  </div>
+
+                  <div
+                    style={{
+                      height: "12px",
+                      borderRadius: "999px",
+                      overflow: "hidden",
+                      background: "rgba(148, 163, 184, 0.22)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: `${Math.min(Math.max(volumeUsagePercent, 0), 100)}%`,
+                        height: "100%",
+                        background: getCapacityColor(volumeUsagePercent),
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {weightUsagePercent !== null && (
+                <div>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      marginBottom: "4px",
+                      color: "#cbd5e1",
+                    }}
+                  >
+                    <span>Gewicht</span>
+                    <span>
+                      {weightUsagePercent}% · {getCapacityLabel(weightUsagePercent)}
+                    </span>
+                  </div>
+
+                  <div
+                    style={{
+                      height: "12px",
+                      borderRadius: "999px",
+                      overflow: "hidden",
+                      background: "rgba(148, 163, 184, 0.22)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: `${Math.min(Math.max(weightUsagePercent, 0), 100)}%`,
+                        height: "100%",
+                        background: getCapacityColor(weightUsagePercent),
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
+                gap: "10px",
+              }}
+            >
+              <div>
+                <span style={{ color: "#94a3b8" }}>Lagerplatz</span>
+                <div>{selectedStorageLocation.code}</div>
+              </div>
+
+              <div>
+                <span style={{ color: "#94a3b8" }}>Volumen belegt</span>
+                <div>
+                  {formatCapacityNumber(selectedLocationCapacity.occupiedVolume)} cm³
+                </div>
+              </div>
+
+              <div>
+                <span style={{ color: "#94a3b8" }}>Volumen neue Buchung</span>
+                <div>{formatCapacityNumber(requiredVolume)} cm³</div>
+              </div>
+
+              <div>
+                <span style={{ color: "#94a3b8" }}>Volumen nach Buchung</span>
+                <div>
+                  {formatCapacityNumber(selectedLocationCapacity.totalVolumeAfterBooking)} cm³
+                </div>
+              </div>
+
+              <div>
+                <span style={{ color: "#94a3b8" }}>Volumen maximal</span>
+                <div>
+                  {formatCapacityNumber(selectedLocationCapacity.locationVolume)} cm³
+                </div>
+              </div>
+
+              <div>
+                <span style={{ color: "#94a3b8" }}>Gewicht belegt</span>
+                <div>
+                  {formatCapacityNumber(selectedLocationCapacity.occupiedWeight)} kg
+                </div>
+              </div>
+
+              <div>
+                <span style={{ color: "#94a3b8" }}>Gewicht neue Buchung</span>
+                <div>{formatCapacityNumber(requiredWeight)} kg</div>
+              </div>
+
+              <div>
+                <span style={{ color: "#94a3b8" }}>Gewicht nach Buchung</span>
+                <div>
+                  {formatCapacityNumber(selectedLocationCapacity.totalWeightAfterBooking)} kg
+                </div>
+              </div>
+
+              <div>
+                <span style={{ color: "#94a3b8" }}>Gewicht maximal</span>
+                <div>{formatCapacityNumber(selectedLocationCapacity.maxWeight)} kg</div>
+              </div>
+
+              <div>
+                <span style={{ color: "#94a3b8" }}>Status</span>
+                <div>
+                  {capacitySignal} {capacityStatusText}
+                </div>
+              </div>
+            </div>
+
+            {!selectedLocationCapacity.fits && (
+              <p style={{ margin: "10px 0 0", color: "#fecaca" }}>
+                Dieser Lagerplatz wird beim Buchen vom Backend abgelehnt. Bitte
+                Packmenge reduzieren, Ladungsträger ändern oder einen größeren
+                Lagerplatz wählen.
+              </p>
+            )}
+          </div>
+        )}
+
+        <input
+          type="text"
+          placeholder="Lieferschein / Referenznummer"
+          value={movementReferenceNumber}
+          onChange={(event) => setMovementReferenceNumber(event.target.value)}
+          style={inputStyle}
+          disabled={!hasPermission("lager")}
+        />
+
+        <textarea
+          placeholder="Notiz"
+          value={movementNote}
+          onChange={(event) => setMovementNote(event.target.value)}
+          style={{ ...inputStyle, minHeight: "70px", gridColumn: "1 / -1" }}
+          disabled={!hasPermission("lager")}
+        />
+
         <div style={{ gridColumn: "1 / -1" }}>
-          <button type="submit" disabled={movementSaving || !hasPermission("lager")} style={hasPermission("lager") ? primaryButtonStyle : disabledButtonStyle}>
+          <button
+            type="submit"
+            disabled={
+              movementSaving ||
+              !hasPermission("lager") ||
+              !movementStorageLocationId ||
+              !movementPackagingTypeId ||
+              !movementLoadCarrierTypeId ||
+              !movementReferenceNumber.trim()
+            }
+            style={hasPermission("lager") ? primaryButtonStyle : disabledButtonStyle}
+          >
             {movementSaving ? "Buche..." : "Wareneingang buchen"}
           </button>
         </div>
@@ -4547,7 +5759,12 @@ function GoodsInSection({
 
 function GoodsOutSection({
   products,
+  storageLocations,
+  movements,
+  packagingTypes,
   goodsOutProductId,
+  goodsOutStorageLocationId,
+  setGoodsOutStorageLocationId,
   setGoodsOutProductId,
   goodsOutQuantity,
   setGoodsOutQuantity,
@@ -4563,7 +5780,12 @@ function GoodsOutSection({
   focusNextOnEnter,
 }: {
   products: Product[];
+  storageLocations: StorageLocation[];
+  movements: StockMovement[];
+  packagingTypes: PackagingType[];
   goodsOutProductId: string;
+  goodsOutStorageLocationId: string;
+  setGoodsOutStorageLocationId: (value: string) => void;
   setGoodsOutProductId: (value: string) => void;
   goodsOutQuantity: string;
   setGoodsOutQuantity: (value: string) => void;
@@ -4581,17 +5803,254 @@ function GoodsOutSection({
     next?: HTMLElement | null
   ) => void;
 }) {
+  const selectedProductId = Number(goodsOutProductId);
+  const goodsOutQuantityNumber = Number(goodsOutQuantity || 0);
+
+  const selectedGoodsOutProduct =
+    products.find((product) => product.id === selectedProductId) ?? null;
+
+  const goodsOutAvailableLocations = storageLocations.filter((location) => {
+    if (!location.is_active || location.is_blocked || !selectedGoodsOutProduct) {
+      return false;
+    }
+
+    const isCurrentProductLocation =
+      selectedGoodsOutProduct.storage_location === location.id;
+
+    const hadProductGoodsReceiptOnLocation = movements.some(
+      (movement) =>
+        movement.product === selectedProductId &&
+        movement.storage_location === location.id &&
+        movement.movement_type === "IN"
+    );
+
+    return isCurrentProductLocation || hadProductGoodsReceiptOnLocation;
+  });
+
+  const latestPackagingMovement = movements
+    .filter(
+      (movement) =>
+        movement.product === selectedProductId &&
+        movement.movement_type === "IN" &&
+        Boolean(
+          movement.packaging_type ||
+            movement.load_carrier_type ||
+            movement.packaging_type_name ||
+            movement.load_carrier_type_name
+        )
+    )
+    .sort(
+      (a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    )[0];
+
+  const sourceQuantity = Math.max(
+    1,
+    Math.abs(latestPackagingMovement?.quantity || 1)
+  );
+
+  const sourcePackagingQuantity = Math.max(
+    1,
+    latestPackagingMovement?.packaging_quantity || 1
+  );
+
+  const unitsPerPackage = Math.max(
+    1,
+    Math.floor(sourceQuantity / sourcePackagingQuantity)
+  );
+
+  const previewPackagingQuantity =
+    latestPackagingMovement && goodsOutQuantityNumber > 0
+      ? Math.max(1, Math.ceil(goodsOutQuantityNumber / unitsPerPackage))
+      : null;
+
+  const findPackagingType = (id?: number | null, name?: string | null) =>
+    packagingTypes.find((packagingType) => packagingType.id === id) ??
+    packagingTypes.find((packagingType) => packagingType.name === name);
+
+  const previewPackagingType = findPackagingType(
+    latestPackagingMovement?.packaging_type,
+    latestPackagingMovement?.packaging_type_name
+  );
+
+  const previewLoadCarrierType = findPackagingType(
+    latestPackagingMovement?.load_carrier_type,
+    latestPackagingMovement?.load_carrier_type_name
+  );
+
+  const previewCost =
+    latestPackagingMovement && previewPackagingQuantity !== null
+      ? Number(previewPackagingType?.unit_cost ?? 0) *
+          previewPackagingQuantity +
+        Number(previewLoadCarrierType?.unit_cost ?? 0)
+      : null;
+
+  const previewCostLabel =
+    previewCost !== null
+      ? `${previewCost.toLocaleString("de-DE", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })} €`
+      : "—";
+
+  const goodsOutRemovalStrategy =
+    selectedGoodsOutProduct?.removal_strategy || "FIFO";
+
+  const goodsOutRemovalStrategyLabel =
+    {
+      FIFO: "FIFO - älteste Lagerplatzposition zuerst",
+      LIFO: "LIFO - neueste Lagerplatzposition zuerst",
+      FEFO: "FEFO - frühestes MHD zuerst",
+      HIFO: "HIFO - höchster Preis zuerst",
+      LOFO: "LOFO - niedrigster Preis zuerst",
+    }[goodsOutRemovalStrategy] || goodsOutRemovalStrategy;
+
+  const goodsOutUsesFallbackStrategy = false;
+
   return (
     <section style={sectionStyle}>
       <h2 style={sectionTitleStyle}>📤 Warenausgang buchen</h2>
+
+      {selectedGoodsOutProduct && (
+        <p style={infoStyle}>
+          📦 Aktive Auslagerstrategie: {goodsOutRemovalStrategyLabel}
+          {goodsOutUsesFallbackStrategy
+            ? " · Hinweis: Diese Strategie nutzt aktuell FIFO als Fallback, bis MHD-/Preisfelder je Lagerplatzbestand vorhanden sind."
+            : ""}
+        </p>
+      )}
+      {hasPermission("lager") &&
+        (!goodsOutStorageLocationId || !goodsOutReferenceNumber.trim()) && (
+        <div
+          style={{
+            border: "1px solid #92400e",
+            borderRadius: "14px",
+            padding: "12px 16px",
+            margin: "14px 0",
+            background: "rgba(120, 53, 15, 0.18)",
+            color: "#fed7aa",
+          }}
+        >
+          <strong>⚠️ Pflichtfeld fehlt im Warenausgang</strong>
+
+          <div style={{ marginTop: "8px", lineHeight: 1.6 }}>
+            {!goodsOutStorageLocationId && (
+              <div>• Bitte einen Lagerplatz auswählen.</div>
+            )}
+
+            {!goodsOutReferenceNumber.trim() && (
+              <div>• Bitte eine Referenznummer eintragen.</div>
+            )}
+          </div>
+        </div>
+      )}
+
       <form onSubmit={handleGoodsIssue} style={formGridStyle}>
         <select ref={goodsOutProductRef} value={goodsOutProductId} onChange={(event) => setGoodsOutProductId(event.target.value)} onKeyDown={(event) => focusNextOnEnter(event, goodsOutQuantityRef.current)} required style={inputStyle} disabled={!hasPermission("lager")}>
           <option value="">Produkt auswählen</option>
           {products.map((product) => <option key={product.id} value={product.id}>{product.name} ({product.sku})</option>)}
         </select>
         <input ref={goodsOutQuantityRef} type="number" placeholder="Menge" value={goodsOutQuantity} onChange={(event) => setGoodsOutQuantity(event.target.value)} required min="1" style={inputStyle} disabled={!hasPermission("lager")} />
+        <select
+          value={goodsOutStorageLocationId}
+          onChange={(event) => setGoodsOutStorageLocationId(event.target.value)}
+          required
+          style={inputStyle}
+          disabled={!hasPermission("lager") || !goodsOutProductId}
+        >
+          <option value="">Lagerplatz auswählen</option>
+          {goodsOutAvailableLocations.map((location) => (
+            <option key={location.id} value={location.id}>
+              {location.code} - {location.name}
+              {location.rack ? ` / Regal ${location.rack}` : ""}
+              {location.shelf ? ` / Fach ${location.shelf}` : ""}
+            </option>
+          ))}
+        </select>
         <input type="text" placeholder="Referenznummer" value={goodsOutReferenceNumber} onChange={(event) => setGoodsOutReferenceNumber(event.target.value)} style={inputStyle} disabled={!hasPermission("lager")} />
         <textarea placeholder="Notiz" value={goodsOutNote} onChange={(event) => setGoodsOutNote(event.target.value)} style={{ ...inputStyle, minHeight: "48px", gridColumn: "1 / -1" }} disabled={!hasPermission("lager")} />
+        {goodsOutProductId && latestPackagingMovement && (
+          <div
+            style={{
+              gridColumn: "1 / -1",
+              border: "1px solid #334155",
+              borderRadius: "14px",
+              padding: "14px 16px",
+              background: "rgba(15, 23, 42, 0.92)",
+            }}
+          >
+            <strong
+              style={{
+                display: "block",
+                color: "#bae6fd",
+                marginBottom: "10px",
+              }}
+            >
+              📦 Automatische Verpackungsvorschau
+            </strong>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                gap: "10px",
+              }}
+            >
+              <div>
+                <span style={{ color: "#94a3b8" }}>Verpackung</span>
+                <div>
+                  {latestPackagingMovement.packaging_type_name ||
+                    previewPackagingType?.name ||
+                    "—"}
+                </div>
+              </div>
+
+              <div>
+                <span style={{ color: "#94a3b8" }}>Ladungsträger</span>
+                <div>
+                  {latestPackagingMovement.load_carrier_type_name ||
+                    previewLoadCarrierType?.name ||
+                    "—"}
+                </div>
+              </div>
+
+              <div>
+                <span style={{ color: "#94a3b8" }}>Packmenge</span>
+                <div>{previewPackagingQuantity ?? "Menge eingeben"}</div>
+              </div>
+
+              <div>
+                <span style={{ color: "#94a3b8" }}>Kosten</span>
+                <div>
+                  {previewPackagingQuantity ? previewCostLabel : "Menge eingeben"}
+                </div>
+              </div>
+            </div>
+
+            <p style={{ margin: "10px 0 0", color: "#94a3b8" }}>
+              Grundlage: letzter Wareneingang mit Verpackungsdaten für dieses
+              Produkt. Beim Buchen übernimmt das Backend diese Werte automatisch.
+            </p>
+          </div>
+        )}
+
+        {goodsOutProductId && !latestPackagingMovement && (
+          <div
+            style={{
+              gridColumn: "1 / -1",
+              border: "1px solid #92400e",
+              borderRadius: "14px",
+              padding: "14px 16px",
+              background: "rgba(120, 53, 15, 0.18)",
+              color: "#fed7aa",
+            }}
+          >
+            Für dieses Produkt gibt es noch keinen Wareneingang mit
+            Verpackungsdaten. Der Warenausgang wird trotzdem gebucht, aber ohne
+            automatische Verpackungsvorschau.
+          </div>
+        )}
+
         <div style={{ gridColumn: "1 / -1" }}>
           <button type="submit" disabled={goodsOutSaving || !hasPermission("lager")} style={hasPermission("lager") ? primaryButtonStyle : disabledButtonStyle}>
             {goodsOutSaving ? "Buche..." : "Warenausgang buchen"}
@@ -4723,6 +6182,129 @@ function InventorySection({
   );
 }
 
+function LocationStockOverview({
+  locationStocks,
+  loading,
+  search,
+}: {
+  locationStocks: StorageLocationStock[];
+  loading: boolean;
+  search: string;
+}) {
+  const normalizedSearch = search.trim().toLowerCase();
+
+  const filteredLocationStocks = locationStocks.filter((stock) => {
+    if (!normalizedSearch) return true;
+
+    return [
+      stock.product_name,
+      stock.product_sku,
+      stock.storage_location_code,
+      stock.storage_location_name,
+      stock.storage_location_label,
+      stock.packaging_type_name ?? "",
+      stock.load_carrier_type_name ?? "",
+      stock.expiry_date ?? "",
+    ]
+      .join(" ")
+      .toLowerCase()
+      .includes(normalizedSearch);
+  });
+
+  const totalQuantity = filteredLocationStocks.reduce(
+    (sum, stock) => sum + stock.quantity,
+    0
+  );
+
+  if (loading) {
+    return <p>Lade Lagerplatzbestände...</p>;
+  }
+
+  if (filteredLocationStocks.length === 0) {
+    return <p>Keine Lagerplatzbestände passen zur aktuellen Suche.</p>;
+  }
+
+  return (
+    <section style={sectionStyle}>
+      <h3 style={{ marginTop: 0 }}>📦 Lagerplatzbestand</h3>
+
+      <div style={dashboardGridStyle}>
+        <Card title="Positionen" value={String(filteredLocationStocks.length)} />
+        <Card title="Menge gesamt" value={String(totalQuantity)} />
+      </div>
+
+      <div style={{ ...tableWrapStyle, marginTop: "22px" }}>
+        <table style={dataTableStyle}>
+          <thead>
+            <tr style={tableHeaderRowStyle}>
+              <th style={tableHeadStyle}>Lagerplatz</th>
+              <th style={tableHeadStyle}>Produkt</th>
+              <th style={tableHeadStyle}>SKU</th>
+              <th style={tableHeadStyle}>Menge</th>
+              <th style={tableHeadStyle}>Verpackung</th>
+              <th style={tableHeadStyle}>Ladungsträger</th>
+              <th style={tableHeadStyle}>Packmenge</th>
+              <th style={tableHeadStyle}>Einstandspreis</th>
+              <th style={tableHeadStyle}>MHD</th>
+              <th style={tableHeadStyle}>Aktualisiert</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {filteredLocationStocks.map((stock) => (
+              <tr
+                key={stock.id}
+                style={{
+                  borderTop: "1px solid rgba(148, 163, 184, 0.12)",
+                  background: "rgba(30, 41, 59, 0.35)",
+                }}
+              >
+                <td style={tableCellStyle}>
+                  <strong>{stock.storage_location_code}</strong>
+                  <div style={{ color: "#94a3b8" }}>
+                    {stock.storage_location_name}
+                  </div>
+                </td>
+                <td style={tableCellStyle}>{stock.product_name}</td>
+                <td style={tableCellStyle}>{stock.product_sku}</td>
+                <td style={tableCellStyle}>
+                  {stock.quantity} {stock.product_unit}
+                </td>
+                <td style={tableCellStyle}>
+                  {stock.packaging_type_name || "—"}
+                </td>
+                <td style={tableCellStyle}>
+                  {stock.load_carrier_type_name || "—"}
+                </td>
+                <td style={tableCellStyle}>
+                  {stock.packaging_quantity ?? "—"}
+                </td>
+                <td style={tableCellStyle}>
+                  {stock.unit_purchase_price
+                    ? `${Number(stock.unit_purchase_price).toLocaleString("de-DE", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })} €`
+                    : "—"}
+                </td>
+                <td style={tableCellStyle}>
+                  {stock.expiry_date
+                    ? new Date(stock.expiry_date).toLocaleDateString("de-DE")
+                    : "—"}
+                </td>
+                <td style={tableCellStyle}>
+                  {new Date(stock.updated_at).toLocaleString("de-DE")}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+
 function ProductGrid({
   products,
   hasPermission,
@@ -4736,18 +6318,71 @@ function ProductGrid({
     <div style={productGridStyle}>
       {products.map((product) => {
         const isLowStock = product.quantity <= product.min_stock;
+
         return (
-          <article key={product.id} style={{ background: isLowStock ? "rgba(127, 29, 29, 0.18)" : "rgba(15, 23, 42, 0.78)", border: isLowStock ? "1px solid rgba(248, 113, 113, 0.35)" : "1px solid rgba(148, 163, 184, 0.18)", borderRadius: "20px", padding: "18px", boxShadow: "0 18px 40px rgba(0,0,0,0.22)" }}>
-            <h3 style={{ margin: "0 0 6px 0", color: "#f8fafc" }}>{product.name}</h3>
-            <p style={{ margin: "0 0 10px 0", color: "#93c5fd" }}>{product.sku}</p>
+          <article
+            key={product.id}
+            style={{
+              background: isLowStock
+                ? "rgba(127, 29, 29, 0.18)"
+                : "rgba(15, 23, 42, 0.78)",
+              border: isLowStock
+                ? "1px solid rgba(248, 113, 113, 0.35)"
+                : "1px solid rgba(148, 163, 184, 0.18)",
+              borderRadius: "20px",
+              padding: "18px",
+              boxShadow: "0 18px 40px rgba(0,0,0,0.22)",
+            }}
+          >
+            <h3 style={{ margin: "0 0 6px 0", color: "#f8fafc" }}>
+              {product.name}
+            </h3>
+
+            <p style={{ margin: "0 0 10px 0", color: "#93c5fd" }}>
+              {product.sku}
+            </p>
+
             <div style={{ color: "#cbd5e1", lineHeight: 1.6 }}>
-              <div>Bestand: {product.quantity} {product.unit}</div>
+              <div>
+                Bestand: {product.quantity} {product.unit}
+              </div>
+
               <div>Mindestbestand: {product.min_stock}</div>
-              <div>Lagerort: {product.storage_location_label || "Kein Lagerort"}</div>
-              {product.description && <div>Beschreibung: {product.description}</div>}
+
+              <div>
+                Gewicht/Stück:{" "}
+                {product.weight_kg
+                  ? `${Number(product.weight_kg).toLocaleString("de-DE", {
+                      maximumFractionDigits: 2,
+                    })} kg`
+                  : "—"}
+              </div>
+
+              <div>
+                Lagerplatz:{" "}
+                <strong>
+                  {product.storage_location_label || "Kein Lagerplatz"}
+                </strong>
+              </div>
+
+              {product.description && (
+                <div>Beschreibung: {product.description}</div>
+              )}
             </div>
+
             <div style={{ display: "flex", gap: "10px", marginTop: "16px" }}>
-              <button type="button" onClick={() => hasPermission("admin") && handleEdit(product)} disabled={!hasPermission("admin")} style={hasPermission("admin") ? secondaryButtonStyle : disabledButtonStyle}>Bearbeiten</button>
+              <button
+                type="button"
+                onClick={() => hasPermission("admin") && handleEdit(product)}
+                disabled={!hasPermission("admin")}
+                style={
+                  hasPermission("admin")
+                    ? secondaryButtonStyle
+                    : disabledButtonStyle
+                }
+              >
+                Bearbeiten
+              </button>
             </div>
           </article>
         );
@@ -4835,7 +6470,7 @@ function HistorySection({
     <section style={sectionStyle}>
       <h2 style={sectionTitleStyle}>Bewegungshistorie</h2>
       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "16px" }}>
-        <button type="button" onClick={exportMovementsToCsv} style={secondaryButtonStyle}>CSV exportieren</button>
+        <button type="button" onClick={exportMovementsToCsv} style={secondaryButtonStyle}>Excel exportieren</button>
       </div>
       <div style={filterGridStyle}>
         <input type="text" placeholder="Suche nach Produkt, Referenz oder Notiz" value={movementSearch} onChange={(event) => setMovementSearch(event.target.value)} style={inputStyle} />
@@ -4849,28 +6484,162 @@ function HistorySection({
       </div>
       {movementsLoading && <p>Lade Bewegungen...</p>}
       {!movementsLoading && filteredMovements.length === 0 && <p>Keine Bewegungen gefunden.</p>}
+      
       {!movementsLoading && filteredMovements.length > 0 && (
         <div style={tableWrapStyle}>
           <table style={dataTableStyle}>
             <thead>
-              <tr style={tableHeaderRowStyle}>
-                <th style={tableHeadStyle}>Datum</th><th style={tableHeadStyle}>Produkt</th><th style={tableHeadStyle}>Typ</th><th style={tableHeadStyle}>Menge</th><th style={tableHeadStyle}>Referenz</th><th style={tableHeadStyle}>Notiz</th><th style={tableHeadStyle}>Benutzer</th><th style={tableHeadStyle}>Aktion</th>
-              </tr>
+             <tr style={tableHeaderRowStyle}>
+              <th style={tableHeadStyle}>Datum</th>
+              <th style={tableHeadStyle}>Produkt</th>
+              <th style={tableHeadStyle}>Typ</th>
+              <th style={tableHeadStyle}>Menge</th>
+              <th style={tableHeadStyle}>Referenz</th>
+              <th style={tableHeadStyle}>Lagerplatz</th>
+              <th style={tableHeadStyle}>Verpackung</th>
+              <th style={tableHeadStyle}>Ladungsträger</th>
+              <th style={tableHeadStyle}>Packmenge</th>
+              <th style={tableHeadStyle}>Kosten</th>
+              <th style={tableHeadStyle}>Notiz</th>
+              <th style={tableHeadStyle}>Benutzer</th>
+              <th style={tableHeadStyle}>Aktion</th>
+            </tr>
             </thead>
+
             <tbody>
               {filteredMovements.map((movement, index) => {
                 const isIn = movement.movement_type === "IN";
                 const isLatest = index === 0;
+
                 return (
-                  <tr key={movement.id} style={{ borderTop: "1px solid rgba(148, 163, 184, 0.12)", background: isIn ? "rgba(22,101,52,0.08)" : "rgba(127,29,29,0.08)", transition: "0.2s" }}>
-                    <td style={tableCellStyle}>{new Date(movement.created_at).toLocaleString("de-DE")}</td>
+                  <tr
+                    key={movement.id}
+                    style={{
+                      borderTop: "1px solid rgba(148, 163, 184, 0.12)",
+                      background: isIn
+                        ? "rgba(22,101,52,0.08)"
+                        : "rgba(127,29,29,0.08)",
+                      transition: "0.2s",
+                    }}
+                  >
+                    <td style={tableCellStyle}>
+                      {new Date(movement.created_at).toLocaleString("de-DE")}
+                    </td>
+
                     <td style={tableCellStyle}>{movement.product_name}</td>
-                    <td style={tableCellStyle}><span style={{ color: isIn ? "#86efac" : "#fca5a5", fontWeight: 700 }}>{isIn ? "Wareneingang" : "Warenausgang"}</span></td>
-                    <td style={tableCellStyle}>{movement.movement_type === "OUT" ? `-${movement.quantity}` : movement.quantity}</td>
-                    <td style={{ ...tableCellStyle, color: movement.reference_number ? "#e5e7eb" : "#64748b" }}>{movement.reference_number || "—"}</td>
-                    <td style={{ ...tableCellStyle, color: movement.note ? "#e5e7eb" : "#64748b" }}>{movement.note || "—"}</td>
-                    <td style={{ ...tableCellStyle, color: movement.created_by_username ? "#e5e7eb" : "#64748b" }}>{movement.created_by_username || "—"}</td>
-                    <td style={tableCellStyle}>{isLatest && <button type="button" onClick={() => hasPermission("admin") && handleUndoMovement(movement)} disabled={!hasPermission("admin")} style={hasPermission("admin") ? secondaryButtonStyle : disabledButtonStyle}>Rückgängig</button>}</td>
+
+                    <td style={tableCellStyle}>
+                      <span
+                        style={{
+                          color: isIn ? "#86efac" : "#fca5a5",
+                          fontWeight: 700,
+                        }}
+                      >
+                        {isIn ? "Wareneingang" : "Warenausgang"}
+                      </span>
+                    </td>
+
+                    <td style={tableCellStyle}>
+                      {movement.movement_type === "OUT"
+                        ? `-${movement.quantity}`
+                        : movement.quantity}
+                    </td>
+
+                    <td
+                      style={{
+                        ...tableCellStyle,
+                        color: movement.reference_number ? "#e5e7eb" : "#64748b",
+                      }}
+                    >
+                      {movement.reference_number || "—"}
+                    </td>
+
+                    <td
+                      style={{
+                        ...tableCellStyle,
+                        color: movement.storage_location_label ? "#e5e7eb" : "#64748b",
+                      }}
+                    >
+                      {movement.storage_location_label || "—"}
+                    </td>
+                    <td
+                    style={{
+                      ...tableCellStyle,
+                      color: movement.packaging_type_name ? "#e5e7eb" : "#64748b",
+                    }}
+                  >
+                    {movement.packaging_type_name || "—"}
+                  </td>
+
+                  <td
+                    style={{
+                      ...tableCellStyle,
+                      color: movement.load_carrier_type_name ? "#e5e7eb" : "#64748b",
+                    }}
+                  >
+                    {movement.load_carrier_type_name || "—"}
+                  </td>
+
+                  <td
+                    style={{
+                      ...tableCellStyle,
+                      color: movement.packaging_quantity ? "#e5e7eb" : "#64748b",
+                    }}
+                  >
+                    {movement.packaging_quantity || "—"}
+                  </td>
+
+                  <td
+                    style={{
+                      ...tableCellStyle,
+                      color: movement.packaging_cost_total ? "#e5e7eb" : "#64748b",
+                      fontWeight: movement.packaging_cost_total ? 700 : 400,
+                    }}
+                  >
+                    {movement.packaging_cost_total
+                      ? `${Number(movement.packaging_cost_total).toLocaleString("de-DE", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })} €`
+                      : "—"}
+                  </td>
+
+                    <td
+                      style={{
+                        ...tableCellStyle,
+                        color: movement.note ? "#e5e7eb" : "#64748b",
+                      }}
+                    >
+                      {movement.note || "—"}
+                    </td>
+
+                    <td
+                      style={{
+                        ...tableCellStyle,
+                        color: movement.created_by_username ? "#e5e7eb" : "#64748b",
+                      }}
+                    >
+                      {movement.created_by_username || "—"}
+                    </td>
+
+                    <td style={tableCellStyle}>
+                      {isLatest && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            hasPermission("admin") && handleUndoMovement(movement)
+                          }
+                          disabled={!hasPermission("admin")}
+                          style={
+                            hasPermission("admin")
+                              ? secondaryButtonStyle
+                              : disabledButtonStyle
+                          }
+                        >
+                          Rückgängig
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 );
               })}
@@ -4878,9 +6647,9 @@ function HistorySection({
           </table>
         </div>
       )}
-    </section>
-  );
-}
+      </section>
+      );
+      }
 
 function Card({
   title,
@@ -5168,7 +6937,7 @@ const tableWrapStyle: CSSProperties = {
 const dataTableStyle: CSSProperties = {
   width: "100%",
   borderCollapse: "collapse",
-  minWidth: "900px",
+  minWidth: "1250px",
 };
 
 const tableHeaderRowStyle: CSSProperties = {
@@ -5261,36 +7030,6 @@ const successStyle: CSSProperties = {
   borderRadius: "10px",
   padding: "10px 12px",
   marginBottom: "16px",
-};
-
-const placeholderHeaderStyle: CSSProperties = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  gap: "12px",
-  flexWrap: "wrap",
-  marginBottom: "16px",
-};
-
-const placeholderBadgeStyle: CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  padding: "7px 10px",
-  borderRadius: "999px",
-  background: "rgba(59, 130, 246, 0.15)",
-  border: "1px solid rgba(96, 165, 250, 0.28)",
-  color: "#bfdbfe",
-  fontSize: "0.85rem",
-  fontWeight: 700,
-};
-
-const placeholderBoxStyle: CSSProperties = {
-  marginTop: "16px",
-  padding: "16px",
-  borderRadius: "14px",
-  background: "rgba(30, 41, 59, 0.72)",
-  border: "1px solid rgba(148, 163, 184, 0.16)",
-  color: "#e5e7eb",
 };
 
 export default App;

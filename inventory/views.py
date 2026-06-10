@@ -12,14 +12,21 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
+from django.http import HttpResponse
+from rest_framework.decorators import action
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 
 from .models import (
+    PackagingType,
+    StorageStrategySettings,
     Product,
     InventoryTransaction,
     StockMovement,
     InventorySession,
     InventoryCount,
     StorageLocation,
+    StorageLocationStock,
     Supplier,
     Customer,
     CustomerContact,
@@ -28,12 +35,15 @@ from .models import (
     AuditLog,
 )
 from .serializers import (
+    PackagingTypeSerializer,
+    StorageStrategySettingsSerializer,
     ProductSerializer,
     InventoryTransactionSerializer,
     StockMovementSerializer,
     InventorySessionSerializer,
     InventoryCountSerializer,
     StorageLocationSerializer,
+    StorageLocationStockSerializer,
     SupplierSerializer,
 
     CustomerSerializer,
@@ -137,10 +147,31 @@ class CustomerNoteViewSet(viewsets.ModelViewSet):
             return [IsAuthenticated()]
         return [IsAuthenticated(), IsEinkaufOrAdmin()]
 
-    def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+def perform_create(self, serializer):
+    movement = serializer.save(created_by=self.request.user)
 
+    product = movement.product
 
+    # Nur bei Wareneingang
+    if movement.movement_type == "IN":
+
+        suggested_location = self.get_storage_location_suggestion(product)
+
+        if suggested_location:
+
+            # Produkt Lagerplatz setzen
+            product.storage_location = suggested_location
+
+            # Lagerplatz als belegt markieren
+            suggested_location.is_empty = False
+            suggested_location.save(update_fields=["is_empty"])
+
+            product.save(update_fields=["storage_location"])
+
+        else:
+            raise ValueError(
+                "Kein geeigneter Lagerplatz gefunden."
+            )
 
 class AdminUserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.select_related("userprofile").order_by("username")
@@ -185,14 +216,13 @@ class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class ProductViewSet(viewsets.ModelViewSet):
-    queryset = Product.objects.all().order_by("-id")
+    queryset = Product.objects.select_related("storage_location").order_by("-id")
     serializer_class = ProductSerializer
 
     def get_permissions(self):
         if self.request.method in ["GET", "HEAD", "OPTIONS"]:
             return [IsAuthenticated()]
         return [IsAuthenticated(), IsLagerOrAdmin()]
-
 
 class InventoryTransactionViewSet(viewsets.ModelViewSet):
     queryset = InventoryTransaction.objects.all().order_by("-id")
@@ -208,8 +238,58 @@ class InventoryTransactionViewSet(viewsets.ModelViewSet):
 
 
 class StockMovementViewSet(viewsets.ModelViewSet):
-    queryset = StockMovement.objects.select_related("product", "created_by").order_by("-created_at")
+    queryset = StockMovement.objects.select_related(
+        "product",
+        "created_by",
+        "storage_location",
+        "packaging_type",
+        "load_carrier_type",
+    ).order_by("-created_at")
+
     serializer_class = StockMovementSerializer
+
+    def get_storage_location_suggestion(self, product):
+        """
+        Ermittelt einen intelligenten Lagerplatzvorschlag.
+        """
+
+        # 1. Festplatzstrategie
+        if (
+            product.putaway_strategy == "FIXED_BIN"
+            and product.fixed_storage_location
+            and product.fixed_storage_location.is_active
+            and not product.fixed_storage_location.is_blocked
+        ):
+            return product.fixed_storage_location
+
+        # 2. Leerplatzsuche
+        empty_location = (
+            StorageLocation.objects.filter(
+                is_active=True,
+                is_blocked=False,
+                is_empty=True,
+            )
+            .order_by("zone", "aisle", "rack", "shelf")
+            .first()
+        )
+
+        if empty_location:
+            return empty_location
+
+        # 3. Zulagerung / Mischlager
+        if product.putaway_strategy == "ADD_TO_STOCK":
+            mixed_location = (
+                StorageLocation.objects.filter(
+                    is_active=True,
+                    is_blocked=False,
+                    allow_mixed_products=True,
+                ).first()
+            )
+
+            if mixed_location:
+                return mixed_location
+
+        return None
 
     def get_permissions(self):
         if self.request.method in ["GET", "HEAD", "OPTIONS"]:
@@ -218,6 +298,190 @@ class StockMovementViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
+
+    @action(detail=False, methods=["get"], url_path="export-excel")
+    def export_excel(self, request):
+        workbook = Workbook()
+        worksheet = workbook.active
+        worksheet.title = "Bewegungshistorie"
+
+        headers = [
+            "Datum",
+            "Produkt",
+            "Typ",
+            "Menge",
+            "Referenz",
+            "Lagerplatz",
+            "Verpackung",
+            "Ladungsträger",
+            "Packmenge",
+            "Kosten",
+            "Notiz",
+            "Benutzer",
+        ]
+
+        worksheet.append(headers)
+
+        column_widths = {
+            "A": 22,
+            "B": 28,
+            "C": 18,
+            "D": 12,
+            "E": 18,
+            "F": 45,
+            "G": 18,
+            "H": 22,
+            "I": 14,
+            "J": 14,
+            "K": 45,
+            "L": 18,
+        }
+
+        for column, width in column_widths.items():
+            worksheet.column_dimensions[column].width = width
+
+        header_fill = PatternFill(
+            fill_type="solid",
+            fgColor="1E293B",
+        )
+        header_font = Font(
+            bold=True,
+            color="FFFFFF",
+        )
+        border = Border(
+            left=Side(style="thin", color="CBD5E1"),
+            right=Side(style="thin", color="CBD5E1"),
+            top=Side(style="thin", color="CBD5E1"),
+            bottom=Side(style="thin", color="CBD5E1"),
+        )
+
+        for cell in worksheet[1]:
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(
+                horizontal="center",
+                vertical="center",
+                wrap_text=True,
+            )
+            cell.border = border
+
+        movements = self.get_queryset()
+
+        for movement in movements:
+            movement_type = (
+                "Wareneingang"
+                if movement.movement_type == "IN"
+                else "Warenausgang"
+            )
+
+            quantity = (
+                -movement.quantity
+                if movement.movement_type == "OUT"
+                else movement.quantity
+            )
+
+            row = [
+                movement.created_at.strftime("%d.%m.%Y %H:%M:%S"),
+                movement.product.name if movement.product else "",
+                movement_type,
+                quantity,
+                movement.reference_number or "",
+                str(movement.storage_location) if movement.storage_location else "",
+                movement.packaging_type.name if movement.packaging_type else "",
+                movement.load_carrier_type.name if movement.load_carrier_type else "",
+                movement.packaging_quantity
+                if movement.packaging_type or movement.load_carrier_type
+                else "",
+                movement.packaging_cost_total
+                if movement.packaging_cost_total is not None
+                else "",
+                movement.note or "",
+                movement.created_by.username if movement.created_by else "",
+            ]
+
+            worksheet.append(row)
+
+        for row in worksheet.iter_rows(min_row=2):
+            for cell in row:
+                cell.border = border
+                cell.alignment = Alignment(
+                    vertical="top",
+                    wrap_text=True,
+                )
+
+        for cell in worksheet["J"][1:]:
+            cell.number_format = '#,##0.00 €'
+
+        worksheet.freeze_panes = "A2"
+        worksheet.auto_filter.ref = worksheet.dimensions
+
+        response = HttpResponse(
+            content_type=(
+                "application/vnd.openxmlformats-officedocument."
+                "spreadsheetml.sheet"
+            )
+        )
+        response["Content-Disposition"] = (
+            'attachment; filename="bewegungshistorie.xlsx"'
+        )
+
+        workbook.save(response)
+        return response
+
+    serializer_class = StockMovementSerializer
+
+    def get_storage_location_suggestion(self, product):
+        """
+        Ermittelt einen intelligenten Lagerplatzvorschlag.
+        """
+
+        # 1. Festplatzstrategie
+        if (
+            product.putaway_strategy == "FIXED_BIN"
+            and product.fixed_storage_location
+            and product.fixed_storage_location.is_active
+            and not product.fixed_storage_location.is_blocked
+        ):
+            return product.fixed_storage_location
+
+        # 2. Leerplatzsuche
+        empty_location = (
+            StorageLocation.objects.filter(
+                is_active=True,
+                is_blocked=False,
+                is_empty=True,
+            )
+            .order_by("zone", "aisle", "rack", "shelf")
+            .first()
+        )
+
+        if empty_location:
+            return empty_location
+
+        # 3. Zulagerung / Mischlager
+        if product.putaway_strategy == "ADD_TO_STOCK":
+            mixed_location = (
+                StorageLocation.objects.filter(
+                    is_active=True,
+                    is_blocked=False,
+                    allow_mixed_products=True,
+                ).first()
+            )
+
+            if mixed_location:
+                return mixed_location
+
+        return None
+
+    def get_permissions(self):
+        if self.request.method in ["GET", "HEAD", "OPTIONS"]:
+            return [IsAuthenticated()]
+        return [IsAuthenticated(), IsLagerOrAdmin()]
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+
 
 class InventorySessionViewSet(viewsets.ModelViewSet):
     queryset = (
@@ -541,3 +805,28 @@ class InventoryCountViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(inventory_count)
         return Response(serializer.data)
     
+
+
+class StorageLocationStockViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = (
+        StorageLocationStock.objects.select_related(
+            "product",
+            "storage_location",
+            "packaging_type",
+            "load_carrier_type",
+        )
+        .filter(quantity__gt=0)
+        .order_by("storage_location__code", "product__name")
+    )
+    serializer_class = StorageLocationStockSerializer
+    permission_classes = [IsAuthenticated]
+
+
+class PackagingTypeViewSet(viewsets.ModelViewSet):
+    queryset = PackagingType.objects.all().order_by("name")
+    serializer_class = PackagingTypeSerializer
+
+
+class StorageStrategySettingsViewSet(viewsets.ModelViewSet):
+    queryset = StorageStrategySettings.objects.all()
+    serializer_class = StorageStrategySettingsSerializer
