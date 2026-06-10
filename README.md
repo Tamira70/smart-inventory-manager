@@ -1,5 +1,37 @@
 # 📦 Smart Inventory Manager
 
+<!-- portfolio-summary:start -->
+
+## Portfolio-Zusammenfassung
+
+Der **Smart Inventory Manager** ist eine selbst entwickelte Full-Stack-Webanwendung zur digitalen Lagerverwaltung mit Fokus auf Lagerplatzlogik, Bestandsführung und WMS-/ERP-nahe Prozesse.
+
+Das Projekt bildet typische Abläufe aus Lager, Materialwirtschaft und Logistik-IT ab: Produktstammdaten, Lagerorte, Wareneingang, Warenausgang, Lagerplatzbestände, Bewegungshistorie, Verpackungen, Ladungsträger, Kapazitätsprüfung sowie rollenbasierte Zugriffsrechte.
+
+Ein besonderer Schwerpunkt liegt auf praxisnahen Ein- und Auslagerstrategien:
+
+- **Festplatzstrategie** zur gezielten Einlagerung auf definierte Lagerplätze
+- **Freiplatz-/Leerplatzlogik** zur Auswahl geeigneter Lagerplätze
+- **Zulagerung** zu bestehenden Produktbeständen
+- **FIFO** und **LIFO** für zeitbasierte Auslagerung
+- **FEFO** mit MHD-/Ablaufdatum für chargennahe Warenflüsse
+- **HIFO** und **LOFO** auf Basis von Einstandspreisen
+
+Zusätzlich prüft das System Lagerplatzkapazitäten anhand von Volumen, Gewicht, Verpackungsdaten und Ladungsträgern. Lagerplatzbestände werden separat geführt und nach Wareneingang sowie Warenausgang automatisch aktualisiert. Der Status eines Lagerplatzes wird automatisch zwischen **Frei** und **Belegt** synchronisiert.
+
+Das Projekt zeigt praktische Kenntnisse in:
+
+- Django REST Framework
+- React mit TypeScript
+- REST-API-Design
+- Datenmodellierung für Lager- und Bestandsprozesse
+- rollenbasierter Zugriffsteuerung
+- Prozesslogik für WMS-/ERP-Schnittstellen
+- Deployment auf Linux-Server mit Gunicorn und Apache
+
+Der Smart Inventory Manager ist damit ein praxisnahes Portfolio-Projekt für Tätigkeiten im Bereich **ERP-/SAP-Support, Application Support, Lager-IT, WMS-Key-User, Digitalisierung und Prozessoptimierung in der Logistik**.
+
+<!-- portfolio-summary:end -->
 Praxisnahe Fullstack-Lagerverwaltung zur Abbildung realer Logistik-, Einkaufs-, Dispositions-, Kundenstamm- und Inventurprozesse.
 
 Der **Smart Inventory Manager** wurde mit **Django REST Framework** im Backend und **React + TypeScript** im Frontend entwickelt.  
