@@ -755,40 +755,23 @@ Dieses Projekt demonstriert:
 
 ### ✅ Bereits umgesetzt
 
-- 📦 Verpackungsarten und Packmittel  
-  Verpackungen und Ladungsträger sind als eigene Stammdaten umgesetzt, inklusive Kategorie, Maße, Gewicht und Kosten.
-
-- 📍 Erweiterte Lagerplatz-Kapazitätsprüfung  
-  Lagerplätze berücksichtigen Maße, Volumen und Maximalgewicht. Die Kapazitätsprüfung bezieht Produktgewicht, Verpackung und Ladungsträger ein.
-
-- 🔁 FIFO / LIFO / FEFO-Auslagerungslogik  
-  FIFO, LIFO und FEFO sind technisch umgesetzt. FEFO nutzt MHD- beziehungsweise Ablaufdaten.
-
-- 💰 HIFO / LOFO-Auslagerungslogik  
-  Zusätzlich wurden HIFO und LOFO auf Basis von Einstandspreisen pro Lagerplatzbestand umgesetzt.
-
-- 📦 Lagerplatzbestand je Lagerort  
-  Bestände werden lagerplatzgenau geführt und nach Wareneingang sowie Warenausgang automatisch aktualisiert.
-
-- 🟩 Frei-/Belegt-Status für Lagerplätze  
-  Der Lagerplatzstatus wird anhand echter Lagerplatzbestände automatisch synchronisiert.
-
-- 📤 Excel-Export für Inventurberichte und Bewegungshistorie  
-  Inventurberichte und Lagerbewegungen können exportiert werden.
+- 📦 Verpackungsarten und Packmittel
+- 📍 Erweiterte Lagerplatz-Kapazitätsprüfung
+- 🔁 FIFO / LIFO / FEFO-Auslagerungslogik
+- 💰 HIFO / LOFO-Auslagerungslogik auf Basis von Einstandspreisen
+- 📦 Lagerplatzbestand je Lagerort
+- 🟩 Automatische Frei-/Belegt-Synchronisierung der Lagerplätze
+- 📤 Excel-Export für Inventurberichte
+- 📤 Excel-Export für Bewegungshistorie
 
 ### 🟨 Teilweise umgesetzt / nächster Ausbau
 
-- 📊 Dashboard mit erweiterten Diagrammen  
-  Die Dashboard-Grundlage ist vorhanden. Erweiterte Diagramme und Auswertungen sind als nächster Ausbau geplant.
-
-- 📤 Weitere Excel-Exporte für Bestände und Lagerplatzbestände  
-  Bestehende Exporte sind vorhanden, zusätzliche Bestands- und Lagerplatzbestands-Exporte sollen ergänzt werden.
-
-- 🛒 Bestellwesen mit Lieferantenverknüpfung  
-  Lieferantenverwaltung und Einkaufsbereich sind vorhanden. Ein vollständiges Bestellwesen mit Bestellungen, Bestellpositionen und Wareneingang aus Bestellung ist noch auszubauen.
+- 📊 Dashboard mit erweiterten Diagrammen
+- 🛒 Bestellwesen mit Lieferantenverknüpfung
 
 ### 🟥 Noch geplant
 
+- 📤 Zusätzlicher Excel-Export für aktuelle Bestände und Lagerplatzbestände
 - 📄 PDF-Export für Inventurberichte
 - 🐘 Migration auf PostgreSQL
 - 📱 QR-Code- / Barcode-Funktion
