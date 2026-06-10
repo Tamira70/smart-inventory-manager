@@ -973,6 +973,17 @@ class StockMovementSerializer(serializers.ModelSerializer):
                             ]
                         )
 
+        if movement.storage_location:
+            from .models import StorageLocationStock
+
+            has_remaining_stock = StorageLocationStock.objects.filter(
+                storage_location=movement.storage_location,
+                quantity__gt=0,
+            ).exists()
+
+            movement.storage_location.is_empty = not has_remaining_stock
+            movement.storage_location.save(update_fields=["is_empty"])
+
         return movement
 
 
