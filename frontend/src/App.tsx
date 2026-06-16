@@ -6587,6 +6587,20 @@ function InventorySection({
   inventoryCorrectionSavingId: number | null;
   handleApplyInventoryCorrection: (count: InventoryCount) => void;
 }) {
+  const [selectedInventoryExportType, setSelectedInventoryExportType] =
+    useState<"" | "excel" | "pdf">("");
+
+  const handleInventoryReportExport = () => {
+    if (selectedInventoryExportType === "excel") {
+      void handleExportInventoryExcel();
+      return;
+    }
+
+    if (selectedInventoryExportType === "pdf") {
+      void handleExportInventoryPdf();
+    }
+  };
+
   return (
     <section style={sectionStyle}>
       <h2 style={sectionTitleStyle}>🧾 Inventur-Modus</h2>
@@ -6612,8 +6626,36 @@ function InventorySection({
         </select>
         <button type="button" onClick={() => void loadInventoryCounts(selectedInventorySessionId)} style={secondaryButtonStyle} disabled={!selectedInventorySessionId}>Inventur laden</button>
         <button type="button" onClick={() => void handleCompleteInventorySession()} style={secondaryButtonStyle} disabled={!selectedInventorySession || selectedInventorySession.status === "COMPLETED" || !hasPermission("lager")}>Inventur abschließen</button>
-        <button type="button" onClick={() => void handleExportInventoryExcel()} style={secondaryButtonStyle} disabled={!selectedInventorySessionId}>📤 Excel-Bericht exportieren</button>
-        <button type="button" onClick={() => void handleExportInventoryPdf()} style={secondaryButtonStyle} disabled={!selectedInventorySessionId}>📄 PDF-Bericht exportieren</button>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr auto",
+            gap: "10px",
+            alignItems: "center",
+          }}
+        >
+          <select
+            value={selectedInventoryExportType}
+            onChange={(event) =>
+              setSelectedInventoryExportType(event.target.value as "" | "excel" | "pdf")
+            }
+            style={inputStyle}
+            disabled={!selectedInventorySessionId}
+          >
+            <option value="">Bericht auswählen</option>
+            <option value="excel">📤 Excel-Bericht (.xlsx)</option>
+            <option value="pdf">📄 PDF-Bericht (.pdf)</option>
+          </select>
+
+          <button
+            type="button"
+            onClick={handleInventoryReportExport}
+            style={secondaryButtonStyle}
+            disabled={!selectedInventorySessionId || !selectedInventoryExportType}
+          >
+            Exportieren
+          </button>
+        </div>
       </div>
       {selectedInventorySession && (
         <p style={infoStyle}>Aktive Inventur: <strong>{selectedInventorySession.title}</strong> | Status: <strong>{selectedInventorySession.status === "OPEN" ? "Offen" : "Abgeschlossen"}</strong></p>
