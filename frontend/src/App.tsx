@@ -2825,14 +2825,6 @@ const exportMovementsToCsv = async () => {
               <button onClick={handleLogout} style={secondaryButtonStyle}>Logout</button>
             </header>
 
-            <section style={topStatsGridStyle}>
-              <Card title="Produkte gesamt" value={String(totalProducts)} />
-              <Card title="Verpackungsarten" value={String(packagingTypes.length)} />
-              <Card title="Bestand gesamt" value={String(totalUnits)} />
-              <Card title="Niedriger Bestand" value={String(lowStockProducts.length)} danger={lowStockProducts.length > 0} />
-              <Card title="Inventur-Differenzen" value={String(inventorySummary.differences)} danger={inventorySummary.differences > 0} />
-            </section>
-
             {error && <p style={errorStyle}>Fehler: {error}</p>}
             {success && <p style={successStyle}>{success}</p>}
 
@@ -7631,13 +7623,7 @@ const subtitleStyle: CSSProperties = {
   maxWidth: "760px",
 };
 
-const topStatsGridStyle: CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-  gap: "16px",
-  marginBottom: "28px",
-  width: "100%",
-};
+
 
 const dashboardGridStyle: CSSProperties = {
   display: "grid",
@@ -7824,15 +7810,17 @@ const disabledButtonStyle: CSSProperties = {
   cursor: "not-allowed",
 };
 
-const errorStyle: CSSProperties = {
-  color: "#f87474",
-  background: "rgba(127, 29, 29, 0.18)",
-  border: "1px solid rgba(248, 113, 113, 0.25)",
-  borderRadius: "10px",
-  padding: "10px 12px",
-  marginBottom: "16px",
-};
 
+
+const errorStyle: CSSProperties = {
+  margin: "14px 0",
+  padding: "12px 16px",
+  borderRadius: "14px",
+  border: "1px solid rgba(248, 113, 113, 0.45)",
+  background: "rgba(127, 29, 29, 0.22)",
+  color: "#fecaca",
+};
+ 
 const successStyle: CSSProperties = {
   color: "#86efac",
   background: "rgba(22, 101, 52, 0.18)",
