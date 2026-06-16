@@ -1,3 +1,9 @@
+from io import BytesIO
+from xml.sax.saxutils import escape
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4, landscape
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from django.contrib.auth.models import User
 from django.http import HttpResponse
 from django.utils.text import slugify
@@ -508,6 +514,199 @@ class InventorySessionViewSet(viewsets.ModelViewSet):
 
         serializer = self.get_serializer(session)
         return Response(serializer.data)
+
+
+    @action(detail=True, methods=["get"], url_path="export-pdf")
+    def export_pdf(self, request, pk=None):
+        session = self.get_object()
+
+        counts = (
+            session.counts.select_related(
+                "product",
+                "created_by",
+                "correction_movement",
+            )
+            .order_by("product__name")
+        )
+
+        buffer = BytesIO()
+
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=landscape(A4),
+            rightMargin=24,
+            leftMargin=24,
+            topMargin=24,
+            bottomMargin=24,
+        )
+
+        styles = getSampleStyleSheet()
+        story = []
+
+        title = Paragraph(
+            "Smart Inventory Manager - Inventurbericht",
+            styles["Title"],
+        )
+        story.append(title)
+        story.append(Spacer(1, 12))
+
+        created_at = session.created_at
+        if timezone.is_aware(created_at):
+            created_at = timezone.localtime(created_at)
+
+        completed_at = session.completed_at
+        if completed_at and timezone.is_aware(completed_at):
+            completed_at = timezone.localtime(completed_at)
+
+        meta_data = [
+            ["Inventur", escape(session.title or "")],
+            ["Status", "Abgeschlossen" if session.status == "COMPLETED" else "Offen"],
+            ["Erstellt von", escape(session.created_by.username if session.created_by else "")],
+            ["Erstellt am", created_at.strftime("%d.%m.%Y %H:%M")],
+            [
+                "Abgeschlossen am",
+                completed_at.strftime("%d.%m.%Y %H:%M") if completed_at else "",
+            ],
+            ["Notiz", escape(session.note or "")],
+        ]
+
+        meta_table = Table(meta_data, colWidths=[120, 560])
+        meta_table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#DBEAFE")),
+                    ("TEXTCOLOR", (0, 0), (-1, -1), colors.HexColor("#0F172A")),
+                    ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
+                    ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#CBD5E1")),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ("PADDING", (0, 0), (-1, -1), 6),
+                ]
+            )
+        )
+
+        story.append(meta_table)
+        story.append(Spacer(1, 18))
+
+        rows = [
+            [
+                "Produkt",
+                "SKU",
+                "Soll",
+                "Ist",
+                "Differenz",
+                "Einheit",
+                "Status",
+                "Korrigiert",
+                "Notiz",
+            ]
+        ]
+
+        total_positions = 0
+        counted_positions = 0
+        difference_positions = 0
+        corrected_positions = 0
+
+        for count in counts:
+            total_positions += 1
+
+            if count.counted_quantity is not None:
+                counted_positions += 1
+
+            difference = count.difference
+
+            if difference not in (None, 0):
+                difference_positions += 1
+
+            if count.correction_movement_id:
+                corrected_positions += 1
+
+            rows.append(
+                [
+                    Paragraph(escape(count.product.name), styles["BodyText"]),
+                    escape(count.product.sku or ""),
+                    count.expected_quantity,
+                    count.counted_quantity if count.counted_quantity is not None else "",
+                    difference if difference is not None else "",
+                    escape(count.product.unit or ""),
+                    "OK" if difference == 0 else "Differenz",
+                    "Ja" if count.correction_movement_id else "Nein",
+                    Paragraph(escape(count.note or ""), styles["BodyText"]),
+                ]
+            )
+
+        table = Table(
+            rows,
+            repeatRows=1,
+            colWidths=[150, 90, 55, 55, 65, 60, 75, 75, 190],
+        )
+
+        table_style = TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#2563EB")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#CBD5E1")),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("PADDING", (0, 0), (-1, -1), 5),
+            ]
+        )
+
+        for row_index in range(1, len(rows)):
+            status = rows[row_index][6]
+
+            if status == "OK":
+                table_style.add(
+                    "BACKGROUND",
+                    (0, row_index),
+                    (-1, row_index),
+                    colors.HexColor("#DCFCE7"),
+                )
+            else:
+                table_style.add(
+                    "BACKGROUND",
+                    (0, row_index),
+                    (-1, row_index),
+                    colors.HexColor("#FEF3C7"),
+                )
+
+        table.setStyle(table_style)
+
+        story.append(table)
+        story.append(Spacer(1, 18))
+
+        summary_rows = [
+            ["Zusammenfassung", ""],
+            ["Positionen gesamt", total_positions],
+            ["Gezählte Positionen", counted_positions],
+            ["Positionen mit Differenz", difference_positions],
+            ["Korrigierte Positionen", corrected_positions],
+        ]
+
+        summary_table = Table(summary_rows, colWidths=[180, 120])
+        summary_table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1E3A8A")),
+                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                    ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#CBD5E1")),
+                    ("PADDING", (0, 0), (-1, -1), 6),
+                ]
+            )
+        )
+
+        story.append(summary_table)
+
+        doc.build(story)
+
+        buffer.seek(0)
+
+        filename = f"inventurbericht-{session.id}.pdf"
+
+        response = HttpResponse(buffer.getvalue(), content_type="application/pdf")
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        return response
+
 
     @action(detail=True, methods=["get"], url_path="export-excel")
     def export_excel(self, request, pk=None):

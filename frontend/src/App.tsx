@@ -2558,6 +2558,50 @@ const exportLocationStocksToExcel = async () => {
   }
 };
 
+  const handleExportInventoryPdf = async () => {
+    if (!selectedInventorySessionId) {
+      setError("Bitte zuerst eine Inventur auswählen.");
+      return;
+    }
+
+    try {
+      setError("");
+      setSuccess("");
+
+      const response = await apiFetch(
+        `/inventory-api/inventory-sessions/${selectedInventorySessionId}/export-pdf/`
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || "Fehler beim PDF-Export.");
+      }
+
+      const blob = await response.blob();
+      const contentDisposition = response.headers.get("Content-Disposition") || "";
+      const filenameMatch = contentDisposition.match(/filename="?([^\"]+)"?/);
+      const filename = filenameMatch?.[1] || `inventurbericht-${selectedInventorySessionId}.pdf`;
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      URL.revokeObjectURL(url);
+
+      setSuccess("📄 Inventurbericht erfolgreich als PDF exportiert!");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Fehler beim PDF-Export.";
+
+      setError(message);
+    }
+  };
+
 const exportMovementsToCsv = async () => {
   try {
     setError("");
@@ -3357,6 +3401,7 @@ const exportMovementsToCsv = async () => {
                 selectedInventorySession={selectedInventorySession}
                 handleCompleteInventorySession={handleCompleteInventorySession}
                 handleExportInventoryExcel={handleExportInventoryExcel}
+                handleExportInventoryPdf={handleExportInventoryPdf}
                 inventoryProductId={inventoryProductId}
                 setInventoryProductId={setInventoryProductId}
                 inventoryProductRef={inventoryProductRef}
@@ -6486,6 +6531,7 @@ function InventorySection({
   selectedInventorySession,
   handleCompleteInventorySession,
   handleExportInventoryExcel,
+  handleExportInventoryPdf,
   inventoryProductId,
   setInventoryProductId,
   inventoryProductRef,
@@ -6519,6 +6565,7 @@ function InventorySection({
   selectedInventorySession: InventorySession | null;
   handleCompleteInventorySession: () => Promise<void>;
   handleExportInventoryExcel: () => Promise<void>;
+  handleExportInventoryPdf: () => Promise<void>;
   inventoryProductId: string;
   setInventoryProductId: (value: string) => void;
   inventoryProductRef: RefObject<HTMLSelectElement | null>;
@@ -6566,6 +6613,7 @@ function InventorySection({
         <button type="button" onClick={() => void loadInventoryCounts(selectedInventorySessionId)} style={secondaryButtonStyle} disabled={!selectedInventorySessionId}>Inventur laden</button>
         <button type="button" onClick={() => void handleCompleteInventorySession()} style={secondaryButtonStyle} disabled={!selectedInventorySession || selectedInventorySession.status === "COMPLETED" || !hasPermission("lager")}>Inventur abschließen</button>
         <button type="button" onClick={() => void handleExportInventoryExcel()} style={secondaryButtonStyle} disabled={!selectedInventorySessionId}>📤 Excel-Bericht exportieren</button>
+        <button type="button" onClick={() => void handleExportInventoryPdf()} style={secondaryButtonStyle} disabled={!selectedInventorySessionId}>📄 PDF-Bericht exportieren</button>
       </div>
       {selectedInventorySession && (
         <p style={infoStyle}>Aktive Inventur: <strong>{selectedInventorySession.title}</strong> | Status: <strong>{selectedInventorySession.status === "OPEN" ? "Offen" : "Abgeschlossen"}</strong></p>
