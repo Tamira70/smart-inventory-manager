@@ -2593,6 +2593,131 @@ const exportMovementsToCsv = async () => {
   }
 };
 
+  const locationStockChartData = useMemo(() => {
+    const byLocation = new Map<
+      string,
+      { label: string; name: string; quantity: number }
+    >();
+
+    locationStocks.forEach((stock) => {
+      const key = stock.storage_location_code || String(stock.storage_location);
+      const current =
+        byLocation.get(key) ??
+        {
+          label: stock.storage_location_code || "Unbekannt",
+          name: stock.storage_location_name || "",
+          quantity: 0,
+        };
+
+      current.quantity += stock.quantity;
+      byLocation.set(key, current);
+    });
+
+    return Array.from(byLocation.values())
+      .sort((a, b) => b.quantity - a.quantity)
+      .slice(0, 6);
+  }, [locationStocks]);
+
+  const maxLocationStockQuantity = locationStockChartData.length
+    ? Math.max(...locationStockChartData.map((item) => item.quantity), 1)
+    : 1;
+
+  const movementTrendData = useMemo(() => {
+    const formatDateKey = (date: Date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    };
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const days = Array.from({ length: 7 }, (_, index) => {
+      const day = new Date(today);
+      day.setDate(today.getDate() - (6 - index));
+
+      return {
+        key: formatDateKey(day),
+        label: day.toLocaleDateString("de-DE", {
+          weekday: "short",
+          day: "2-digit",
+          month: "2-digit",
+        }),
+        inQty: 0,
+        outQty: 0,
+      };
+    });
+
+    const dayMap = new Map(days.map((day) => [day.key, day]));
+
+    movements.forEach((movement) => {
+      const movementDate = new Date(movement.created_at);
+      const movementKey = formatDateKey(movementDate);
+      const day = dayMap.get(movementKey);
+
+      if (!day) return;
+
+      if (movement.movement_type === "IN") {
+        day.inQty += movement.quantity;
+      } else {
+        day.outQty += movement.quantity;
+      }
+    });
+
+    return days;
+  }, [movements]);
+
+  const maxMovementTrendQuantity = movementTrendData.length
+    ? Math.max(
+        ...movementTrendData.flatMap((day) => [day.inQty, day.outQty]),
+        1
+      )
+    : 1;
+
+  const storageLocationStatusData = useMemo(() => {
+    const occupied = storageLocations.filter(
+      (location) => !location.is_empty
+    ).length;
+    const free = storageLocations.filter((location) => location.is_empty).length;
+
+    return [
+      { label: "Belegt", value: occupied },
+      { label: "Frei", value: free },
+    ];
+  }, [storageLocations]);
+
+  const maxStorageLocationStatusValue = Math.max(
+    ...storageLocationStatusData.map((item) => item.value),
+    1
+  );
+
+  const lowStockChartData = useMemo(
+    () =>
+      lowStockProducts
+        .slice()
+        .sort((a, b) => a.quantity - b.quantity)
+        .slice(0, 6)
+        .map((product) => ({
+          label: product.sku || product.name,
+          name: product.name,
+          quantity: product.quantity,
+          minStock: product.min_stock,
+          unit: product.unit,
+        })),
+    [lowStockProducts]
+  );
+
+  const maxLowStockChartValue = lowStockChartData.length
+    ? Math.max(
+        ...lowStockChartData.flatMap((item) => [
+          item.quantity,
+          item.minStock,
+        ]),
+        1
+      )
+    : 1;
+
   if (!loggedIn) {
     return (
       <div style={isMobileLayout ? pageStyleMobile : pageStyle}>
@@ -2670,23 +2795,265 @@ const exportMovementsToCsv = async () => {
             {activeSection === "dashboard" && (
               <section style={sectionStyle}>
                 <h2 style={sectionTitleStyle}>📊 Dashboard Übersicht</h2>
-                <p style={infoStyle}>Zentrale Übersicht über Lagerbestände, kritische Artikel, Tagesbewegungen und Inventurstatus.</p>
+                <p style={infoStyle}>
+                  Zentrale Übersicht über Lagerbestände, kritische Artikel,
+                  Tagesbewegungen, Lagerplatzstatus und Inventurstatus.
+                </p>
+
                 <div style={dashboardGridStyle}>
                   <Card title="Produkte gesamt" value={String(totalProducts)} />
                   <Card title="Bestand gesamt" value={String(totalUnits)} />
-                  <Card title="Niedriger Bestand" value={String(lowStockProducts.length)} danger={lowStockProducts.length > 0} />
-                  <Card title="Inventur-Differenzen" value={String(inventorySummary.differences)} danger={inventorySummary.differences > 0} />
+                  <Card
+                    title="Niedriger Bestand"
+                    value={String(lowStockProducts.length)}
+                    danger={lowStockProducts.length > 0}
+                  />
+                  <Card
+                    title="Inventur-Differenzen"
+                    value={String(inventorySummary.differences)}
+                    danger={inventorySummary.differences > 0}
+                  />
                   <Card title="Wareneingänge heute" value={String(goodsInToday)} />
                   <Card title="Warenausgänge heute" value={String(goodsOutToday)} />
                 </div>
+
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+                    gap: "18px",
+                    marginTop: "24px",
+                  }}
+                >
+                  <div style={dashboardChartCardStyle}>
+                    <h3 style={dashboardChartTitleStyle}>
+                      📦 Bestand nach Lagerplatz
+                    </h3>
+
+                    {locationStockChartData.length > 0 ? (
+                      <div style={{ display: "grid", gap: "12px" }}>
+                        {locationStockChartData.map((item) => {
+                          const percent = Math.max(
+                            6,
+                            Math.round(
+                              (item.quantity / maxLocationStockQuantity) * 100
+                            )
+                          );
+
+                          return (
+                            <div key={item.label}>
+                              <div style={dashboardChartLabelRowStyle}>
+                                <span>
+                                  <strong>{item.label}</strong>
+                                  {item.name ? ` · ${item.name}` : ""}
+                                </span>
+                                <span>{item.quantity}</span>
+                              </div>
+                              <div style={dashboardBarTrackStyle}>
+                                <div
+                                  style={{
+                                    ...dashboardBarStyle,
+                                    width: `${percent}%`,
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p style={infoStyle}>Noch keine Lagerplatzbestände vorhanden.</p>
+                    )}
+                  </div>
+
+                  <div style={dashboardChartCardStyle}>
+                    <h3 style={dashboardChartTitleStyle}>
+                      🔁 Bewegungen letzte 7 Tage
+                    </h3>
+
+                    <div style={{ display: "grid", gap: "12px" }}>
+                      {movementTrendData.map((day) => {
+                        const inPercent = Math.max(
+                          day.inQty > 0 ? 6 : 0,
+                          Math.round(
+                            (day.inQty / maxMovementTrendQuantity) * 100
+                          )
+                        );
+                        const outPercent = Math.max(
+                          day.outQty > 0 ? 6 : 0,
+                          Math.round(
+                            (day.outQty / maxMovementTrendQuantity) * 100
+                          )
+                        );
+
+                        return (
+                          <div key={day.key}>
+                            <div style={dashboardChartLabelRowStyle}>
+                              <strong>{day.label}</strong>
+                              <span>
+                                WE {day.inQty} / WA {day.outQty}
+                              </span>
+                            </div>
+
+                            <div style={dashboardMiniBarRowStyle}>
+                              <span style={dashboardMiniBarLabelStyle}>WE</span>
+                              <div style={dashboardBarTrackStyle}>
+                                <div
+                                  style={{
+                                    ...dashboardBarStyle,
+                                    width: `${inPercent}%`,
+                                  }}
+                                />
+                              </div>
+                            </div>
+
+                            <div style={dashboardMiniBarRowStyle}>
+                              <span style={dashboardMiniBarLabelStyle}>WA</span>
+                              <div style={dashboardBarTrackStyle}>
+                                <div
+                                  style={{
+                                    ...dashboardDangerBarStyle,
+                                    width: `${outPercent}%`,
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div style={dashboardChartCardStyle}>
+                    <h3 style={dashboardChartTitleStyle}>
+                      📍 Lagerplatzstatus
+                    </h3>
+
+                    <div style={{ display: "grid", gap: "14px" }}>
+                      {storageLocationStatusData.map((item) => {
+                        const percent = Math.max(
+                          item.value > 0 ? 8 : 0,
+                          Math.round(
+                            (item.value / maxStorageLocationStatusValue) * 100
+                          )
+                        );
+
+                        return (
+                          <div key={item.label}>
+                            <div style={dashboardChartLabelRowStyle}>
+                              <strong>{item.label}</strong>
+                              <span>{item.value}</span>
+                            </div>
+                            <div style={dashboardBarTrackStyle}>
+                              <div
+                                style={{
+                                  ...dashboardBarStyle,
+                                  width: `${percent}%`,
+                                }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div style={dashboardChartCardStyle}>
+                    <h3 style={dashboardChartTitleStyle}>
+                      ⚠️ Kritische Artikel
+                    </h3>
+
+                    {lowStockChartData.length > 0 ? (
+                      <div style={{ display: "grid", gap: "12px" }}>
+                        {lowStockChartData.map((item) => {
+                          const stockPercent = Math.max(
+                            item.quantity > 0 ? 6 : 0,
+                            Math.round(
+                              (item.quantity / maxLowStockChartValue) * 100
+                            )
+                          );
+                          const minPercent = Math.max(
+                            item.minStock > 0 ? 6 : 0,
+                            Math.round(
+                              (item.minStock / maxLowStockChartValue) * 100
+                            )
+                          );
+
+                          return (
+                            <div key={item.label}>
+                              <div style={dashboardChartLabelRowStyle}>
+                                <span title={item.name}>
+                                  <strong>{item.label}</strong>
+                                </span>
+                                <span>
+                                  {item.quantity}/{item.minStock} {item.unit}
+                                </span>
+                              </div>
+
+                              <div style={dashboardMiniBarRowStyle}>
+                                <span style={dashboardMiniBarLabelStyle}>Ist</span>
+                                <div style={dashboardBarTrackStyle}>
+                                  <div
+                                    style={{
+                                      ...dashboardDangerBarStyle,
+                                      width: `${stockPercent}%`,
+                                    }}
+                                  />
+                                </div>
+                              </div>
+
+                              <div style={dashboardMiniBarRowStyle}>
+                                <span style={dashboardMiniBarLabelStyle}>Min</span>
+                                <div style={dashboardBarTrackStyle}>
+                                  <div
+                                    style={{
+                                      ...dashboardWarningBarStyle,
+                                      width: `${minPercent}%`,
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p style={infoStyle}>
+                        Keine kritischen Artikel unter Mindestbestand.
+                      </p>
+                    )}
+                  </div>
+                </div>
+
                 <div style={{ marginTop: "22px" }}>
-                  <h3 style={{ color: "#bfdbfe", marginBottom: "10px", textAlign: "center" }}>Letzte Lagerbewegung</h3>
+                  <h3
+                    style={{
+                      color: "#bfdbfe",
+                      marginBottom: "10px",
+                      textAlign: "center",
+                    }}
+                  >
+                    Letzte Lagerbewegung
+                  </h3>
                   {latestMovement ? (
                     <div style={infoStyle}>
-                      <strong>{latestMovement.product_name}</strong><br />
-                      Typ: <strong>{latestMovement.movement_type === "IN" ? "Wareneingang" : "Warenausgang"}</strong><br />
-                      Menge: <strong>{latestMovement.quantity}</strong><br />
-                      Datum: <strong>{new Date(latestMovement.created_at).toLocaleString("de-DE")}</strong>
+                      <strong>{latestMovement.product_name}</strong>
+                      <br />
+                      Typ:{" "}
+                      <strong>
+                        {latestMovement.movement_type === "IN"
+                          ? "Wareneingang"
+                          : "Warenausgang"}
+                      </strong>
+                      <br />
+                      Menge: <strong>{latestMovement.quantity}</strong>
+                      <br />
+                      Datum:{" "}
+                      <strong>
+                        {new Date(latestMovement.created_at).toLocaleString(
+                          "de-DE"
+                        )}
+                      </strong>
                     </div>
                   ) : (
                     <p style={infoStyle}>Noch keine Lagerbewegungen vorhanden.</p>
@@ -6713,6 +7080,68 @@ function HistorySection({
       </section>
       );
       }
+
+const dashboardChartCardStyle: CSSProperties = {
+  background: "rgba(15, 23, 42, 0.78)",
+  border: "1px solid rgba(148, 163, 184, 0.18)",
+  borderRadius: "18px",
+  padding: "18px",
+  boxShadow: "0 18px 36px rgba(0,0,0,0.2)",
+};
+
+const dashboardChartTitleStyle: CSSProperties = {
+  margin: "0 0 14px 0",
+  color: "#bfdbfe",
+  fontSize: "1rem",
+};
+
+const dashboardChartLabelRowStyle: CSSProperties = {
+  display: "flex",
+  justifyContent: "space-between",
+  gap: "12px",
+  color: "#e2e8f0",
+  fontSize: "0.9rem",
+  marginBottom: "6px",
+};
+
+const dashboardBarTrackStyle: CSSProperties = {
+  width: "100%",
+  height: "10px",
+  borderRadius: "999px",
+  background: "rgba(51, 65, 85, 0.75)",
+  overflow: "hidden",
+};
+
+const dashboardBarStyle: CSSProperties = {
+  height: "100%",
+  borderRadius: "999px",
+  background: "linear-gradient(90deg, #38bdf8, #2563eb)",
+};
+
+const dashboardDangerBarStyle: CSSProperties = {
+  height: "100%",
+  borderRadius: "999px",
+  background: "linear-gradient(90deg, #fb7185, #dc2626)",
+};
+
+const dashboardWarningBarStyle: CSSProperties = {
+  height: "100%",
+  borderRadius: "999px",
+  background: "linear-gradient(90deg, #fbbf24, #f97316)",
+};
+
+const dashboardMiniBarRowStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "34px 1fr",
+  alignItems: "center",
+  gap: "8px",
+  marginTop: "5px",
+};
+
+const dashboardMiniBarLabelStyle: CSSProperties = {
+  color: "#94a3b8",
+  fontSize: "0.75rem",
+};
 
 function Card({
   title,
