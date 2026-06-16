@@ -6601,82 +6601,310 @@ function InventorySection({
     }
   };
 
+  const inventoryPanelStyle: CSSProperties = {
+    background: "rgba(15, 23, 42, 0.78)",
+    border: "1px solid rgba(148, 163, 184, 0.18)",
+    borderRadius: "18px",
+    padding: "18px",
+    boxShadow: "0 18px 36px rgba(0,0,0,0.18)",
+  };
+
+  const inventoryPanelTitleStyle: CSSProperties = {
+    margin: "0 0 14px 0",
+    color: "#bfdbfe",
+    fontSize: "1rem",
+  };
+
+  const inventorySummaryGridStyle: CSSProperties = {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+    gap: "12px",
+    marginTop: "18px",
+  };
+
+  const inventorySummaryItemStyle: CSSProperties = {
+    background: "rgba(30, 41, 59, 0.62)",
+    border: "1px solid rgba(148, 163, 184, 0.14)",
+    borderRadius: "14px",
+    padding: "14px 16px",
+    textAlign: "center",
+  };
+
+  const inventorySummaryLabelStyle: CSSProperties = {
+    color: "#94a3b8",
+    fontSize: "0.82rem",
+    marginBottom: "6px",
+  };
+
+  const inventorySummaryValueStyle: CSSProperties = {
+    color: "#f8fafc",
+    fontSize: "1.45rem",
+    fontWeight: 800,
+  };
+
+  const inventoryTwoColumnStyle: CSSProperties = {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))",
+    gap: "16px",
+    marginTop: "18px",
+  };
+
+  const inventoryFormCompactStyle: CSSProperties = {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+    gap: "10px",
+  };
+
+  const inventoryExportGridStyle: CSSProperties = {
+    display: "grid",
+    gridTemplateColumns: "1fr auto",
+    gap: "10px",
+    alignItems: "center",
+  };
+
   return (
     <section style={sectionStyle}>
       <h2 style={sectionTitleStyle}>🧾 Inventur-Modus</h2>
-      <div style={dashboardGridStyle}>
-        <Card title="Positionen" value={String(inventorySummary.total)} />
-        <Card title="Gezählt" value={String(inventorySummary.done)} />
-        <Card title="Differenzen" value={String(inventorySummary.differences)} danger={inventorySummary.differences > 0} />
-        <Card title="Korrigiert" value={String(inventorySummary.corrected)} />
-      </div>
-      <form onSubmit={handleCreateInventorySession} style={{ ...formGridStyle, marginTop: "22px", marginBottom: "24px" }}>
-        <input type="text" placeholder="Titel der Inventur" value={inventoryTitle} onChange={(event) => setInventoryTitle(event.target.value)} style={inputStyle} disabled={!hasPermission("lager")} />
-        <input type="text" placeholder="Notiz zur Inventur" value={inventoryNote} onChange={(event) => setInventoryNote(event.target.value)} style={inputStyle} disabled={!hasPermission("lager")} />
-        <button type="submit" disabled={inventorySaving || !hasPermission("lager")} style={hasPermission("lager") ? primaryButtonStyle : disabledButtonStyle}>
-          {inventorySaving ? "Erstelle..." : "Neue Inventur starten"}
-        </button>
-      </form>
-      <div style={formGridStyle}>
-        <select value={selectedInventorySessionId} onChange={(event) => setSelectedInventorySessionId(event.target.value)} style={inputStyle}>
-          <option value="">Inventur auswählen</option>
-          {inventorySessions.map((session) => (
-            <option key={session.id} value={session.id}>#{session.id} {session.title} ({session.status === "OPEN" ? "Offen" : "Abgeschlossen"})</option>
-          ))}
-        </select>
-        <button type="button" onClick={() => void loadInventoryCounts(selectedInventorySessionId)} style={secondaryButtonStyle} disabled={!selectedInventorySessionId}>Inventur laden</button>
-        <button type="button" onClick={() => void handleCompleteInventorySession()} style={secondaryButtonStyle} disabled={!selectedInventorySession || selectedInventorySession.status === "COMPLETED" || !hasPermission("lager")}>Inventur abschließen</button>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr auto",
-            gap: "10px",
-            alignItems: "center",
-          }}
-        >
-          <select
-            value={selectedInventoryExportType}
-            onChange={(event) =>
-              setSelectedInventoryExportType(event.target.value as "" | "excel" | "pdf")
-            }
-            style={inputStyle}
-            disabled={!selectedInventorySessionId}
-          >
-            <option value="">Bericht auswählen</option>
-            <option value="excel">📤 Excel-Bericht (.xlsx)</option>
-            <option value="pdf">📄 PDF-Bericht (.pdf)</option>
-          </select>
 
-          <button
-            type="button"
-            onClick={handleInventoryReportExport}
-            style={secondaryButtonStyle}
-            disabled={!selectedInventorySessionId || !selectedInventoryExportType}
+      <p style={infoStyle}>
+        Inventuren starten, Zählungen erfassen, Abweichungen prüfen und Berichte exportieren.
+      </p>
+
+      <div style={inventorySummaryGridStyle}>
+        <div style={inventorySummaryItemStyle}>
+          <div style={inventorySummaryLabelStyle}>Positionen</div>
+          <div style={inventorySummaryValueStyle}>{inventorySummary.total}</div>
+        </div>
+
+        <div style={inventorySummaryItemStyle}>
+          <div style={inventorySummaryLabelStyle}>Gezählt</div>
+          <div style={inventorySummaryValueStyle}>{inventorySummary.done}</div>
+        </div>
+
+        <div style={inventorySummaryItemStyle}>
+          <div style={inventorySummaryLabelStyle}>Differenzen</div>
+          <div
+            style={{
+              ...inventorySummaryValueStyle,
+              color: inventorySummary.differences > 0 ? "#fecaca" : "#f8fafc",
+            }}
           >
-            Exportieren
-          </button>
+            {inventorySummary.differences}
+          </div>
+        </div>
+
+        <div style={inventorySummaryItemStyle}>
+          <div style={inventorySummaryLabelStyle}>Korrigiert</div>
+          <div style={inventorySummaryValueStyle}>{inventorySummary.corrected}</div>
         </div>
       </div>
+
+      <div style={inventoryTwoColumnStyle}>
+        <div style={inventoryPanelStyle}>
+          <h3 style={inventoryPanelTitleStyle}>➕ Neue Inventur</h3>
+
+          <form onSubmit={handleCreateInventorySession} style={inventoryFormCompactStyle}>
+            <input
+              type="text"
+              placeholder="Titel der Inventur"
+              value={inventoryTitle}
+              onChange={(event) => setInventoryTitle(event.target.value)}
+              style={inputStyle}
+              disabled={!hasPermission("lager")}
+            />
+
+            <input
+              type="text"
+              placeholder="Notiz zur Inventur"
+              value={inventoryNote}
+              onChange={(event) => setInventoryNote(event.target.value)}
+              style={inputStyle}
+              disabled={!hasPermission("lager")}
+            />
+
+            <button
+              type="submit"
+              disabled={inventorySaving || !hasPermission("lager")}
+              style={hasPermission("lager") ? primaryButtonStyle : disabledButtonStyle}
+            >
+              {inventorySaving ? "Erstelle..." : "Neue Inventur starten"}
+            </button>
+          </form>
+        </div>
+
+        <div style={inventoryPanelStyle}>
+          <h3 style={inventoryPanelTitleStyle}>📂 Inventur laden & Bericht</h3>
+
+          <div style={inventoryFormCompactStyle}>
+            <select
+              value={selectedInventorySessionId}
+              onChange={(event) => setSelectedInventorySessionId(event.target.value)}
+              style={inputStyle}
+            >
+              <option value="">Inventur auswählen</option>
+              {inventorySessions.map((session) => (
+                <option key={session.id} value={session.id}>
+                  #{session.id} {session.title} ({session.status === "OPEN" ? "Offen" : "Abgeschlossen"})
+                </option>
+              ))}
+            </select>
+
+            <button
+              type="button"
+              onClick={() => void loadInventoryCounts(selectedInventorySessionId)}
+              style={secondaryButtonStyle}
+              disabled={!selectedInventorySessionId}
+            >
+              Inventur laden
+            </button>
+
+            <button
+              type="button"
+              onClick={() => void handleCompleteInventorySession()}
+              style={secondaryButtonStyle}
+              disabled={
+                !selectedInventorySession ||
+                selectedInventorySession.status === "COMPLETED" ||
+                !hasPermission("lager")
+              }
+            >
+              Inventur abschließen
+            </button>
+
+            <div style={inventoryExportGridStyle}>
+              <select
+                value={selectedInventoryExportType}
+                onChange={(event) =>
+                  setSelectedInventoryExportType(event.target.value as "" | "excel" | "pdf")
+                }
+                style={inputStyle}
+                disabled={!selectedInventorySessionId}
+              >
+                <option value="">Bericht auswählen</option>
+                <option value="excel">📤 Excel-Bericht (.xlsx)</option>
+                <option value="pdf">📄 PDF-Bericht (.pdf)</option>
+              </select>
+
+              <button
+                type="button"
+                onClick={handleInventoryReportExport}
+                style={secondaryButtonStyle}
+                disabled={!selectedInventorySessionId || !selectedInventoryExportType}
+              >
+                Exportieren
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {selectedInventorySession && (
-        <p style={infoStyle}>Aktive Inventur: <strong>{selectedInventorySession.title}</strong> | Status: <strong>{selectedInventorySession.status === "OPEN" ? "Offen" : "Abgeschlossen"}</strong></p>
+        <p style={{ ...infoStyle, marginTop: "18px" }}>
+          Aktive Inventur: <strong>{selectedInventorySession.title}</strong> | Status:{" "}
+          <strong>
+            {selectedInventorySession.status === "OPEN" ? "Offen" : "Abgeschlossen"}
+          </strong>
+        </p>
       )}
-      <form onSubmit={handleAddInventoryCount} style={{ ...formGridStyle, margin: "22px 0" }}>
-        <select ref={inventoryProductRef} value={inventoryProductId} onChange={(event) => setInventoryProductId(event.target.value)} onKeyDown={(event) => focusNextOnEnter(event, inventoryCountedQuantityRef.current)} style={inputStyle} disabled={!hasPermission("lager") || !selectedInventorySessionId || selectedInventorySession?.status === "COMPLETED"}>
-          <option value="">Produkt auswählen</option>
-          {products.filter((product) => !countedProductIds.has(product.id)).map((product) => (
-            <option key={product.id} value={product.id}>{product.name} ({product.sku}) - Soll: {product.quantity} {product.unit}</option>
-          ))}
-        </select>
-        <input ref={inventoryCountedQuantityRef} type="number" placeholder="Gezählte Menge" value={inventoryCountedQuantity} onChange={(event) => setInventoryCountedQuantity(event.target.value)} min="0" style={inputStyle} disabled={!hasPermission("lager") || !selectedInventorySessionId || selectedInventorySession?.status === "COMPLETED"} />
-        <input type="text" placeholder="Notiz zur Zählung" value={inventoryCountNote} onChange={(event) => setInventoryCountNote(event.target.value)} style={inputStyle} disabled={!hasPermission("lager") || !selectedInventorySessionId || selectedInventorySession?.status === "COMPLETED"} />
-        <button type="submit" disabled={inventorySaving || !hasPermission("lager") || !selectedInventorySessionId || selectedInventorySession?.status === "COMPLETED"} style={hasPermission("lager") ? primaryButtonStyle : disabledButtonStyle}>{inventorySaving ? "Speichere..." : "Zählung speichern"}</button>
-      </form>
-      {selectedInventoryProduct && (
-        <p style={{ ...infoStyle, background: "rgba(30, 41, 59, 0.75)" }}>Ausgewähltes Produkt: <strong>{selectedInventoryProduct.name}</strong> | Systembestand: <strong>{selectedInventoryProduct.quantity} {selectedInventoryProduct.unit}</strong></p>
-      )}
-      {inventoryLoading && <p>Lade Inventur...</p>}
-      {!inventoryLoading && inventoryCounts.length > 0 && <InventoryCountTable inventoryCounts={inventoryCounts} selectedInventorySession={selectedInventorySession} inventoryCorrectionSavingId={inventoryCorrectionSavingId} hasPermission={hasPermission} handleApplyInventoryCorrection={handleApplyInventoryCorrection} />}
-      {!inventoryLoading && selectedInventorySessionId && inventoryCounts.length === 0 && <p>Noch keine Inventurpositionen vorhanden.</p>}
+
+      <div style={{ ...inventoryPanelStyle, marginTop: "18px" }}>
+        <h3 style={inventoryPanelTitleStyle}>🧮 Zählung erfassen</h3>
+
+        <form onSubmit={handleAddInventoryCount} style={inventoryFormCompactStyle}>
+          <select
+            ref={inventoryProductRef}
+            value={inventoryProductId}
+            onChange={(event) => setInventoryProductId(event.target.value)}
+            onKeyDown={(event) =>
+              focusNextOnEnter(event, inventoryCountedQuantityRef.current)
+            }
+            style={inputStyle}
+            disabled={
+              !hasPermission("lager") ||
+              !selectedInventorySessionId ||
+              selectedInventorySession?.status === "COMPLETED"
+            }
+          >
+            <option value="">Produkt auswählen</option>
+            {products
+              .filter((product) => !countedProductIds.has(product.id))
+              .map((product) => (
+                <option key={product.id} value={product.id}>
+                  {product.name} ({product.sku}) - Soll: {product.quantity} {product.unit}
+                </option>
+              ))}
+          </select>
+
+          <input
+            ref={inventoryCountedQuantityRef}
+            type="number"
+            placeholder="Gezählte Menge"
+            value={inventoryCountedQuantity}
+            onChange={(event) => setInventoryCountedQuantity(event.target.value)}
+            min="0"
+            style={inputStyle}
+            disabled={
+              !hasPermission("lager") ||
+              !selectedInventorySessionId ||
+              selectedInventorySession?.status === "COMPLETED"
+            }
+          />
+
+          <input
+            type="text"
+            placeholder="Notiz zur Zählung"
+            value={inventoryCountNote}
+            onChange={(event) => setInventoryCountNote(event.target.value)}
+            style={inputStyle}
+            disabled={
+              !hasPermission("lager") ||
+              !selectedInventorySessionId ||
+              selectedInventorySession?.status === "COMPLETED"
+            }
+          />
+
+          <button
+            type="submit"
+            disabled={
+              inventorySaving ||
+              !hasPermission("lager") ||
+              !selectedInventorySessionId ||
+              selectedInventorySession?.status === "COMPLETED"
+            }
+            style={hasPermission("lager") ? primaryButtonStyle : disabledButtonStyle}
+          >
+            {inventorySaving ? "Speichere..." : "Zählung speichern"}
+          </button>
+        </form>
+
+        {selectedInventoryProduct && (
+          <p style={{ ...infoStyle, background: "rgba(30, 41, 59, 0.75)" }}>
+            Ausgewähltes Produkt: <strong>{selectedInventoryProduct.name}</strong> |
+            Systembestand:{" "}
+            <strong>
+              {selectedInventoryProduct.quantity} {selectedInventoryProduct.unit}
+            </strong>
+          </p>
+        )}
+      </div>
+
+      <div style={{ marginTop: "18px" }}>
+        {inventoryLoading && <p>Lade Inventur...</p>}
+
+        {!inventoryLoading && inventoryCounts.length > 0 && (
+          <InventoryCountTable
+            inventoryCounts={inventoryCounts}
+            selectedInventorySession={selectedInventorySession}
+            inventoryCorrectionSavingId={inventoryCorrectionSavingId}
+            hasPermission={hasPermission}
+            handleApplyInventoryCorrection={handleApplyInventoryCorrection}
+          />
+        )}
+
+        {!inventoryLoading && selectedInventorySessionId && inventoryCounts.length === 0 && (
+          <p>Noch keine Inventurpositionen vorhanden.</p>
+        )}
+      </div>
     </section>
   );
 }
