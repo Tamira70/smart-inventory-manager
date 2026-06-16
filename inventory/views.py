@@ -821,6 +821,110 @@ class StorageLocationStockViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = StorageLocationStockSerializer
     permission_classes = [IsAuthenticated]
 
+    @action(detail=False, methods=["get"], url_path="export-excel")
+    def export_excel(self, request):
+        workbook = Workbook()
+        worksheet = workbook.active
+        worksheet.title = "Lagerplatzbestand"
+
+        headers = [
+            "Lagerplatz",
+            "Lagerplatz-Name",
+            "Zone",
+            "Gang",
+            "Regal",
+            "Fach",
+            "Status Lagerplatz",
+            "Produkt",
+            "SKU",
+            "Menge Lagerplatz",
+            "Einheit",
+            "Gesamtbestand Produkt",
+            "Verpackung",
+            "Ladungsträger",
+            "Packmenge",
+            "Einstandspreis",
+            "MHD",
+            "Aktualisiert",
+        ]
+
+        worksheet.append(headers)
+
+        column_widths = {
+            "A": 16,
+            "B": 24,
+            "C": 14,
+            "D": 12,
+            "E": 12,
+            "F": 12,
+            "G": 18,
+            "H": 28,
+            "I": 18,
+            "J": 16,
+            "K": 12,
+            "L": 20,
+            "M": 20,
+            "N": 22,
+            "O": 14,
+            "P": 16,
+            "Q": 14,
+            "R": 22,
+        }
+
+        for column, width in column_widths.items():
+            worksheet.column_dimensions[column].width = width
+
+        header_fill = PatternFill("solid", fgColor="2563EB")
+        white_font = Font(color="FFFFFF", bold=True)
+
+        for cell in worksheet[1]:
+            cell.fill = header_fill
+            cell.font = white_font
+            cell.alignment = Alignment(horizontal="center")
+
+        for stock in self.get_queryset():
+            location = stock.storage_location
+            product = stock.product
+
+            updated_at = stock.updated_at
+            if timezone.is_aware(updated_at):
+                updated_at = timezone.localtime(updated_at)
+
+            worksheet.append(
+                [
+                    location.code,
+                    location.name,
+                    location.zone or "",
+                    location.aisle or "",
+                    location.rack or "",
+                    location.shelf or "",
+                    "Frei" if location.is_empty else "Belegt",
+                    product.name,
+                    product.sku,
+                    stock.quantity,
+                    product.unit,
+                    product.quantity,
+                    stock.packaging_type.name if stock.packaging_type else "",
+                    stock.load_carrier_type.name if stock.load_carrier_type else "",
+                    stock.packaging_quantity,
+                    stock.unit_purchase_price if stock.unit_purchase_price is not None else "",
+                    stock.expiry_date if stock.expiry_date else "",
+                    updated_at.strftime("%d.%m.%Y %H:%M"),
+                ]
+            )
+
+        response = HttpResponse(
+            content_type=(
+                "application/vnd.openxmlformats-officedocument."
+                "spreadsheetml.sheet"
+            )
+        )
+        response["Content-Disposition"] = (
+            'attachment; filename="lagerplatzbestand.xlsx"'
+        )
+        workbook.save(response)
+        return response
+
 
 class PackagingTypeViewSet(viewsets.ModelViewSet):
     queryset = PackagingType.objects.all().order_by("name")

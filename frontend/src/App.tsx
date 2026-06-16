@@ -2517,6 +2517,47 @@ if (role === "einkauf") {
     }
   };
 
+const exportLocationStocksToExcel = async () => {
+  try {
+    setError("");
+    setSuccess("");
+
+    const response = await apiFetch(
+      "/inventory-api/location-stocks/export-excel/"
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || "Fehler beim Excel-Export.");
+    }
+
+    const blob = await response.blob();
+    const contentDisposition = response.headers.get("Content-Disposition") || "";
+    const filenameMatch = contentDisposition.match(/filename="?([^\"]+)"?/);
+    const filename = filenameMatch?.[1] || "lagerplatzbestand.xlsx";
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    URL.revokeObjectURL(url);
+
+    setSuccess("📤 Lagerplatzbestand erfolgreich als Excel exportiert!");
+  } catch (err) {
+    const message =
+      err instanceof Error
+        ? err.message
+        : "Fehler beim Export des Lagerplatzbestands.";
+
+    setError(message);
+  }
+};
+
 const exportMovementsToCsv = async () => {
   try {
     setError("");
@@ -2998,7 +3039,8 @@ const exportMovementsToCsv = async () => {
                     locationStocks={locationStocks}
                     loading={locationStocksLoading}
                     search={search}
-                  />
+                  exportLocationStocksToExcel={exportLocationStocksToExcel}
+                />
                 )}
 
                 {activeSection !== "stock-overview" && loading && <p>Lade Produkte...</p>}
@@ -6186,10 +6228,12 @@ function LocationStockOverview({
   locationStocks,
   loading,
   search,
+  exportLocationStocksToExcel,
 }: {
   locationStocks: StorageLocationStock[];
   loading: boolean;
   search: string;
+  exportLocationStocksToExcel: () => Promise<void>;
 }) {
   const normalizedSearch = search.trim().toLowerCase();
 
@@ -6226,7 +6270,26 @@ function LocationStockOverview({
 
   return (
     <section style={sectionStyle}>
-      <h3 style={{ marginTop: 0 }}>📦 Lagerplatzbestand</h3>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: "12px",
+          flexWrap: "wrap",
+          marginBottom: "18px",
+        }}
+      >
+        <h3 style={{ marginTop: 0, marginBottom: 0 }}>📦 Lagerplatzbestand</h3>
+
+        <button
+          type="button"
+          onClick={() => void exportLocationStocksToExcel()}
+          style={secondaryButtonStyle}
+        >
+          📤 Lagerplatzbestand als Excel exportieren
+        </button>
+      </div>
 
       <div style={dashboardGridStyle}>
         <Card title="Positionen" value={String(filteredLocationStocks.length)} />
