@@ -755,6 +755,8 @@ Dieses Projekt demonstriert:
 
 ### ✅ Bereits umgesetzt
 
+- 📊 Dashboard mit erweiterten Diagrammen
+- 🛒 Bestellwesen mit Lieferantenverknüpfung
 - 📦 Verpackungsarten und Packmittel
 - 📍 Erweiterte Lagerplatz-Kapazitätsprüfung
 - 🔁 FIFO / LIFO / FEFO-Auslagerungslogik
@@ -762,19 +764,18 @@ Dieses Projekt demonstriert:
 - 📦 Lagerplatzbestand je Lagerort
 - 🟩 Automatische Frei-/Belegt-Synchronisierung der Lagerplätze
 - 📤 Excel-Export für Inventurberichte
+- 📄 PDF-Export für Inventurberichte
 - 📤 Excel-Export für Bewegungshistorie
+- 📤 Zusätzlicher Excel-Export für aktuelle Bestände und Lagerplatzbestände
 
 ### 🟨 Teilweise umgesetzt / nächster Ausbau
 
-- 📊 Dashboard mit erweiterten Diagrammen
-- 🛒 Bestellwesen mit Lieferantenverknüpfung
+- 📱 QR-Code- / Barcode-Funktion für Produkte und Lagerplätze
+- 📦 Weitere Ausbaustufen im Bestell- und Wareneingangsprozess
 
 ### 🟥 Noch geplant
 
-- 📤 Zusätzlicher Excel-Export für aktuelle Bestände und Lagerplatzbestände
-- 📄 PDF-Export für Inventurberichte
 - 🐘 Migration auf PostgreSQL
-- 📱 QR-Code- / Barcode-Funktion
 
 ---
 
