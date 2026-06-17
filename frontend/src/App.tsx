@@ -813,6 +813,7 @@ const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [showLowStockOnly, setShowLowStockOnly] = useState(false);
 
   const [movementProductId, setMovementProductId] = useState("");
+  const [selectedPurchaseOrderItemId, setSelectedPurchaseOrderItemId] = useState("");
   const [movementQuantity, setMovementQuantity] = useState("");
   const [movementStorageLocationId, setMovementStorageLocationId] = useState("");
   const [movementPackagingTypeId, setMovementPackagingTypeId] = useState("");
@@ -2278,11 +2279,7 @@ if (role === "einkauf") {
 
     try {
 
-      const response = await apiFetch("/inventory-api/stock-movements/", {
-        method: "POST",
-        body: JSON.stringify({
-        product: Number(movementProductId),
-        movement_type: "IN",
+      const goodsReceiptPayload = {
         quantity: Number(movementQuantity),
 
         storage_location: movementStorageLocationId
@@ -2307,8 +2304,24 @@ if (role === "einkauf") {
 
         reference_number: movementReferenceNumber.trim(),
         note: movementNote,
-      }),
-      });
+      };
+
+      const response = selectedPurchaseOrderItemId
+        ? await apiFetch(
+            `/inventory-api/purchase-order-items/${selectedPurchaseOrderItemId}/receive/`,
+            {
+              method: "POST",
+              body: JSON.stringify(goodsReceiptPayload),
+            }
+          )
+        : await apiFetch("/inventory-api/stock-movements/", {
+            method: "POST",
+            body: JSON.stringify({
+              product: Number(movementProductId),
+              movement_type: "IN",
+              ...goodsReceiptPayload,
+            }),
+          });
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -2343,6 +2356,7 @@ if (role === "einkauf") {
       }
 
       setMovementProductId("");
+      setSelectedPurchaseOrderItemId("");
       setMovementQuantity("");
       setMovementStorageLocationId("");
       setMovementPackagingTypeId("");
@@ -2357,8 +2371,13 @@ if (role === "einkauf") {
       await loadMovements();
       await loadStorageLocations();
       await loadLocationStocks();
+      await loadPurchaseOrders();
 
-      setSuccess("📥 Wareneingang erfolgreich gebucht!");
+      setSuccess(
+        selectedPurchaseOrderItemId
+          ? "📥 Wareneingang aus Bestellung erfolgreich gebucht!"
+          : "📥 Wareneingang erfolgreich gebucht!"
+      );
       setTimeout(() => goodsInProductRef.current?.focus(), 0);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Fehler beim Wareneingang.";
@@ -3604,6 +3623,9 @@ const exportMovementsToCsv = async () => {
             {activeSection === "goods-in" && (
               <GoodsInSection
                 products={products}
+                purchaseOrders={purchaseOrders}
+                selectedPurchaseOrderItemId={selectedPurchaseOrderItemId}
+                setSelectedPurchaseOrderItemId={setSelectedPurchaseOrderItemId}
                 storageLocations={storageLocations}
                 movementProductId={movementProductId}
                 setMovementProductId={setMovementProductId}
@@ -6178,6 +6200,9 @@ function GoodsInSection({
   movementStorageLocationId,
   setMovementStorageLocationId,
   products,
+  purchaseOrders,
+  selectedPurchaseOrderItemId,
+  setSelectedPurchaseOrderItemId,
   storageLocations,
   packagingTypes,
   movementProductId,
@@ -6206,6 +6231,9 @@ function GoodsInSection({
   focusNextOnEnter,
 }: {
   products: Product[];
+  purchaseOrders: PurchaseOrder[];
+  selectedPurchaseOrderItemId: string;
+  setSelectedPurchaseOrderItemId: (value: string) => void;
   movementStorageLocationId: string;
   setMovementStorageLocationId: (value: string) => void;
   storageLocations: StorageLocation[];
@@ -6238,6 +6266,24 @@ function GoodsInSection({
     next?: HTMLElement | null
   ) => void;
 }) {
+
+  const openPurchaseOrderItems = purchaseOrders
+    .filter((order) =>
+      ["RELEASED", "ORDERED", "PARTIALLY_RECEIVED"].includes(order.status)
+    )
+    .flatMap((order) =>
+      order.items
+        .filter((item) => item.open_quantity > 0)
+        .map((item) => ({
+          order,
+          item,
+        }))
+    );
+
+  const selectedPurchaseOrderPosition =
+    openPurchaseOrderItems.find(
+      ({ item }) => String(item.id) === selectedPurchaseOrderItemId
+    ) ?? null;
 
   const selectedProduct =
     products.find((product) => String(product.id) === movementProductId) ?? null;
@@ -6606,6 +6652,60 @@ function GoodsInSection({
 
       <form onSubmit={handleGoodsReceipt} style={formGridStyle}>
         <select
+          value={selectedPurchaseOrderItemId}
+          onChange={(event) => {
+            const nextItemId = event.target.value;
+            setSelectedPurchaseOrderItemId(nextItemId);
+
+            const selectedPosition = openPurchaseOrderItems.find(
+              ({ item }) => String(item.id) === nextItemId
+            );
+
+            if (!selectedPosition) {
+              return;
+            }
+
+            const { order, item } = selectedPosition;
+
+            setMovementProductId(String(item.product));
+            setMovementQuantity(String(item.open_quantity));
+            setMovementUnitPurchasePrice(item.unit_price ? String(item.unit_price) : "");
+            setMovementReferenceNumber(
+              `WE-${order.order_number ?? `PO-${order.id}`}`
+            );
+            setMovementNote(
+              `Wareneingang aus Bestellung ${order.order_number ?? order.id}, Position ${item.product_name}.`
+            );
+          }}
+          style={{ ...inputStyle, gridColumn: "1 / -1" }}
+          disabled={!hasPermission("lager")}
+        >
+          <option value="">Wareneingang ohne Bestellung buchen</option>
+          {openPurchaseOrderItems.map(({ order, item }) => (
+            <option key={item.id} value={item.id}>
+              {order.order_number ?? `PO-${order.id}`} · {item.product_name} · offen {item.open_quantity} {item.unit || item.product_unit}
+              {order.supplier_name ? ` · ${order.supplier_name}` : ""}
+            </option>
+          ))}
+        </select>
+
+        {selectedPurchaseOrderPosition && (
+          <p style={{ ...infoStyle, gridColumn: "1 / -1", margin: 0 }}>
+            🛒 Bestellung ausgewählt:{" "}
+            <strong>
+              {selectedPurchaseOrderPosition.order.order_number ??
+                `PO-${selectedPurchaseOrderPosition.order.id}`}
+            </strong>{" "}
+            · {selectedPurchaseOrderPosition.item.product_name} · offene Menge{" "}
+            <strong>
+              {selectedPurchaseOrderPosition.item.open_quantity}{" "}
+              {selectedPurchaseOrderPosition.item.unit ||
+                selectedPurchaseOrderPosition.item.product_unit}
+            </strong>
+          </p>
+        )}
+
+        <select
           ref={goodsInProductRef}
           value={movementProductId}
           onChange={(event) => {
@@ -6617,6 +6717,7 @@ function GoodsInSection({
             const nextSuggestedLocation =
               getPreferredLocationForProduct(nextProduct);
 
+            setSelectedPurchaseOrderItemId("");
             setMovementProductId(nextProductId);
             setMovementStorageLocationId(
               nextSuggestedLocation ? String(nextSuggestedLocation.id) : ""
