@@ -34,6 +34,8 @@ from .models import (
     StorageLocation,
     StorageLocationStock,
     Supplier,
+    PurchaseOrder,
+    PurchaseOrderItem,
     Customer,
     CustomerContact,
     DeliveryAddress,
@@ -51,6 +53,8 @@ from .serializers import (
     StorageLocationSerializer,
     StorageLocationStockSerializer,
     SupplierSerializer,
+    PurchaseOrderSerializer,
+    PurchaseOrderItemSerializer,
 
     CustomerSerializer,
     CustomerContactSerializer,
@@ -95,6 +99,110 @@ class StorageLocationViewSet(viewsets.ModelViewSet):
 class SupplierViewSet(viewsets.ModelViewSet):
     queryset = Supplier.objects.all().order_by("name")
     serializer_class = SupplierSerializer
+
+    def get_permissions(self):
+        if self.request.method in ["GET", "HEAD", "OPTIONS"]:
+            return [IsAuthenticated()]
+        return [IsAuthenticated(), IsEinkaufOrAdmin()]
+
+
+
+
+class PurchaseOrderViewSet(viewsets.ModelViewSet):
+    queryset = (
+        PurchaseOrder.objects.select_related(
+            "supplier",
+            "created_by",
+            "released_by",
+            "ordered_by",
+            "received_by",
+        )
+        .prefetch_related("items__product")
+        .order_by("-created_at", "-id")
+    )
+    serializer_class = PurchaseOrderSerializer
+
+    def get_permissions(self):
+        if self.request.method in ["GET", "HEAD", "OPTIONS"]:
+            return [IsAuthenticated()]
+        return [IsAuthenticated(), IsEinkaufOrAdmin()]
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+    @action(detail=True, methods=["post"], url_path="release")
+    def release(self, request, pk=None):
+        order = self.get_object()
+
+        if order.status != "DRAFT":
+            return Response(
+                {"detail": "Nur Entwürfe können freigegeben werden."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        order.status = "RELEASED"
+        order.released_by = request.user
+        order.released_at = timezone.now()
+        order.save(
+            update_fields=[
+                "status",
+                "released_by",
+                "released_at",
+                "updated_at",
+            ]
+        )
+
+        return Response(self.get_serializer(order).data)
+
+    @action(detail=True, methods=["post"], url_path="mark-ordered")
+    def mark_ordered(self, request, pk=None):
+        order = self.get_object()
+
+        if order.status not in ["DRAFT", "RELEASED"]:
+            return Response(
+                {"detail": "Diese Bestellung kann nicht auf Bestellt gesetzt werden."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        order.status = "ORDERED"
+        order.ordered_by = request.user
+        order.ordered_at = timezone.now()
+        order.save(
+            update_fields=[
+                "status",
+                "ordered_by",
+                "ordered_at",
+                "updated_at",
+            ]
+        )
+
+        return Response(self.get_serializer(order).data)
+
+    @action(detail=True, methods=["post"], url_path="cancel")
+    def cancel(self, request, pk=None):
+        order = self.get_object()
+
+        if order.status in ["RECEIVED", "CANCELLED"]:
+            return Response(
+                {"detail": "Gelieferte oder stornierte Bestellungen können nicht storniert werden."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        order.status = "CANCELLED"
+        order.save(update_fields=["status", "updated_at"])
+
+        return Response(self.get_serializer(order).data)
+
+
+class PurchaseOrderItemViewSet(viewsets.ModelViewSet):
+    queryset = (
+        PurchaseOrderItem.objects.select_related(
+            "purchase_order",
+            "product",
+        )
+        .order_by("purchase_order__order_number", "product__name")
+    )
+    serializer_class = PurchaseOrderItemSerializer
 
     def get_permissions(self):
         if self.request.method in ["GET", "HEAD", "OPTIONS"]:

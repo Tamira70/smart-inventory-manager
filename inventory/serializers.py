@@ -14,6 +14,8 @@ from .models import (
     StorageLocation,
     StorageLocationStock,
     Supplier,
+    PurchaseOrder,
+    PurchaseOrderItem,
 
     Customer,
     CustomerContact,
@@ -44,6 +46,119 @@ class SupplierSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = ["created_at", "updated_at"]
+
+
+
+class PurchaseOrderItemSerializer(serializers.ModelSerializer):
+    product_name = serializers.ReadOnlyField(source="product.name")
+    product_sku = serializers.ReadOnlyField(source="product.sku")
+    product_unit = serializers.ReadOnlyField(source="product.unit")
+    open_quantity = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PurchaseOrderItem
+        fields = [
+            "id",
+            "purchase_order",
+            "product",
+            "product_name",
+            "product_sku",
+            "product_unit",
+            "quantity",
+            "received_quantity",
+            "open_quantity",
+            "unit",
+            "unit_price",
+            "note",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "created_at",
+            "updated_at",
+            "product_name",
+            "product_sku",
+            "product_unit",
+            "open_quantity",
+        ]
+
+    def get_open_quantity(self, obj):
+        return obj.open_quantity
+
+
+class PurchaseOrderSerializer(serializers.ModelSerializer):
+    supplier_name = serializers.ReadOnlyField(source="supplier.name")
+    created_by_username = serializers.ReadOnlyField(source="created_by.username")
+    released_by_username = serializers.ReadOnlyField(source="released_by.username")
+    ordered_by_username = serializers.ReadOnlyField(source="ordered_by.username")
+    received_by_username = serializers.ReadOnlyField(source="received_by.username")
+
+    items = PurchaseOrderItemSerializer(many=True, read_only=True)
+
+    item_count = serializers.SerializerMethodField()
+    total_quantity = serializers.SerializerMethodField()
+    received_quantity_total = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PurchaseOrder
+        fields = [
+            "id",
+            "order_number",
+            "supplier",
+            "supplier_name",
+            "status",
+            "title",
+            "note",
+            "expected_delivery_date",
+            "created_by",
+            "created_by_username",
+            "released_by",
+            "released_by_username",
+            "ordered_by",
+            "ordered_by_username",
+            "received_by",
+            "received_by_username",
+            "released_at",
+            "ordered_at",
+            "received_at",
+            "created_at",
+            "updated_at",
+            "items",
+            "item_count",
+            "total_quantity",
+            "received_quantity_total",
+        ]
+        read_only_fields = [
+            "id",
+            "order_number",
+            "created_by",
+            "created_by_username",
+            "released_by",
+            "released_by_username",
+            "ordered_by",
+            "ordered_by_username",
+            "received_by",
+            "received_by_username",
+            "released_at",
+            "ordered_at",
+            "received_at",
+            "created_at",
+            "updated_at",
+            "items",
+            "item_count",
+            "total_quantity",
+            "received_quantity_total",
+        ]
+
+    def get_item_count(self, obj):
+        return obj.items.count()
+
+    def get_total_quantity(self, obj):
+        return obj.total_quantity
+
+    def get_received_quantity_total(self, obj):
+        return obj.received_quantity_total
+
 
 
 class UserProfileSerializer(serializers.ModelSerializer):

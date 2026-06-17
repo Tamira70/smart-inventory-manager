@@ -11,6 +11,8 @@ from .models import (
     InventoryCount,
     StorageLocation,
     Supplier,
+    PurchaseOrder,
+    PurchaseOrderItem,
     Customer,
     CustomerContact,
     DeliveryAddress,
@@ -131,6 +133,55 @@ class StorageLocationAdmin(admin.ModelAdmin):
             },
         ),
     )
+
+
+class PurchaseOrderItemInline(admin.TabularInline):
+    model = PurchaseOrderItem
+    extra = 0
+    fields = (
+        "product",
+        "quantity",
+        "received_quantity",
+        "unit",
+        "unit_price",
+        "note",
+    )
+
+
+@admin.register(PurchaseOrder)
+class PurchaseOrderAdmin(admin.ModelAdmin):
+    list_display = (
+        "order_number",
+        "supplier",
+        "status",
+        "expected_delivery_date",
+        "created_by",
+        "created_at",
+        "updated_at",
+    )
+    search_fields = (
+        "order_number",
+        "supplier__name",
+        "title",
+        "note",
+    )
+    list_filter = (
+        "status",
+        "supplier",
+        "created_at",
+        "expected_delivery_date",
+    )
+    readonly_fields = (
+        "order_number",
+        "created_at",
+        "updated_at",
+        "released_at",
+        "ordered_at",
+        "received_at",
+    )
+    inlines = [PurchaseOrderItemInline]
+
+
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):

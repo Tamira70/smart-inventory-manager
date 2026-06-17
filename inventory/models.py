@@ -136,6 +136,151 @@ class Product(models.Model):
     def __str__(self):
         return f"{self.name} ({self.sku})"
 
+
+class PurchaseOrder(models.Model):
+    STATUS_CHOICES = [
+        ("DRAFT", "Entwurf"),
+        ("RELEASED", "Freigegeben"),
+        ("ORDERED", "Bestellt"),
+        ("PARTIALLY_RECEIVED", "Teilgeliefert"),
+        ("RECEIVED", "Geliefert"),
+        ("CANCELLED", "Storniert"),
+    ]
+
+    order_number = models.CharField(
+        max_length=50,
+        unique=True,
+        blank=True,
+        null=True,
+    )
+
+    supplier = models.ForeignKey(
+        Supplier,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="purchase_orders",
+    )
+
+    status = models.CharField(
+        max_length=30,
+        choices=STATUS_CHOICES,
+        default="DRAFT",
+    )
+
+    title = models.CharField(max_length=255, blank=True)
+    note = models.TextField(blank=True)
+    expected_delivery_date = models.DateField(null=True, blank=True)
+
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_purchase_orders",
+    )
+
+    released_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="released_purchase_orders",
+    )
+
+    ordered_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="ordered_purchase_orders",
+    )
+
+    received_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="received_purchase_orders",
+    )
+
+    released_at = models.DateTimeField(null=True, blank=True)
+    ordered_at = models.DateTimeField(null=True, blank=True)
+    received_at = models.DateTimeField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+
+        if not self.order_number:
+            self.order_number = f"PO-{self.created_at:%Y}-{self.id:05d}"
+            super().save(update_fields=["order_number"])
+
+    @property
+    def total_quantity(self):
+        return sum(item.quantity for item in self.items.all())
+
+    @property
+    def received_quantity_total(self):
+        return sum(item.received_quantity for item in self.items.all())
+
+    def __str__(self):
+        return self.order_number or f"Bestellung #{self.pk}"
+
+
+class PurchaseOrderItem(models.Model):
+    purchase_order = models.ForeignKey(
+        PurchaseOrder,
+        on_delete=models.CASCADE,
+        related_name="items",
+    )
+
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.PROTECT,
+        related_name="purchase_order_items",
+    )
+
+    quantity = models.PositiveIntegerField()
+    received_quantity = models.PositiveIntegerField(default=0)
+
+    unit = models.CharField(max_length=50, blank=True)
+
+    unit_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+
+    note = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["product__name", "id"]
+
+    @property
+    def open_quantity(self):
+        return max(0, self.quantity - self.received_quantity)
+
+    def save(self, *args, **kwargs):
+        if self.product and not self.unit:
+            self.unit = self.product.unit
+
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.purchase_order} - {self.product.name} ({self.quantity})"
+
+
+
 class InventoryTransaction(models.Model):
     TRANSACTION_TYPE = [
         ("IN", "Eingang"),
