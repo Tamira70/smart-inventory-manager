@@ -336,6 +336,65 @@ type ProductForm = {
   packaging_type: string;
 };
 
+type PurchaseOrderItem = {
+  id: number;
+  purchase_order: number;
+  product: number;
+  product_name: string;
+  product_sku: string;
+  product_unit: string;
+  quantity: number;
+  received_quantity: number;
+  open_quantity: number;
+  unit: string;
+  unit_price: string | null;
+  note: string;
+  created_at: string;
+  updated_at: string;
+};
+
+type PurchaseOrder = {
+  id: number;
+  order_number: string | null;
+  supplier: number | null;
+  supplier_name: string | null;
+  status:
+    | "DRAFT"
+    | "RELEASED"
+    | "ORDERED"
+    | "PARTIALLY_RECEIVED"
+    | "RECEIVED"
+    | "CANCELLED";
+  title: string;
+  note: string;
+  expected_delivery_date: string | null;
+  created_by?: number | null;
+  created_by_username?: string | null;
+  released_by_username?: string | null;
+  ordered_by_username?: string | null;
+  received_by_username?: string | null;
+  released_at: string | null;
+  ordered_at: string | null;
+  received_at: string | null;
+  created_at: string;
+  updated_at: string;
+  items: PurchaseOrderItem[];
+  item_count: number;
+  total_quantity: number;
+  received_quantity_total: number;
+};
+
+type PurchaseOrderForm = {
+  supplier: string;
+  title: string;
+  note: string;
+  expected_delivery_date: string;
+  product: string;
+  quantity: string;
+  unit_price: string;
+  item_note: string;
+};
+
 type ActiveSection =
   | "dashboard"
   | "orders"
@@ -526,6 +585,17 @@ const initialCustomerNoteForm: CustomerNoteForm = {
   note: "",
 };
 
+const initialPurchaseOrderForm: PurchaseOrderForm = {
+  supplier: "",
+  title: "",
+  note: "",
+  expected_delivery_date: "",
+  product: "",
+  quantity: "1",
+  unit_price: "",
+  item_note: "",
+};
+
 const initialAdminUserForm: AdminUserForm = {
   username: "",
   password: "",
@@ -712,6 +782,12 @@ const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [supplierSaving, setSupplierSaving] = useState(false);
   const [supplierForm, setSupplierForm] =
     useState<SupplierForm>(initialSupplierForm);
+
+  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
+  const [purchaseOrdersLoading, setPurchaseOrdersLoading] = useState(false);
+  const [purchaseOrderSaving, setPurchaseOrderSaving] = useState(false);
+  const [purchaseOrderForm, setPurchaseOrderForm] =
+    useState<PurchaseOrderForm>(initialPurchaseOrderForm);
 
 
   const [inventorySessions, setInventorySessions] = useState<InventorySession[]>([]);
@@ -1013,6 +1089,24 @@ if (role === "einkauf") {
     }
   };
 
+  const loadPurchaseOrders = async () => {
+    try {
+      setPurchaseOrdersLoading(true);
+
+      const response = await apiFetch("/inventory-api/purchase-orders/");
+      const data = (await response.json()) as PurchaseOrder[];
+
+      setPurchaseOrders(data);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Fehler beim Laden der Bestellungen.";
+      setError(message);
+    } finally {
+      setPurchaseOrdersLoading(false);
+    }
+  };
+
+
   const loadCustomers = async () => {
     try {
       setCustomersLoading(true);
@@ -1173,6 +1267,7 @@ if (role === "einkauf") {
     void loadLocationStocks();
     void loadPackagingTypes();
     void loadSuppliers();
+    void loadPurchaseOrders();
     void loadCustomers();
     void loadCustomerContacts();
     void loadDeliveryAddresses();
@@ -1350,6 +1445,184 @@ if (role === "einkauf") {
       setError(message);
     } finally {
       setSupplierSaving(false);
+    }
+  };
+
+  const handlePurchaseOrderChange = (
+    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = event.target;
+
+    setPurchaseOrderForm((current) => ({
+      ...current,
+      [name]: value,
+    }));
+  };
+
+  const handleCreatePurchaseOrder = async (event: FormEvent) => {
+    event.preventDefault();
+
+    if (!canWrite) {
+      setError("Nur Einkauf oder Admin dürfen Bestellungen anlegen.");
+      return;
+    }
+
+    if (!purchaseOrderForm.supplier) {
+      setError("Bitte einen Lieferanten auswählen.");
+      return;
+    }
+
+    if (!purchaseOrderForm.product) {
+      setError("Bitte ein Produkt für die Bestellung auswählen.");
+      return;
+    }
+
+    if (
+      purchaseOrderForm.quantity === "" ||
+      Number(purchaseOrderForm.quantity) <= 0
+    ) {
+      setError("Die Bestellmenge muss größer als 0 sein.");
+      return;
+    }
+
+    try {
+      setPurchaseOrderSaving(true);
+      setError("");
+      setSuccess("");
+
+      const selectedProduct = products.find(
+        (product) => String(product.id) === purchaseOrderForm.product
+      );
+
+      const orderResponse = await apiFetch("/inventory-api/purchase-orders/", {
+        method: "POST",
+        body: JSON.stringify({
+          supplier: Number(purchaseOrderForm.supplier),
+          title:
+            purchaseOrderForm.title.trim() ||
+            `Bestellung ${selectedProduct?.name ?? ""}`.trim(),
+          note: purchaseOrderForm.note,
+          expected_delivery_date:
+            purchaseOrderForm.expected_delivery_date || null,
+        }),
+      });
+
+      if (!orderResponse.ok) {
+        const errorData = await orderResponse.json();
+        throw new Error(JSON.stringify(errorData));
+      }
+
+      const createdOrder = (await orderResponse.json()) as PurchaseOrder;
+
+      const itemResponse = await apiFetch("/inventory-api/purchase-order-items/", {
+        method: "POST",
+        body: JSON.stringify({
+          purchase_order: createdOrder.id,
+          product: Number(purchaseOrderForm.product),
+          quantity: Number(purchaseOrderForm.quantity),
+          unit_price: purchaseOrderForm.unit_price
+            ? Number(purchaseOrderForm.unit_price)
+            : null,
+          note: purchaseOrderForm.item_note,
+        }),
+      });
+
+      if (!itemResponse.ok) {
+        const errorData = await itemResponse.json();
+        throw new Error(JSON.stringify(errorData));
+      }
+
+      setPurchaseOrderForm(initialPurchaseOrderForm);
+
+      await loadPurchaseOrders();
+
+      setSuccess("🛒 Bestellung erfolgreich angelegt.");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Fehler beim Anlegen der Bestellung.";
+      setError(message);
+    } finally {
+      setPurchaseOrderSaving(false);
+    }
+  };
+
+  const handleReleasePurchaseOrder = async (orderId: number) => {
+    try {
+      setError("");
+      setSuccess("");
+
+      const response = await apiFetch(
+        `/inventory-api/purchase-orders/${orderId}/release/`,
+        { method: "POST" }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(JSON.stringify(errorData));
+      }
+
+      await loadPurchaseOrders();
+
+      setSuccess("✅ Bestellung wurde freigegeben.");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Fehler beim Freigeben der Bestellung.";
+      setError(message);
+    }
+  };
+
+  const handleMarkPurchaseOrderOrdered = async (orderId: number) => {
+    try {
+      setError("");
+      setSuccess("");
+
+      const response = await apiFetch(
+        `/inventory-api/purchase-orders/${orderId}/mark-ordered/`,
+        { method: "POST" }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(JSON.stringify(errorData));
+      }
+
+      await loadPurchaseOrders();
+
+      setSuccess("📨 Bestellung wurde auf Bestellt gesetzt.");
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Fehler beim Setzen des Bestellstatus.";
+      setError(message);
+    }
+  };
+
+  const handleCancelPurchaseOrder = async (orderId: number) => {
+    const confirmed = window.confirm("Bestellung wirklich stornieren?");
+    if (!confirmed) return;
+
+    try {
+      setError("");
+      setSuccess("");
+
+      const response = await apiFetch(
+        `/inventory-api/purchase-orders/${orderId}/cancel/`,
+        { method: "POST" }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(JSON.stringify(errorData));
+      }
+
+      await loadPurchaseOrders();
+
+      setSuccess("⛔ Bestellung wurde storniert.");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Fehler beim Stornieren der Bestellung.";
+      setError(message);
     }
   };
 
@@ -3100,8 +3373,19 @@ const exportMovementsToCsv = async () => {
 
             {activeSection === "orders" && (
             <OrdersSection
-              drafts={purchaseOrderDrafts}
+              purchaseOrders={purchaseOrders}
+              loading={purchaseOrdersLoading}
+              form={purchaseOrderForm}
+              suppliers={suppliers}
+              products={products}
+              saving={purchaseOrderSaving}
               canWrite={canWrite}
+              onChange={handlePurchaseOrderChange}
+              onCreateOrder={handleCreatePurchaseOrder}
+              onReleaseOrder={handleReleasePurchaseOrder}
+              onMarkOrdered={handleMarkPurchaseOrderOrdered}
+              onCancelOrder={handleCancelPurchaseOrder}
+              drafts={purchaseOrderDrafts}
               onRemoveDraft={handleRemovePurchaseOrderDraft}
               onApproveDraft={handleApprovePurchaseOrderDraft}
             />
@@ -3479,114 +3763,619 @@ const exportMovementsToCsv = async () => {
 }
 
 function OrdersSection({
-  drafts,
+  purchaseOrders,
+  loading,
+  form,
+  suppliers,
+  products,
+  saving,
   canWrite,
+  onChange,
+  onCreateOrder,
+  onReleaseOrder,
+  onMarkOrdered,
+  onCancelOrder,
+  drafts,
   onRemoveDraft,
   onApproveDraft,
 }: {
-  drafts: PurchaseOrderDraft[];
+  purchaseOrders: PurchaseOrder[];
+  loading: boolean;
+  form: PurchaseOrderForm;
+  suppliers: Supplier[];
+  products: Product[];
+  saving: boolean;
   canWrite: boolean;
+  onChange: (
+    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => void;
+  onCreateOrder: (event: FormEvent) => void;
+  onReleaseOrder: (orderId: number) => void;
+  onMarkOrdered: (orderId: number) => void;
+  onCancelOrder: (orderId: number) => void;
+  drafts: PurchaseOrderDraft[];
   onRemoveDraft: (draftId: number) => void;
   onApproveDraft: (draftId: number) => void;
 }) {
-  const totalQuantity = drafts.reduce((sum, draft) => sum + draft.quantity, 0);
-  const approvedCount = drafts.filter((draft) => draft.status === "APPROVED").length;
+  const totalBackendQuantity = purchaseOrders.reduce(
+    (sum, order) => sum + order.total_quantity,
+    0
+  );
+
+  const openOrders = purchaseOrders.filter(
+    (order) => !["RECEIVED", "CANCELLED"].includes(order.status)
+  );
+
+  const orderedCount = purchaseOrders.filter(
+    (order) => order.status === "ORDERED"
+  ).length;
+
+  const selectedProduct = products.find(
+    (product) => String(product.id) === form.product
+  );
+
+  const totalDraftQuantity = drafts.reduce(
+    (sum, draft) => sum + draft.quantity,
+    0
+  );
+
+  const approvedDraftCount = drafts.filter(
+    (draft) => draft.status === "APPROVED"
+  ).length;
+
+  const orderPanelStyle: CSSProperties = {
+    background: "rgba(15, 23, 42, 0.78)",
+    border: "1px solid rgba(148, 163, 184, 0.18)",
+    borderRadius: "18px",
+    padding: "18px",
+    boxShadow: "0 18px 36px rgba(0,0,0,0.18)",
+  };
+
+  const orderPanelTitleStyle: CSSProperties = {
+    margin: "0 0 14px 0",
+    color: "#bfdbfe",
+    fontSize: "1rem",
+  };
+
+  const orderTopGridStyle: CSSProperties = {
+    display: "grid",
+    gridTemplateColumns: "minmax(340px, 1.35fr) minmax(300px, 0.85fr)",
+    gap: "18px",
+    marginTop: "22px",
+  };
+
+  const orderFormGridStyle: CSSProperties = {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
+    gap: "10px",
+  };
+
+  const orderMetricGridStyle: CSSProperties = {
+    display: "grid",
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    gap: "10px",
+  };
+
+  const orderMetricCardStyle: CSSProperties = {
+    background: "rgba(30, 41, 59, 0.58)",
+    border: "1px solid rgba(148, 163, 184, 0.14)",
+    borderRadius: "14px",
+    padding: "14px",
+    textAlign: "center",
+  };
+
+  const orderMetricLabelStyle: CSSProperties = {
+    color: "#94a3b8",
+    fontSize: "0.82rem",
+    marginBottom: "6px",
+  };
+
+  const orderMetricValueStyle: CSSProperties = {
+    color: "#f8fafc",
+    fontSize: "1.55rem",
+    fontWeight: 800,
+  };
+
+  const orderListStyle: CSSProperties = {
+    display: "grid",
+    gap: "14px",
+    marginTop: "16px",
+  };
+
+  const orderCardStyle: CSSProperties = {
+    background: "rgba(15, 23, 42, 0.78)",
+    border: "1px solid rgba(148, 163, 184, 0.18)",
+    borderRadius: "18px",
+    padding: "16px",
+  };
+
+  const orderCardHeaderStyle: CSSProperties = {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: "12px",
+    flexWrap: "wrap",
+    alignItems: "flex-start",
+    marginBottom: "14px",
+  };
+
+  const orderBadgeStyle: CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "6px",
+    borderRadius: "999px",
+    padding: "6px 10px",
+    fontSize: "0.82rem",
+    fontWeight: 700,
+    border: "1px solid rgba(148, 163, 184, 0.18)",
+  };
+
+  const orderDetailGridStyle: CSSProperties = {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
+    gap: "12px",
+    marginTop: "12px",
+  };
+
+  const orderDetailLabelStyle: CSSProperties = {
+    color: "#94a3b8",
+    fontSize: "0.78rem",
+    marginBottom: "4px",
+  };
+
+  const orderDetailValueStyle: CSSProperties = {
+    color: "#e2e8f0",
+    fontWeight: 700,
+  };
+
+  const orderActionRowStyle: CSSProperties = {
+    display: "flex",
+    gap: "8px",
+    flexWrap: "wrap",
+    justifyContent: "flex-end",
+    marginTop: "14px",
+  };
+
+  const getStatusMeta = (status: PurchaseOrder["status"]) => {
+    const map: Record<
+      PurchaseOrder["status"],
+      { label: string; background: string; color: string }
+    > = {
+      DRAFT: {
+        label: "📝 Entwurf",
+        background: "rgba(59, 130, 246, 0.16)",
+        color: "#bfdbfe",
+      },
+      RELEASED: {
+        label: "✅ Freigegeben",
+        background: "rgba(22, 101, 52, 0.2)",
+        color: "#bbf7d0",
+      },
+      ORDERED: {
+        label: "📨 Bestellt",
+        background: "rgba(37, 99, 235, 0.22)",
+        color: "#bfdbfe",
+      },
+      PARTIALLY_RECEIVED: {
+        label: "📦 Teilgeliefert",
+        background: "rgba(234, 179, 8, 0.18)",
+        color: "#fef3c7",
+      },
+      RECEIVED: {
+        label: "📦 Geliefert",
+        background: "rgba(22, 101, 52, 0.2)",
+        color: "#bbf7d0",
+      },
+      CANCELLED: {
+        label: "⛔ Storniert",
+        background: "rgba(127, 29, 29, 0.22)",
+        color: "#fecaca",
+      },
+    };
+
+    return map[status];
+  };
+
+  const formatDate = (value?: string | null) =>
+    value ? new Date(value).toLocaleDateString("de-DE") : "—";
+
+  const formatDateTime = (value?: string | null) =>
+    value ? new Date(value).toLocaleString("de-DE") : "—";
+
+  const formatMoney = (value?: string | null) =>
+    value
+      ? `${Number(value).toLocaleString("de-DE", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })} €`
+      : "—";
 
   return (
     <section style={sectionStyle}>
       <h2 style={sectionTitleStyle}>🛒 Bestellungen</h2>
 
       <p style={infoStyle}>
-        Vorbereitete Bestellentwürfe aus den Nachbestellvorschlägen. Entwürfe
-        können im Einkauf freigegeben werden und erhalten anschließend eine
-        automatische Bestellnummer.
+        Einkaufsbestellungen mit Lieferantenverknüpfung, Bestellpositionen und
+        Statussteuerung. Entwürfe können freigegeben, als bestellt markiert oder
+        storniert werden.
       </p>
 
-      <div style={dashboardGridStyle}>
-        <Card title="Bestellungen gesamt" value={String(drafts.length)} />
-        <Card title="Freigegeben" value={String(approvedCount)} />
-        <Card title="Gesamtmenge" value={String(totalQuantity)} />
+      <div style={orderTopGridStyle}>
+        <div style={orderPanelStyle}>
+          <h3 style={orderPanelTitleStyle}>➕ Neue Bestellung</h3>
+
+          {canWrite ? (
+            <form onSubmit={onCreateOrder} style={orderFormGridStyle}>
+              <select
+                name="supplier"
+                value={form.supplier}
+                onChange={onChange}
+                style={inputStyle}
+              >
+                <option value="">Lieferant auswählen</option>
+                {suppliers
+                  .filter((supplier) => supplier.is_active)
+                  .map((supplier) => (
+                    <option key={supplier.id} value={supplier.id}>
+                      {supplier.name}
+                      {supplier.supplier_number
+                        ? ` (${supplier.supplier_number})`
+                        : ""}
+                    </option>
+                  ))}
+              </select>
+
+              <select
+                name="product"
+                value={form.product}
+                onChange={onChange}
+                style={inputStyle}
+              >
+                <option value="">Produkt auswählen</option>
+                {products.map((product) => (
+                  <option key={product.id} value={product.id}>
+                    {product.name} ({product.sku})
+                  </option>
+                ))}
+              </select>
+
+              <input
+                name="quantity"
+                type="number"
+                min="1"
+                placeholder="Bestellmenge"
+                value={form.quantity}
+                onChange={onChange}
+                style={inputStyle}
+              />
+
+              <input
+                name="unit_price"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="Einstandspreis / Stück"
+                value={form.unit_price}
+                onChange={onChange}
+                style={inputStyle}
+              />
+
+              <input
+                name="expected_delivery_date"
+                type="date"
+                value={form.expected_delivery_date}
+                onChange={onChange}
+                style={inputStyle}
+              />
+
+              <input
+                name="title"
+                type="text"
+                placeholder={
+                  selectedProduct
+                    ? `Titel z. B. Bestellung ${selectedProduct.name}`
+                    : "Titel der Bestellung"
+                }
+                value={form.title}
+                onChange={onChange}
+                style={inputStyle}
+              />
+
+              <textarea
+                name="note"
+                placeholder="Notiz zur Bestellung"
+                value={form.note}
+                onChange={onChange}
+                style={{ ...inputStyle, minHeight: "70px" }}
+              />
+
+              <textarea
+                name="item_note"
+                placeholder="Notiz zur Position"
+                value={form.item_note}
+                onChange={onChange}
+                style={{ ...inputStyle, minHeight: "70px" }}
+              />
+
+              <button
+                type="submit"
+                disabled={saving}
+                style={saving ? disabledButtonStyle : primaryButtonStyle}
+              >
+                {saving ? "Speichere..." : "Bestellung anlegen"}
+              </button>
+            </form>
+          ) : (
+            <p style={infoStyle}>
+              Nur Einkauf oder Admin dürfen Bestellungen anlegen.
+            </p>
+          )}
+        </div>
+
+        <div style={orderPanelStyle}>
+          <h3 style={orderPanelTitleStyle}>📊 Bestellstatus</h3>
+
+          <div style={orderMetricGridStyle}>
+            <div style={orderMetricCardStyle}>
+              <div style={orderMetricLabelStyle}>Gesamt</div>
+              <div style={orderMetricValueStyle}>{purchaseOrders.length}</div>
+            </div>
+
+            <div style={orderMetricCardStyle}>
+              <div style={orderMetricLabelStyle}>Offen</div>
+              <div style={orderMetricValueStyle}>{openOrders.length}</div>
+            </div>
+
+            <div style={orderMetricCardStyle}>
+              <div style={orderMetricLabelStyle}>Bestellt</div>
+              <div style={orderMetricValueStyle}>{orderedCount}</div>
+            </div>
+
+            <div style={orderMetricCardStyle}>
+              <div style={orderMetricLabelStyle}>Gesamtmenge</div>
+              <div style={orderMetricValueStyle}>{totalBackendQuantity}</div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {drafts.length === 0 ? (
-        <p style={successStyle}>
-          ✅ Aktuell sind keine Bestellentwürfe vorhanden. Über Dispo →
-          Nachbestellvorschläge kannst du neue Entwürfe vorbereiten.
-        </p>
-      ) : (
-        <div style={{ ...tableWrapStyle, marginTop: "22px" }}>
-          <table style={dataTableStyle}>
-            <thead>
-              <tr style={tableHeaderRowStyle}>
-                <th style={tableHeadStyle}>Bestellnummer</th>
-                <th style={tableHeadStyle}>Produkt</th>
-                <th style={tableHeadStyle}>SKU</th>
-                <th style={tableHeadStyle}>Menge</th>
-                <th style={tableHeadStyle}>Einheit</th>
-                <th style={tableHeadStyle}>Status</th>
-                <th style={tableHeadStyle}>Erstellt am</th>
-                <th style={tableHeadStyle}>Freigegeben am</th>
-                <th style={tableHeadStyle}>Aktion</th>
-              </tr>
-            </thead>
+      <div style={{ marginTop: "24px" }}>
+        <h3 style={{ ...orderPanelTitleStyle, marginBottom: "12px" }}>
+          📋 Bestellübersicht
+        </h3>
 
-            <tbody>
-              {drafts.map((draft) => {
-                const isApproved = draft.status === "APPROVED";
+        {loading && <p>Lade Bestellungen...</p>}
 
-                return (
-                  <tr
-                    key={draft.id}
+        {!loading && purchaseOrders.length === 0 && (
+          <p style={successStyle}>✅ Noch keine Backend-Bestellungen vorhanden.</p>
+        )}
+
+        {!loading && purchaseOrders.length > 0 && (
+          <div style={orderListStyle}>
+            {purchaseOrders.map((order) => {
+              const statusMeta = getStatusMeta(order.status);
+              const canRelease = order.status === "DRAFT";
+              const canMarkOrdered = ["DRAFT", "RELEASED"].includes(order.status);
+              const canCancel = !["RECEIVED", "CANCELLED"].includes(order.status);
+
+              return (
+                <article key={order.id} style={orderCardStyle}>
+                  <div style={orderCardHeaderStyle}>
+                    <div>
+                      <div style={{ color: "#94a3b8", fontSize: "0.82rem" }}>
+                        Bestellnummer
+                      </div>
+
+                      <h3 style={{ margin: "4px 0", color: "#f8fafc" }}>
+                        {order.order_number ?? `#${order.id}`}
+                      </h3>
+
+                      {order.title && (
+                        <div style={{ color: "#94a3b8" }}>{order.title}</div>
+                      )}
+                    </div>
+
+                    <span
+                      style={{
+                        ...orderBadgeStyle,
+                        background: statusMeta.background,
+                        color: statusMeta.color,
+                      }}
+                    >
+                      {statusMeta.label}
+                    </span>
+                  </div>
+
+                  <div style={orderDetailGridStyle}>
+                    <div>
+                      <div style={orderDetailLabelStyle}>Lieferant</div>
+                      <div style={orderDetailValueStyle}>
+                        {order.supplier_name || "—"}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style={orderDetailLabelStyle}>Menge</div>
+                      <div style={orderDetailValueStyle}>
+                        {order.received_quantity_total}/{order.total_quantity}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style={orderDetailLabelStyle}>Lieferdatum</div>
+                      <div style={orderDetailValueStyle}>
+                        {formatDate(order.expected_delivery_date)}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style={orderDetailLabelStyle}>Erstellt</div>
+                      <div style={orderDetailValueStyle}>
+                        {formatDateTime(order.created_at)}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div
                     style={{
-                      borderTop: "1px solid rgba(148, 163, 184, 0.12)",
-                      background: isApproved
-                        ? "rgba(22,101,52,0.08)"
-                        : "rgba(30, 41, 59, 0.35)",
+                      marginTop: "14px",
+                      padding: "12px",
+                      borderRadius: "14px",
+                      background: "rgba(30, 41, 59, 0.45)",
+                      border: "1px solid rgba(148, 163, 184, 0.12)",
                     }}
                   >
-                    <td style={tableCellStyle}>{draft.orderNumber ?? "—"}</td>
-                    <td style={tableCellStyle}>{draft.productName}</td>
-                    <td style={tableCellStyle}>{draft.sku}</td>
-                    <td style={tableCellStyle}>{draft.quantity}</td>
-                    <td style={tableCellStyle}>{draft.unit}</td>
-                    <td style={tableCellStyle}>
-                      {isApproved ? "✅ Freigegeben" : "📝 Entwurf"}
-                    </td>
-                    <td style={tableCellStyle}>
-                      {new Date(draft.createdAt).toLocaleString("de-DE")}
-                    </td>
-                    <td style={tableCellStyle}>
-                      {draft.approvedAt
-                        ? new Date(draft.approvedAt).toLocaleString("de-DE")
-                        : "—"}
-                    </td>
-                    <td style={tableCellStyle}>
-                      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                        <button
-                          type="button"
-                          onClick={() => onApproveDraft(draft.id)}
-                          disabled={!canWrite || isApproved}
-                          style={!canWrite || isApproved ? disabledButtonStyle : primaryButtonStyle}
-                        >
-                          {isApproved ? "Freigegeben" : canWrite ? "Freigeben" : "Nur ansehen"}
-                        </button>
+                    <div style={orderDetailLabelStyle}>Positionen</div>
 
-                        <button
-                          type="button"
-                          onClick={() => onRemoveDraft(draft.id)}
-                          disabled={!canWrite}
-                          style={canWrite ? secondaryButtonStyle : disabledButtonStyle}
-                        >
-                          {canWrite ? "Entfernen" : "Nur ansehen"}
-                        </button>
+                    {order.items.length === 0 ? (
+                      <div style={orderDetailValueStyle}>Keine Positionen</div>
+                    ) : (
+                      <div style={{ display: "grid", gap: "8px" }}>
+                        {order.items.map((item) => (
+                          <div key={item.id}>
+                            <strong>{item.product_name}</strong>
+                            <div style={{ color: "#94a3b8" }}>
+                              {item.quantity} {item.unit || item.product_unit}
+                              {" · offen "}
+                              {item.open_quantity}
+                              {" · "}
+                              {formatMoney(item.unit_price)}
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                    )}
+                  </div>
+
+                  {order.note && (
+                    <p style={{ ...infoStyle, marginTop: "14px" }}>
+                      📝 {order.note}
+                    </p>
+                  )}
+
+                  <div style={orderActionRowStyle}>
+                    <button
+                      type="button"
+                      onClick={() => onReleaseOrder(order.id)}
+                      disabled={!canWrite || !canRelease}
+                      style={
+                        !canWrite || !canRelease
+                          ? disabledButtonStyle
+                          : primaryButtonStyle
+                      }
+                    >
+                      Freigeben
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => onMarkOrdered(order.id)}
+                      disabled={!canWrite || !canMarkOrdered}
+                      style={
+                        !canWrite || !canMarkOrdered
+                          ? disabledButtonStyle
+                          : secondaryButtonStyle
+                      }
+                    >
+                      Bestellt
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => onCancelOrder(order.id)}
+                      disabled={!canWrite || !canCancel}
+                      style={
+                        !canWrite || !canCancel
+                          ? disabledButtonStyle
+                          : secondaryButtonStyle
+                      }
+                    >
+                      Stornieren
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {drafts.length > 0 && (
+        <details style={{ marginTop: "24px" }}>
+          <summary style={{ cursor: "pointer", color: "#bfdbfe" }}>
+            Alte lokale Bestellentwürfe anzeigen ({drafts.length})
+          </summary>
+
+          <div style={dashboardGridStyle}>
+            <Card title="Lokale Entwürfe" value={String(drafts.length)} />
+            <Card title="Freigegeben" value={String(approvedDraftCount)} />
+            <Card title="Gesamtmenge" value={String(totalDraftQuantity)} />
+          </div>
+
+          <div style={{ ...tableWrapStyle, marginTop: "18px" }}>
+            <table style={dataTableStyle}>
+              <thead>
+                <tr style={tableHeaderRowStyle}>
+                  <th style={tableHeadStyle}>Bestellnummer</th>
+                  <th style={tableHeadStyle}>Produkt</th>
+                  <th style={tableHeadStyle}>SKU</th>
+                  <th style={tableHeadStyle}>Menge</th>
+                  <th style={tableHeadStyle}>Status</th>
+                  <th style={tableHeadStyle}>Aktion</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {drafts.map((draft) => {
+                  const isApproved = draft.status === "APPROVED";
+
+                  return (
+                    <tr
+                      key={draft.id}
+                      style={{
+                        borderTop: "1px solid rgba(148, 163, 184, 0.12)",
+                      }}
+                    >
+                      <td style={tableCellStyle}>{draft.orderNumber ?? "—"}</td>
+                      <td style={tableCellStyle}>{draft.productName}</td>
+                      <td style={tableCellStyle}>{draft.sku}</td>
+                      <td style={tableCellStyle}>
+                        {draft.quantity} {draft.unit}
+                      </td>
+                      <td style={tableCellStyle}>
+                        {isApproved ? "✅ Freigegeben" : "📝 Entwurf"}
+                      </td>
+                      <td style={tableCellStyle}>
+                        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                          <button
+                            type="button"
+                            onClick={() => onApproveDraft(draft.id)}
+                            disabled={!canWrite || isApproved}
+                            style={
+                              !canWrite || isApproved
+                                ? disabledButtonStyle
+                                : primaryButtonStyle
+                            }
+                          >
+                            Freigeben
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => onRemoveDraft(draft.id)}
+                            disabled={!canWrite}
+                            style={canWrite ? secondaryButtonStyle : disabledButtonStyle}
+                          >
+                            Entfernen
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </details>
       )}
     </section>
   );
