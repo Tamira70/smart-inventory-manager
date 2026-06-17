@@ -209,6 +209,115 @@ class PurchaseOrderItemViewSet(viewsets.ModelViewSet):
             return [IsAuthenticated()]
         return [IsAuthenticated(), IsEinkaufOrAdmin()]
 
+    @action(detail=True, methods=["post"], url_path="receive")
+    @transaction.atomic
+    def receive(self, request, pk=None):
+        item = self.get_object()
+        order = item.purchase_order
+
+        if order.status == "CANCELLED":
+            return Response(
+                {"detail": "Stornierte Bestellungen können nicht empfangen werden."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if order.status == "RECEIVED":
+            return Response(
+                {"detail": "Diese Bestellung ist bereits vollständig geliefert."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        open_quantity = item.open_quantity
+
+        try:
+            quantity = int(request.data.get("quantity") or open_quantity)
+        except (TypeError, ValueError):
+            return Response(
+                {"quantity": "Die Empfangsmenge muss eine ganze Zahl sein."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if quantity <= 0:
+            return Response(
+                {"quantity": "Die Empfangsmenge muss größer als 0 sein."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if quantity > open_quantity:
+            return Response(
+                {
+                    "quantity": (
+                        f"Es können maximal {open_quantity} Stück aus dieser "
+                        "Bestellposition empfangen werden."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        unit_purchase_price = request.data.get("unit_purchase_price")
+        if unit_purchase_price in ["", None] and item.unit_price is not None:
+            unit_purchase_price = str(item.unit_price)
+
+        reference_number = (
+            request.data.get("reference_number")
+            or f"WE-{order.order_number or order.id}"
+        )
+
+        note = (
+            request.data.get("note")
+            or (
+                f"Wareneingang aus Bestellung {order.order_number or order.id}, "
+                f"Position #{item.id}."
+            )
+        )
+
+        movement_serializer = StockMovementSerializer(
+            data={
+                "product": item.product_id,
+                "movement_type": "IN",
+                "quantity": quantity,
+                "storage_location": request.data.get("storage_location"),
+                "packaging_type": request.data.get("packaging_type"),
+                "load_carrier_type": request.data.get("load_carrier_type"),
+                "packaging_quantity": request.data.get("packaging_quantity") or 1,
+                "unit_purchase_price": unit_purchase_price,
+                "expiry_date": request.data.get("expiry_date") or None,
+                "reference_number": reference_number,
+                "note": note,
+            }
+        )
+        movement_serializer.is_valid(raise_exception=True)
+        movement = movement_serializer.save(created_by=request.user)
+
+        item.received_quantity += quantity
+        item.save(update_fields=["received_quantity", "updated_at"])
+
+        order_items = list(order.items.all())
+        total_open_quantity = sum(order_item.open_quantity for order_item in order_items)
+        total_received_quantity = sum(
+            order_item.received_quantity for order_item in order_items
+        )
+
+        update_fields = ["status", "received_by", "received_at", "updated_at"]
+
+        if total_open_quantity == 0:
+            order.status = "RECEIVED"
+        elif total_received_quantity > 0:
+            order.status = "PARTIALLY_RECEIVED"
+
+        order.received_by = request.user
+        order.received_at = timezone.now()
+        order.save(update_fields=update_fields)
+
+        return Response(
+            {
+                "movement": StockMovementSerializer(movement).data,
+                "item": self.get_serializer(item).data,
+                "order_status": order.status,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
 
 
 class CustomerViewSet(viewsets.ModelViewSet):
