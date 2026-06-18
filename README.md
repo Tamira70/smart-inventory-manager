@@ -511,9 +511,8 @@ Lege Screenshots im Ordner `screenshots/` ab.
 
 ![Login](screenshots/login.png)
 
-### 📊 Dashboard
-
-![Dashboard](screenshots/dashboard.png)
+## 📊 Neues Dashboard 
+![Dashboard](screenshots/ neues-dashboard-uebersicht.png)
 
 ### 📋 Produkte
 
