@@ -35,3 +35,60 @@ Die wichtigsten Lagerplatz-, Kapazitäts- und Auslagerstrategien sind lokal und 
 Das Projekt zeigt praxisnahe Logistik-IT, ERP-/SAP-nahe Prozesslogik und digitale Lagerverwaltung in einer eigenen Full-Stack-Anwendung.
 
 ---
+<<<<<<< Updated upstream
+=======
+
+## 📸 Screenshots – Bestellprozess
+
+Der Bestellprozess zeigt den Ablauf von der Einkaufsbestellung bis zur automatischen Lagerbewegung im Wareneingang.
+
+| Neue Bestellung | Status: Entwurf |
+|---|---|
+| ![Neue Bestellung](docs/screenshots/bestellprozess/01-neue-bestellung.png) | ![Bestellstatus Entwurf](docs/screenshots/bestellprozess/02-bestellstatus-entwurf.png) |
+
+| Status: Freigegeben | Status: Geliefert |
+|---|---|
+| ![Bestellstatus Freigegeben](docs/screenshots/bestellprozess/03-bestellstatus-freigegeben.png) | ![Bestellstatus Geliefert](docs/screenshots/bestellprozess/04-bestellstatus-geliefert.png) |
+
+| Wareneingang aus Bestellung | Automatische Lagerbewegung |
+|---|---|
+| ![Wareneingang aus Bestellung](docs/screenshots/bestellprozess/05-wareneingang-aus-bestellung.png) | ![Lagerbewegung WE-PO](docs/screenshots/bestellprozess/06-lagerbewegung-we-po.png) |
+
+---
+
+## 🧠 Roadmap und Umsetzungsstand
+
+### ✅ Bereits umgesetzt
+
+- 📦 Verpackungsarten und Packmittel
+- 📍 Lagerplatzbestand je Lagerort
+- 🧮 Erweiterte Lagerplatz-Kapazitätsprüfung
+- 🔁 FIFO / LIFO / FEFO-Auslagerungslogik
+- 💰 HIFO / LOFO-Auslagerungslogik auf Basis von Einstandspreisen
+- 🟩 Automatische Frei-/Belegt-Synchronisierung der Lagerplätze
+- 📤 Excel-Export für Inventurberichte
+- 📤 Excel-Export für Bewegungshistorie
+- 📤 Excel-Export für aktuelle Bestände und Lagerplatzbestände
+- 📄 PDF-Export für Inventurberichte
+- 📊 Dashboard mit erweiterten Diagrammen
+- 🛒 Bestellwesen mit Lieferantenverknüpfung
+- 📥 Wareneingang aus Bestellung mit automatischer Lagerbewegung
+- 🔄 Automatische Aktualisierung von Bestellstatus, gelieferter Menge und offener Menge
+
+### 📸 Screenshots für die Projektdokumentation
+
+Geplante Screenshots für die Portfolio-Dokumentation:
+
+- Bestellübersicht mit PO-Nummern
+- Neue Bestellung mit Lieferant und Produktposition
+- Bestellstatus mit DRAFT / RELEASED / ORDERED / RECEIVED
+- Wareneingang mit ausgewählter offener Bestellposition
+- Automatisch erzeugte Lagerbewegung mit Referenz `WE-PO-...`
+
+### 🔜 Nächster Ausbau
+
+- 📱 QR-Code- / Barcode-Funktion für Produkte und Lagerplätze
+- 🐘 Migration auf PostgreSQL
+- 📦 Weitere Ausbaustufen im Bestell- und Wareneingangsprozess
+
+>>>>>>> Stashed changes
