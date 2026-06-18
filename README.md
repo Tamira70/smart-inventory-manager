@@ -81,7 +81,7 @@ Geplante Screenshots für die Portfolio-Dokumentation:
 
 - Bestellübersicht mit PO-Nummern
 - Neue Bestellung mit Lieferant und Produktposition
-- Bestellstatus mit DRAFT / RELEASED / ORDERED / RECEIVED
+- Bestellstatus mit ENTWURF / FREIGEGEBEN / BESTELLT / ERHALTEN
 - Wareneingang mit ausgewählter offener Bestellposition
 - Automatisch erzeugte Lagerbewegung mit Referenz `WE-PO-...`
 
