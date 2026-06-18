@@ -5980,6 +5980,7 @@ function StorageLocationsSection({
                 <th style={tableHeadStyle}>Max. kg</th>
                 <th style={tableHeadStyle}>Produkte</th>
                 <th style={tableHeadStyle}>Status</th>
+                <th style={tableHeadStyle}>Lagerort-QR</th>
                 <th style={tableHeadStyle}>QR-Code</th>
               </tr>
             </thead>
@@ -8179,6 +8180,31 @@ function ProductGrid({
                 style={secondaryButtonStyle}
               >
                 QR herunterladen
+              </button>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                gap: "8px",
+                flexWrap: "wrap",
+                marginTop: "16px",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => onShowProductQrCode(product)}
+                style={secondaryButtonStyle}
+              >
+                Produkt-QR anzeigen
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onDownloadProductQrCode(product)}
+                style={secondaryButtonStyle}
+              >
+                Produkt-QR herunterladen
               </button>
             </div>
 
