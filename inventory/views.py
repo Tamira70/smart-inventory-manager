@@ -1,4 +1,5 @@
 from io import BytesIO
+import qrcode
 from xml.sax.saxutils import escape
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, landscape
@@ -86,6 +87,25 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
 
 
+def build_qr_png_response(payload: str, filename: str) -> HttpResponse:
+    qr = qrcode.QRCode(
+        version=None,
+        error_correction=qrcode.constants.ERROR_CORRECT_M,
+        box_size=10,
+        border=4,
+    )
+    qr.add_data(payload)
+    qr.make(fit=True)
+
+    image = qr.make_image(fill_color="black", back_color="white")
+    buffer = BytesIO()
+    image.save(buffer, format="PNG")
+
+    response = HttpResponse(buffer.getvalue(), content_type="image/png")
+    response["Content-Disposition"] = f'inline; filename="{filename}"'
+    response["X-QR-Payload"] = payload
+    return response
+
 class StorageLocationViewSet(viewsets.ModelViewSet):
     queryset = StorageLocation.objects.all().order_by("code")
     serializer_class = StorageLocationSerializer
@@ -95,6 +115,18 @@ class StorageLocationViewSet(viewsets.ModelViewSet):
             return [IsAuthenticated()]
         return [IsAuthenticated(), IsEinkaufOrAdmin()]
 
+    @action(detail=True, methods=["get"], url_path="qr-code")
+    def qr_code(self, request, pk=None):
+        location = self.get_object()
+
+        payload = f"LOCATION:{location.id}|CODE:{location.code}"
+        if location.name:
+            payload += f"|NAME:{location.name}"
+
+        safe_code = slugify(location.code or f"location-{location.id}") or f"location-{location.id}"
+        filename = f"storage-location-{safe_code}-qr.png"
+
+        return build_qr_png_response(payload, filename)
 
 class SupplierViewSet(viewsets.ModelViewSet):
     queryset = Supplier.objects.all().order_by("name")
@@ -446,6 +478,19 @@ class ProductViewSet(viewsets.ModelViewSet):
         if self.request.method in ["GET", "HEAD", "OPTIONS"]:
             return [IsAuthenticated()]
         return [IsAuthenticated(), IsLagerOrAdmin()]
+
+    @action(detail=True, methods=["get"], url_path="qr-code")
+    def qr_code(self, request, pk=None):
+        product = self.get_object()
+
+        payload = f"PRODUCT:{product.id}|SKU:{product.sku}"
+        if product.name:
+            payload += f"|NAME:{product.name}"
+
+        safe_sku = slugify(product.sku or product.name or f"product-{product.id}") or f"product-{product.id}"
+        filename = f"product-{safe_sku}-qr.png"
+
+        return build_qr_png_response(payload, filename)
 
 class InventoryTransactionViewSet(viewsets.ModelViewSet):
     queryset = InventoryTransaction.objects.all().order_by("-id")
