@@ -756,6 +756,7 @@ Dieses Projekt demonstriert:
 
 - 📊 Dashboard mit erweiterten Diagrammen
 - 🛒 Bestellwesen mit Lieferantenverknüpfung
+- 📱 QR-Code- / Barcode-Funktion für Produkte und Lagerplätze
 - 📦 Verpackungsarten und Packmittel
 - 📍 Erweiterte Lagerplatz-Kapazitätsprüfung
 - 🔁 FIFO / LIFO / FEFO-Auslagerungslogik
@@ -769,7 +770,7 @@ Dieses Projekt demonstriert:
 
 ### 🟨 Teilweise umgesetzt / nächster Ausbau
 
-- 📱 QR-Code- / Barcode-Funktion für Produkte und Lagerplätze
+- 📷 Barcode-/Scan-Feld für Produkte, Lagerplätze und Lagerbewegungen
 - 📦 Weitere Ausbaustufen im Bestell- und Wareneingangsprozess
 
 ### 🟥 Noch geplant
