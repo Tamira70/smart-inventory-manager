@@ -6428,6 +6428,84 @@ function GoodsInSection({
   const selectedProduct =
     products.find((product) => String(product.id) === movementProductId) ?? null;
 
+  const [goodsInScanValue, setGoodsInScanValue] = useState("");
+  const [goodsInScanFeedback, setGoodsInScanFeedback] = useState("");
+
+  const applyGoodsInScanValue = () => {
+    const rawValue = goodsInScanValue.trim();
+
+    if (!rawValue) {
+      setGoodsInScanFeedback("Bitte zuerst einen Produkt- oder Lagerort-Code scannen.");
+      return;
+    }
+
+    const scanParts: Record<string, string> = {};
+
+    rawValue.split("|").forEach((part) => {
+      const separatorIndex = part.indexOf(":");
+
+      if (separatorIndex === -1) {
+        return;
+      }
+
+      const key = part.slice(0, separatorIndex).trim().toUpperCase();
+      const value = part.slice(separatorIndex + 1).trim();
+
+      if (key && value) {
+        scanParts[key] = value;
+      }
+    });
+
+    const isStructuredScan = rawValue.includes("|") || rawValue.includes(":");
+
+    const productId = scanParts.PRODUCT;
+    const sku = scanParts.SKU || (!isStructuredScan ? rawValue : "");
+
+    const locationId = scanParts.LOCATION;
+    const locationCode = scanParts.CODE || (!isStructuredScan ? rawValue : "");
+
+    const scannedProduct = products.find((product) => {
+      const productSku = String(product.sku ?? "").toLowerCase();
+
+      return (
+        (!!productId && String(product.id) === productId) ||
+        (!!sku && productSku === sku.toLowerCase())
+      );
+    });
+
+    const scannedLocation = storageLocations.find((location) => {
+      const code = String(location.code ?? "").toLowerCase();
+
+      return (
+        (!!locationId && String(location.id) === locationId) ||
+        (!!locationCode && code === locationCode.toLowerCase())
+      );
+    });
+
+    const feedbackParts: string[] = [];
+
+    if (scannedProduct) {
+      setSelectedPurchaseOrderItemId("");
+      setMovementProductId(String(scannedProduct.id));
+      feedbackParts.push(`Produkt gesetzt: ${scannedProduct.name}`);
+    }
+
+    if (scannedLocation) {
+      setMovementStorageLocationId(String(scannedLocation.id));
+      feedbackParts.push(`Lagerort gesetzt: ${scannedLocation.code}`);
+    }
+
+    if (feedbackParts.length === 0) {
+      setGoodsInScanFeedback(
+        `Kein Produkt oder Lagerort für "${rawValue}" gefunden.`
+      );
+      return;
+    }
+
+    setGoodsInScanValue("");
+    setGoodsInScanFeedback(`✅ ${feedbackParts.join(" · ")}`);
+  };
+
   const selectedPackagingType =
     packagingTypes.find(
       (packagingType) => String(packagingType.id) === movementPackagingTypeId
@@ -6789,6 +6867,65 @@ function GoodsInSection({
             </div>
           </div>
         )}
+
+
+      <div
+        style={{
+          marginTop: "18px",
+          marginBottom: "18px",
+          padding: "16px",
+          borderRadius: "16px",
+          border: "1px solid rgba(148, 163, 184, 0.22)",
+          background: "rgba(15, 23, 42, 0.45)",
+        }}
+      >
+        <h3 style={{ margin: "0 0 10px", color: "#e5e7eb" }}>
+          🔎 Wareneingang per QR-/Barcode
+        </h3>
+
+        <p style={{ ...infoStyle, marginTop: 0 }}>
+          Scanne einen Produkt-QR oder Lagerort-QR. Das Feld übernimmt automatisch
+          Produkt und/oder Lagerplatz.
+        </p>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "minmax(0, 1fr) auto",
+            gap: "10px",
+            alignItems: "center",
+          }}
+        >
+          <input
+            value={goodsInScanValue}
+            onChange={(event) => setGoodsInScanValue(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                applyGoodsInScanValue();
+              }
+            }}
+            placeholder="PRODUCT:7|SKU:... oder LOCATION:1|CODE:A-R2-F4 scannen"
+            style={inputStyle}
+            disabled={!hasPermission("lager")}
+          />
+
+          <button
+            type="button"
+            onClick={applyGoodsInScanValue}
+            style={hasPermission("lager") ? secondaryButtonStyle : disabledButtonStyle}
+            disabled={!hasPermission("lager")}
+          >
+            Scan übernehmen
+          </button>
+        </div>
+
+        {goodsInScanFeedback && (
+          <p style={{ ...infoStyle, marginTop: "10px", marginBottom: 0 }}>
+            {goodsInScanFeedback}
+          </p>
+        )}
+      </div>
 
       <form onSubmit={handleGoodsReceipt} style={formGridStyle}>
         <select
@@ -7383,6 +7520,84 @@ function GoodsOutSection({
 
   const goodsOutUsesFallbackStrategy = false;
 
+
+  const [goodsOutScanValue, setGoodsOutScanValue] = useState("");
+  const [goodsOutScanFeedback, setGoodsOutScanFeedback] = useState("");
+
+  const applyGoodsOutScanValue = () => {
+    const rawValue = goodsOutScanValue.trim();
+
+    if (!rawValue) {
+      setGoodsOutScanFeedback("Bitte zuerst einen Produkt- oder Lagerort-Code scannen.");
+      return;
+    }
+
+    const scanParts: Record<string, string> = {};
+
+    rawValue.split("|").forEach((part) => {
+      const separatorIndex = part.indexOf(":");
+
+      if (separatorIndex === -1) {
+        return;
+      }
+
+      const key = part.slice(0, separatorIndex).trim().toUpperCase();
+      const value = part.slice(separatorIndex + 1).trim();
+
+      if (key && value) {
+        scanParts[key] = value;
+      }
+    });
+
+    const isStructuredScan = rawValue.includes("|") || rawValue.includes(":");
+
+    const productId = scanParts.PRODUCT;
+    const sku = scanParts.SKU || (!isStructuredScan ? rawValue : "");
+
+    const locationId = scanParts.LOCATION;
+    const locationCode = scanParts.CODE || (!isStructuredScan ? rawValue : "");
+
+    const scannedProduct = products.find((product) => {
+      const productSku = String(product.sku ?? "").toLowerCase();
+
+      return (
+        (!!productId && String(product.id) === productId) ||
+        (!!sku && productSku === sku.toLowerCase())
+      );
+    });
+
+    const scannedLocation = storageLocations.find((location) => {
+      const code = String(location.code ?? "").toLowerCase();
+
+      return (
+        (!!locationId && String(location.id) === locationId) ||
+        (!!locationCode && code === locationCode.toLowerCase())
+      );
+    });
+
+    const feedbackParts: string[] = [];
+
+    if (scannedProduct) {
+      setGoodsOutProductId(String(scannedProduct.id));
+      feedbackParts.push(`Produkt gesetzt: ${scannedProduct.name}`);
+    }
+
+    if (scannedLocation) {
+      setGoodsOutStorageLocationId(String(scannedLocation.id));
+      feedbackParts.push(`Lagerort gesetzt: ${scannedLocation.code}`);
+    }
+
+    if (feedbackParts.length === 0) {
+      setGoodsOutScanFeedback(
+        `Kein Produkt oder Lagerort für "${rawValue}" gefunden.`
+      );
+      return;
+    }
+
+    setGoodsOutScanValue("");
+    setGoodsOutScanFeedback(`✅ ${feedbackParts.join(" · ")}`);
+  };
+
   return (
     <section style={sectionStyle}>
       <h2 style={sectionTitleStyle}>📤 Warenausgang buchen</h2>
@@ -7420,6 +7635,65 @@ function GoodsOutSection({
           </div>
         </div>
       )}
+
+
+      <div
+        style={{
+          marginTop: "18px",
+          marginBottom: "18px",
+          padding: "16px",
+          borderRadius: "16px",
+          border: "1px solid rgba(148, 163, 184, 0.22)",
+          background: "rgba(15, 23, 42, 0.45)",
+        }}
+      >
+        <h3 style={{ margin: "0 0 10px", color: "#e5e7eb" }}>
+          🔎 Warenausgang per QR-/Barcode
+        </h3>
+
+        <p style={{ ...infoStyle, marginTop: 0 }}>
+          Scanne einen Produkt-QR oder Lagerort-QR. Das Feld übernimmt automatisch
+          Produkt und/oder Lagerplatz.
+        </p>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "minmax(0, 1fr) auto",
+            gap: "10px",
+            alignItems: "center",
+          }}
+        >
+          <input
+            value={goodsOutScanValue}
+            onChange={(event) => setGoodsOutScanValue(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                applyGoodsOutScanValue();
+              }
+            }}
+            placeholder="PRODUCT:7|SKU:... oder LOCATION:1|CODE:A-R2-F4 scannen"
+            style={inputStyle}
+            disabled={!hasPermission("lager")}
+          />
+
+          <button
+            type="button"
+            onClick={applyGoodsOutScanValue}
+            style={hasPermission("lager") ? secondaryButtonStyle : disabledButtonStyle}
+            disabled={!hasPermission("lager")}
+          >
+            Scan übernehmen
+          </button>
+        </div>
+
+        {goodsOutScanFeedback && (
+          <p style={{ ...infoStyle, marginTop: "10px", marginBottom: 0 }}>
+            {goodsOutScanFeedback}
+          </p>
+        )}
+      </div>
 
       <form onSubmit={handleGoodsIssue} style={formGridStyle}>
         <select ref={goodsOutProductRef} value={goodsOutProductId} onChange={(event) => setGoodsOutProductId(event.target.value)} onKeyDown={(event) => focusNextOnEnter(event, goodsOutQuantityRef.current)} required style={inputStyle} disabled={!hasPermission("lager")}>
