@@ -1,5 +1,6 @@
 from io import BytesIO
 import qrcode
+from PIL import Image, ImageDraw, ImageFont
 from xml.sax.saxutils import escape
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, landscape
@@ -87,7 +88,7 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
 
 
-def build_qr_png_response(payload: str, filename: str) -> HttpResponse:
+def build_qr_png_response(payload: str, filename: str, label_lines: list[str] | None = None) -> HttpResponse:
     qr = qrcode.QRCode(
         version=None,
         error_correction=qrcode.constants.ERROR_CORRECT_M,
@@ -97,7 +98,52 @@ def build_qr_png_response(payload: str, filename: str) -> HttpResponse:
     qr.add_data(payload)
     qr.make(fit=True)
 
-    image = qr.make_image(fill_color="black", back_color="white")
+    qr_image = qr.make_image(fill_color="black", back_color="white").convert("RGB")
+
+    clean_label_lines = [
+        line.strip()
+        for line in (label_lines or [])
+        if line and line.strip()
+    ]
+
+    if clean_label_lines:
+        font = ImageFont.load_default()
+        line_spacing = 8
+        padding_x = 20
+        padding_y = 18
+
+        measure_image = Image.new("RGB", (1, 1), "white")
+        measure_draw = ImageDraw.Draw(measure_image)
+
+        text_sizes = []
+        for line in clean_label_lines:
+            bbox = measure_draw.textbbox((0, 0), line, font=font)
+            text_sizes.append((bbox[2] - bbox[0], bbox[3] - bbox[1]))
+
+        label_height = (
+            padding_y * 2
+            + sum(height for _, height in text_sizes)
+            + line_spacing * max(0, len(clean_label_lines) - 1)
+        )
+
+        final_width = max(qr_image.width, max(width for width, _ in text_sizes) + padding_x * 2)
+        final_height = qr_image.height + label_height
+
+        final_image = Image.new("RGB", (final_width, final_height), "white")
+        final_image.paste(qr_image, ((final_width - qr_image.width) // 2, 0))
+
+        draw = ImageDraw.Draw(final_image)
+        y = qr_image.height + padding_y
+
+        for line, (text_width, text_height) in zip(clean_label_lines, text_sizes):
+            x = (final_width - text_width) // 2
+            draw.text((x, y), line, fill="black", font=font)
+            y += text_height + line_spacing
+
+        image = final_image
+    else:
+        image = qr_image
+
     buffer = BytesIO()
     image.save(buffer, format="PNG")
 
@@ -126,7 +172,14 @@ class StorageLocationViewSet(viewsets.ModelViewSet):
         safe_code = slugify(location.code or f"location-{location.id}") or f"location-{location.id}"
         filename = f"storage-location-{safe_code}-qr.png"
 
-        return build_qr_png_response(payload, filename)
+        return build_qr_png_response(
+            payload,
+            filename,
+            label_lines=[
+                f"Lagerort: {location.code}",
+                location.name or "",
+            ],
+        )
 
 class SupplierViewSet(viewsets.ModelViewSet):
     queryset = Supplier.objects.all().order_by("name")
