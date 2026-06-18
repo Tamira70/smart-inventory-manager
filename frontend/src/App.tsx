@@ -2777,6 +2777,109 @@ if (role === "einkauf") {
     }
   };
 
+
+  const sanitizeQrFilename = (value: string) =>
+    value
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/gi, "-")
+      .replace(/^-+|-+$/g, "") || "qr-code";
+
+  const openQrCode = async (endpoint: string, title: string) => {
+    const qrWindow = window.open("", "_blank");
+
+    try {
+      setError("");
+      setSuccess("");
+
+      const response = await apiFetch(endpoint);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || "QR-Code konnte nicht geladen werden.");
+      }
+
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+
+      if (qrWindow) {
+        qrWindow.location.href = objectUrl;
+      } else {
+        window.open(objectUrl, "_blank");
+      }
+
+      setSuccess(`QR-Code geöffnet: ${title}`);
+    } catch (err) {
+      if (qrWindow) {
+        qrWindow.close();
+      }
+
+      const message =
+        err instanceof Error ? err.message : "Fehler beim Öffnen des QR-Codes.";
+      setError(message);
+    }
+  };
+
+  const downloadQrCode = async (endpoint: string, fallbackFilename: string) => {
+    try {
+      setError("");
+      setSuccess("");
+
+      const response = await apiFetch(endpoint);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || "QR-Code konnte nicht heruntergeladen werden.");
+      }
+
+      const blob = await response.blob();
+      const contentDisposition = response.headers.get("Content-Disposition") || "";
+      const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+      const filename = filenameMatch?.[1] || fallbackFilename;
+
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(objectUrl);
+
+      setSuccess(`QR-Code heruntergeladen: ${filename}`);
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Fehler beim Herunterladen des QR-Codes.";
+      setError(message);
+    }
+  };
+
+  const handleShowProductQrCode = (product: Product) =>
+    openQrCode(
+      `/inventory-api/products/${product.id}/qr-code/`,
+      `Produkt ${product.name}`
+    );
+
+  const handleDownloadProductQrCode = (product: Product) =>
+    downloadQrCode(
+      `/inventory-api/products/${product.id}/qr-code/`,
+      `product-${sanitizeQrFilename(product.sku || product.name || String(product.id))}-qr.png`
+    );
+
+  const handleShowLocationQrCode = (location: StorageLocation) =>
+    openQrCode(
+      `/inventory-api/storage-locations/${location.id}/qr-code/`,
+      `Lagerplatz ${location.code}`
+    );
+
+  const handleDownloadLocationQrCode = (location: StorageLocation) =>
+    downloadQrCode(
+      `/inventory-api/storage-locations/${location.id}/qr-code/`,
+      `storage-location-${sanitizeQrFilename(location.code || String(location.id))}-qr.png`
+    );
+
+
   const handleExportInventoryExcel = async () => {
     if (!selectedInventorySessionId) {
       setError("Bitte zuerst eine Inventur auswählen.");
@@ -3469,7 +3572,9 @@ const exportMovementsToCsv = async () => {
             }))
           }
           onSubmit={handleCreateStorageLocation}
-        />
+        
+        onShowLocationQrCode={handleShowLocationQrCode}
+        onDownloadLocationQrCode={handleDownloadLocationQrCode}/>
       )}
 
 
@@ -3587,7 +3692,9 @@ const exportMovementsToCsv = async () => {
                   }))
                 }
                 onSubmit={handleCreateStorageLocation}
-              />
+              
+              onShowLocationQrCode={handleShowLocationQrCode}
+              onDownloadLocationQrCode={handleDownloadLocationQrCode}/>
             )}
 
 
@@ -3756,7 +3863,9 @@ const exportMovementsToCsv = async () => {
                 {activeSection !== "stock-overview" && loading && <p>Lade Produkte...</p>}
                 {activeSection !== "stock-overview" && !loading && !error && visibleProducts.length === 0 && <p>Keine Produkte passen zur aktuellen Suche oder zum Filter.</p>}
                 {activeSection !== "stock-overview" && !loading && !error && visibleProducts.length > 0 && (
-                  <ProductGrid products={visibleProducts} hasPermission={hasPermission} handleEdit={handleEdit} />
+                  <ProductGrid products={visibleProducts} hasPermission={hasPermission} handleEdit={handleEdit} 
+              onShowProductQrCode={handleShowProductQrCode}
+              onDownloadProductQrCode={handleDownloadProductQrCode}/>
                 )}
               </>
             )}
@@ -5676,6 +5785,8 @@ function StorageLocationsSection({
   onChange,
   onToggleActive,
   onSubmit,
+  onShowLocationQrCode,
+  onDownloadLocationQrCode,
 }: {
   title: string;
   locations: StorageLocation[];
@@ -5688,6 +5799,8 @@ function StorageLocationsSection({
   ) => void;
   onToggleActive: (checked: boolean) => void;
   onSubmit: (event: FormEvent) => void;
+  onShowLocationQrCode: (location: StorageLocation) => void;
+  onDownloadLocationQrCode: (location: StorageLocation) => void;
 }) {
   const activeLocations = locations.filter((location) => location.is_active);
   const emptyLocations = locations.filter((location) => location.is_empty);
@@ -5867,6 +5980,7 @@ function StorageLocationsSection({
                 <th style={tableHeadStyle}>Max. kg</th>
                 <th style={tableHeadStyle}>Produkte</th>
                 <th style={tableHeadStyle}>Status</th>
+                <th style={tableHeadStyle}>QR-Code</th>
               </tr>
             </thead>
 
@@ -5904,6 +6018,31 @@ function StorageLocationsSection({
                         ? "✅ Frei"
                         : "📦 Belegt"
                       : "⚪ Inaktiv"}
+                  </td>
+                  <td style={tableCellStyle}>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: "8px",
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => onShowLocationQrCode(location)}
+                        style={secondaryButtonStyle}
+                      >
+                        QR anzeigen
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => onDownloadLocationQrCode(location)}
+                        style={secondaryButtonStyle}
+                      >
+                        QR herunterladen
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -7939,10 +8078,14 @@ function ProductGrid({
   products,
   hasPermission,
   handleEdit,
+  onShowProductQrCode,
+  onDownloadProductQrCode,
 }: {
   products: Product[];
   hasPermission: (required: PermissionRole) => boolean;
   handleEdit: (product: Product) => void;
+  onShowProductQrCode: (product: Product) => void;
+  onDownloadProductQrCode: (product: Product) => void;
 }) {
   return (
     <div style={productGridStyle}>
@@ -8014,6 +8157,31 @@ function ProductGrid({
                 Bearbeiten
               </button>
             </div>
+            <div
+              style={{
+                display: "flex",
+                gap: "8px",
+                flexWrap: "wrap",
+                marginTop: "16px",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => onShowProductQrCode(product)}
+                style={secondaryButtonStyle}
+              >
+                QR-Code anzeigen
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onDownloadProductQrCode(product)}
+                style={secondaryButtonStyle}
+              >
+                QR herunterladen
+              </button>
+            </div>
+
           </article>
         );
       })}
