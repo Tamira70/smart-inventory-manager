@@ -56,25 +56,6 @@ Der Bestellprozess zeigt den Ablauf von der Einkaufsbestellung bis zur automatis
 
 ---
 
-## 🧠 Roadmap und Umsetzungsstand
-
-### ✅ Bereits umgesetzt
-
-- 📦 Verpackungsarten und Packmittel
-- 📍 Lagerplatzbestand je Lagerort
-- 🧮 Erweiterte Lagerplatz-Kapazitätsprüfung
-- 🔁 FIFO / LIFO / FEFO-Auslagerungslogik
-- 💰 HIFO / LOFO-Auslagerungslogik auf Basis von Einstandspreisen
-- 🟩 Automatische Frei-/Belegt-Synchronisierung der Lagerplätze
-- 📤 Excel-Export für Inventurberichte
-- 📤 Excel-Export für Bewegungshistorie
-- 📤 Excel-Export für aktuelle Bestände und Lagerplatzbestände
-- 📄 PDF-Export für Inventurberichte
-- 📊 Dashboard mit erweiterten Diagrammen
-- 🛒 Bestellwesen mit Lieferantenverknüpfung
-- 📥 Wareneingang aus Bestellung mit automatischer Lagerbewegung
-- 🔄 Automatische Aktualisierung von Bestellstatus, gelieferter Menge und offener Menge
-
 ### 📸 Screenshots für die Projektdokumentation
 
 Geplante Screenshots für die Portfolio-Dokumentation:
@@ -85,10 +66,3 @@ Geplante Screenshots für die Portfolio-Dokumentation:
 - Wareneingang mit ausgewählter offener Bestellposition
 - Automatisch erzeugte Lagerbewegung mit Referenz `WE-PO-...`
 
-### 🔜 Nächster Ausbau
-
-- 📱 QR-Code- / Barcode-Funktion für Produkte und Lagerplätze
-- 🐘 Migration auf PostgreSQL
-- 📦 Weitere Ausbaustufen im Bestell- und Wareneingangsprozess
-
->>>>>>> Stashed changes
