@@ -6033,7 +6033,7 @@ function StorageLocationsSection({
                         onClick={() => onShowLocationQrCode(location)}
                         style={secondaryButtonStyle}
                       >
-                        QR anzeigen
+                        Lagerort-QR anzeigen
                       </button>
 
                       <button
@@ -6041,7 +6041,7 @@ function StorageLocationsSection({
                         onClick={() => onDownloadLocationQrCode(location)}
                         style={secondaryButtonStyle}
                       >
-                        QR herunterladen
+                        Lagerort-QR herunterladen
                       </button>
                     </div>
                   </td>
@@ -8156,30 +8156,6 @@ function ProductGrid({
                 }
               >
                 Bearbeiten
-              </button>
-            </div>
-            <div
-              style={{
-                display: "flex",
-                gap: "8px",
-                flexWrap: "wrap",
-                marginTop: "16px",
-              }}
-            >
-              <button
-                type="button"
-                onClick={() => onShowProductQrCode(product)}
-                style={secondaryButtonStyle}
-              >
-                QR-Code anzeigen
-              </button>
-
-              <button
-                type="button"
-                onClick={() => onDownloadProductQrCode(product)}
-                style={secondaryButtonStyle}
-              >
-                QR herunterladen
               </button>
             </div>
 
