@@ -66,3 +66,52 @@ Geplante Screenshots für die Portfolio-Dokumentation:
 - Wareneingang mit ausgewählter offener Bestellposition
 - Automatisch erzeugte Lagerbewegung mit Referenz `WE-PO-...`
 
+### 🚜 Geplantes WMS-/Lagerleitsystem: Transportauftrag, Transportschein & Stapler-Terminal
+
+Dieses Modul soll den nächsten professionellen Ausbauschritt des Smart Inventory Managers abbilden. Ziel ist nicht nur ein einfaches Scan-Feld, sondern eine zentrale WMS-Logik, die Transportaufträge automatisch erzeugt und direkt an Stapler-Terminals übergibt.
+
+#### Geplanter Ablauf
+
+Sobald am Warenausgang ein Auftrag gestartet wird oder Produkte angefordert werden, erstellt das System automatisch einen Transportauftrag.
+
+Der Ablauf soll folgendermaßen funktionieren:
+
+1. **Automatische TA-Erstellung**  
+   Das System erstellt einen Transportauftrag und ermittelt anhand der vorhandenen Bestände, Lagerplätze und Auslagerungsstrategien den optimalen Entnahmeplatz.
+
+2. **Automatische TS-Erstellung**  
+   Aus dem Transportauftrag wird ein Transportschein erzeugt. Dieser wird dem zuständigen Stapler-Terminal angezeigt.
+
+3. **Stapler-Terminal mit Ein-Scan-Feld-Logik**  
+   Das Stapler-Terminal besitzt nur ein dauerhaft aktives Scan-Feld. Der Fahrer muss keinen Cursor manuell setzen und keine unterschiedlichen Felder auswählen.
+
+4. **Automatische Scan-Erkennung**  
+   Das System erkennt anhand von Präfixen, QR-Inhalten oder Längen automatisch, was gescannt wurde:
+
+   - Produkt
+   - Lagerort
+   - Quellplatz
+   - Zielplatz
+   - Palette / NVE / SSCC
+
+5. **Quell-Bestätigung**  
+   Der erste gültige Scan bestätigt die Aufnahme der Ware am Entnahmeplatz. Der TA wechselt in den Status „Ware aufgenommen“ oder „in Transport“.
+
+6. **Ziel-Bestätigung**  
+   Der zweite gültige Scan bestätigt die Abstellung am Ziel- oder Bereitstellungsplatz. Der TA wird automatisch abgeschlossen und der Bestand wird umgebucht.
+
+7. **Fehlerschutz**  
+   Falsche Scans werden sofort blockiert. Das Terminal zeigt eine Fehlermeldung und gibt eine akustische Warnung aus.
+
+#### Ziel des Moduls
+
+Das Modul soll zeigen, wie der Smart Inventory Manager zu einem echten Lagerleitsystem erweitert werden kann:
+
+- automatische Transportaufträge
+- automatische Quell- und Zielermittlung
+- direkte Staplerführung
+- Ein-Scan-Feld-Bedienung
+- Plausibilitätsprüfung gegen falsche Plätze
+- automatische Statusführung
+- automatische Bestandsbuchung nach erfolgreichem Transport
+
