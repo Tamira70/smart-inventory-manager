@@ -7007,6 +7007,21 @@ function ForkliftTerminalSection({
   return (
     <section style={sectionStyle}>
       <h2 style={sectionTitleStyle}>STAPLER-TERMINAL</h2>
+      <div
+        style={{
+          margin: "12px 0 18px",
+          padding: "14px 16px",
+          borderRadius: "16px",
+          border: "1px solid rgba(251, 191, 36, 0.45)",
+          background: "rgba(120, 53, 15, 0.22)",
+          color: "#fef3c7",
+          fontWeight: 700,
+        }}
+      >
+        ⚠️ STAPLER-TERMINAL befindet sich noch in Entwicklung.
+        Bitte nur für Test- und Demo-Zwecke verwenden.
+      </div>
+
 
       <p style={infoStyle}>
         Tablet-optimierte Stapleranzeige mit TA-Liste, klarer Fahranweisung,
