@@ -3,6 +3,7 @@ from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
 
 from .views import (
+    TransportOrderViewSet,
     CustomTokenObtainPairView,
     ProductViewSet,
     InventoryTransactionViewSet,
@@ -22,6 +23,7 @@ from .views import (
 )
 
 router = DefaultRouter()
+router.register(r"transport-orders", TransportOrderViewSet, basename="transport-order")
 router.register(r"products", ProductViewSet, basename="product")
 router.register(r"transactions", InventoryTransactionViewSet, basename="transaction")
 router.register(r"stock-movements", StockMovementViewSet, basename="stock-movement")

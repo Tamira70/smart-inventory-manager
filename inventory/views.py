@@ -1,3 +1,4 @@
+from decimal import Decimal
 from io import BytesIO
 import qrcode
 from PIL import Image, ImageDraw, ImageFont
@@ -26,6 +27,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 
 from .models import (
+    TransportOrder,
     PackagingType,
     StorageStrategySettings,
     Product,
@@ -45,6 +47,7 @@ from .models import (
     AuditLog,
 )
 from .serializers import (
+    TransportOrderSerializer,
     PackagingTypeSerializer,
     StorageStrategySettingsSerializer,
     ProductSerializer,
@@ -522,6 +525,381 @@ class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
     def get_permissions(self):
         return [IsAuthenticated(), IsAdmin()]
 
+
+class TransportOrderViewSet(viewsets.ModelViewSet):
+    queryset = (
+        TransportOrder.objects.select_related(
+            "product",
+            "source_location",
+            "target_location",
+            "assigned_to",
+            "created_by",
+        )
+        .all()
+    )
+    serializer_class = TransportOrderSerializer
+    permission_classes = [IsAuthenticated]
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+    def _parse_scan_value(self, raw_value: str) -> dict[str, str]:
+        scan_parts: dict[str, str] = {}
+
+        for part in raw_value.split("|"):
+            if ":" not in part:
+                continue
+
+            key, value = part.split(":", 1)
+            key = key.strip().upper()
+            value = value.strip()
+
+            if key and value:
+                scan_parts[key] = value
+
+        return scan_parts
+
+    def _find_product_from_scan(self, raw_value: str):
+        scan_parts = self._parse_scan_value(raw_value)
+        is_structured_scan = "|" in raw_value or ":" in raw_value
+
+        product_id = scan_parts.get("PRODUCT")
+        sku = scan_parts.get("SKU") or ("" if is_structured_scan else raw_value)
+
+        products = Product.objects.all()
+
+        if product_id:
+            product = products.filter(id=product_id).first()
+            if product:
+                return product
+
+        if sku:
+            product = products.filter(sku__iexact=sku).first()
+            if product:
+                return product
+
+        return None
+
+    def _find_location_from_scan(self, raw_value: str):
+        scan_parts = self._parse_scan_value(raw_value)
+        is_structured_scan = "|" in raw_value or ":" in raw_value
+
+        location_id = scan_parts.get("LOCATION")
+        code = scan_parts.get("CODE") or ("" if is_structured_scan else raw_value)
+
+        locations = StorageLocation.objects.all()
+
+        if location_id:
+            location = locations.filter(id=location_id).first()
+            if location:
+                return location
+
+        if code:
+            location = locations.filter(code__iexact=code).first()
+            if location:
+                return location
+
+        return None
+
+    def _error_response(self, order, message: str, scan_value: str, status_code=status.HTTP_400_BAD_REQUEST):
+        order.last_scan_value = scan_value
+        order.last_error = message
+        order.save(update_fields=["last_scan_value", "last_error", "updated_at"])
+
+        return Response(
+            {
+                "detail": message,
+                "status": order.status,
+                "expected_source_location": order.source_location.code,
+                "expected_target_location": order.target_location.code if order.target_location else None,
+                "last_scan_value": scan_value,
+                "warning": "BEEP",
+            },
+            status=status_code,
+        )
+
+    def _get_source_stock_for_outbound(self, product, quantity):
+        queryset = (
+            StorageLocationStock.objects.select_related("storage_location")
+            .filter(
+                product=product,
+                quantity__gte=quantity,
+                storage_location__is_active=True,
+                storage_location__is_blocked=False,
+            )
+        )
+
+        strategy = getattr(product, "removal_strategy", "FIFO")
+
+        if strategy == "LIFO":
+            queryset = queryset.order_by("-created_at")
+        elif strategy == "FEFO":
+            queryset = queryset.order_by("expiry_date", "created_at")
+        elif strategy == "HIFO":
+            queryset = queryset.order_by("-unit_purchase_price", "created_at")
+        elif strategy == "LOFO":
+            queryset = queryset.order_by("unit_purchase_price", "created_at")
+        else:
+            queryset = queryset.order_by("created_at")
+
+        return queryset.first()
+
+    @action(detail=False, methods=["post"], url_path="create-from-outbound")
+    @transaction.atomic
+    def create_from_outbound(self, request):
+        product_id = request.data.get("product")
+        quantity_value = request.data.get("quantity")
+        target_location_id = request.data.get("target_location")
+        reference_number = request.data.get("reference_number", "")
+
+        if not product_id:
+            return Response(
+                {"detail": "Bitte ein Produkt angeben."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            quantity = Decimal(str(quantity_value))
+        except Exception:
+            return Response(
+                {"detail": "Bitte eine gültige Menge angeben."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if quantity <= 0:
+            return Response(
+                {"detail": "Die Menge muss größer als 0 sein."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        product = Product.objects.filter(id=product_id).first()
+
+        if not product:
+            return Response(
+                {"detail": "Produkt wurde nicht gefunden."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        source_stock = self._get_source_stock_for_outbound(product, quantity)
+
+        if not source_stock:
+            return Response(
+                {
+                    "detail": "Kein geeigneter Entnahmeplatz mit ausreichendem Bestand gefunden.",
+                    "product": product.name,
+                    "quantity": str(quantity),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        target_location = None
+
+        if target_location_id:
+            target_location = StorageLocation.objects.filter(id=target_location_id).first()
+
+            if not target_location:
+                return Response(
+                    {"detail": "Zielplatz wurde nicht gefunden."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+        order = TransportOrder.objects.create(
+            product=product,
+            quantity=quantity,
+            source_location=source_stock.storage_location,
+            target_location=target_location,
+            reference_number=reference_number,
+            created_by=request.user,
+            status=TransportOrder.Status.CREATED,
+        )
+
+        serializer = self.get_serializer(order)
+
+        return Response(
+            {
+                "detail": "Transportauftrag wurde automatisch erstellt.",
+                "transport_order": serializer.data,
+                "next_step": "Stapler-Terminal öffnen und Quellplatz scannen.",
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+    @action(detail=False, methods=["get"], url_path="active")
+    def active(self, request):
+        queryset = (
+            self.get_queryset()
+            .exclude(
+                status__in=[
+                    TransportOrder.Status.COMPLETED,
+                    TransportOrder.Status.CANCELLED,
+                ]
+            )
+            .order_by("priority", "created_at")
+        )
+
+        serializer = self.get_serializer(queryset, many=True)
+
+        return Response(serializer.data)
+
+    @action(detail=True, methods=["post"], url_path="assign-to-me")
+    def assign_to_me(self, request, pk=None):
+        order = self.get_object()
+
+        if order.status in [
+            TransportOrder.Status.COMPLETED,
+            TransportOrder.Status.CANCELLED,
+        ]:
+            return Response(
+                {"detail": "Abgeschlossene oder stornierte Transportaufträge können nicht übernommen werden."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        order.assigned_to = request.user
+
+        if order.status == TransportOrder.Status.CREATED:
+            order.status = TransportOrder.Status.ASSIGNED
+
+        order.save(update_fields=["assigned_to", "status", "updated_at"])
+
+        serializer = self.get_serializer(order)
+
+        return Response(
+            {
+                "detail": "Transportauftrag wurde dem aktuellen Stapler-Benutzer zugewiesen.",
+                "transport_order": serializer.data,
+                "next_step": "Quellplatz scannen.",
+            }
+        )
+
+    @action(detail=True, methods=["post"], url_path="scan")
+    @transaction.atomic
+    def scan(self, request, pk=None):
+        order = self.get_object()
+        scan_value = str(request.data.get("scan_value", "")).strip()
+
+        if not scan_value:
+            return self._error_response(
+                order,
+                "Bitte einen Barcode oder QR-Code scannen.",
+                scan_value,
+            )
+
+        if order.status in [
+            TransportOrder.Status.COMPLETED,
+            TransportOrder.Status.CANCELLED,
+        ]:
+            return self._error_response(
+                order,
+                "Dieser Transportauftrag ist bereits abgeschlossen oder storniert.",
+                scan_value,
+            )
+
+        scanned_location = self._find_location_from_scan(scan_value)
+        scanned_product = self._find_product_from_scan(scan_value)
+
+        if order.status in [
+            TransportOrder.Status.CREATED,
+            TransportOrder.Status.ASSIGNED,
+            TransportOrder.Status.ERROR,
+        ]:
+            if scanned_location and scanned_location.id == order.source_location_id:
+                order.status = TransportOrder.Status.IN_TRANSIT
+                order.assigned_to = order.assigned_to or request.user
+                order.picked_at = timezone.now()
+                order.last_scan_value = scan_value
+                order.last_error = ""
+                order.save(
+                    update_fields=[
+                        "status",
+                        "assigned_to",
+                        "picked_at",
+                        "last_scan_value",
+                        "last_error",
+                        "updated_at",
+                    ]
+                )
+
+                serializer = self.get_serializer(order)
+
+                return Response(
+                    {
+                        "detail": "Quellplatz bestätigt. Ware wurde aufgenommen.",
+                        "transport_order": serializer.data,
+                        "next_step": "Zum Zielplatz fahren und Zielplatz scannen.",
+                    }
+                )
+
+            if scanned_location:
+                return self._error_response(
+                    order,
+                    f"Falscher Quellplatz. Erwartet: {order.source_location.code}, gescannt: {scanned_location.code}.",
+                    scan_value,
+                )
+
+            if scanned_product:
+                return self._error_response(
+                    order,
+                    f"Produkt erkannt: {scanned_product.name}. Bitte den Quellplatz {order.source_location.code} scannen.",
+                    scan_value,
+                )
+
+            return self._error_response(
+                order,
+                f"Scan nicht erkannt. Erwartet wird der Quellplatz {order.source_location.code}.",
+                scan_value,
+            )
+
+        if order.status == TransportOrder.Status.IN_TRANSIT:
+            if not order.target_location:
+                return self._error_response(
+                    order,
+                    "Für diesen Transportauftrag ist noch kein Zielplatz hinterlegt.",
+                    scan_value,
+                )
+
+            if scanned_location and scanned_location.id == order.target_location_id:
+                order.status = TransportOrder.Status.COMPLETED
+                order.completed_at = timezone.now()
+                order.last_scan_value = scan_value
+                order.last_error = ""
+                order.save(
+                    update_fields=[
+                        "status",
+                        "completed_at",
+                        "last_scan_value",
+                        "last_error",
+                        "updated_at",
+                    ]
+                )
+
+                serializer = self.get_serializer(order)
+
+                return Response(
+                    {
+                        "detail": "Zielplatz bestätigt. Transportauftrag wurde abgeschlossen.",
+                        "transport_order": serializer.data,
+                        "next_step": "Transport abgeschlossen.",
+                    }
+                )
+
+            if scanned_location:
+                return self._error_response(
+                    order,
+                    f"Falscher Zielplatz. Erwartet: {order.target_location.code}, gescannt: {scanned_location.code}.",
+                    scan_value,
+                )
+
+            return self._error_response(
+                order,
+                f"Scan nicht erkannt. Erwartet wird der Zielplatz {order.target_location.code}.",
+                scan_value,
+            )
+
+        return self._error_response(
+            order,
+            f"Für den aktuellen Status {order.status} ist kein Scan-Schritt definiert.",
+            scan_value,
+        )
 
 class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.select_related("storage_location").order_by("-id")

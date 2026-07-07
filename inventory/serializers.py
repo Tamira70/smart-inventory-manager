@@ -3,6 +3,7 @@ from django.db import transaction
 from rest_framework import serializers
 
 from .models import (
+    TransportOrder,
     PackagingType,
     StorageStrategySettings,
     Product,
@@ -1193,3 +1194,65 @@ class StorageStrategySettingsSerializer(serializers.ModelSerializer):
     class Meta:
         model = StorageStrategySettings
         fields = "__all__"
+
+
+class TransportOrderSerializer(serializers.ModelSerializer):
+    product_name = serializers.CharField(source="product.name", read_only=True)
+    product_sku = serializers.CharField(source="product.sku", read_only=True)
+
+    source_location_code = serializers.CharField(source="source_location.code", read_only=True)
+    source_location_name = serializers.CharField(source="source_location.name", read_only=True)
+
+    target_location_code = serializers.CharField(source="target_location.code", read_only=True)
+    target_location_name = serializers.CharField(source="target_location.name", read_only=True)
+
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+    assigned_to_username = serializers.CharField(source="assigned_to.username", read_only=True)
+    created_by_username = serializers.CharField(source="created_by.username", read_only=True)
+
+    class Meta:
+        model = TransportOrder
+        fields = [
+            "id",
+            "transport_order_number",
+            "transport_slip_number",
+            "product",
+            "product_name",
+            "product_sku",
+            "quantity",
+            "source_location",
+            "source_location_code",
+            "source_location_name",
+            "target_location",
+            "target_location_code",
+            "target_location_name",
+            "status",
+            "status_display",
+            "reference_number",
+            "priority",
+            "assigned_to",
+            "assigned_to_username",
+            "created_by",
+            "created_by_username",
+            "picked_at",
+            "completed_at",
+            "cancelled_at",
+            "last_scan_value",
+            "last_error",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "transport_order_number",
+            "transport_slip_number",
+            "assigned_to",
+            "created_by",
+            "picked_at",
+            "completed_at",
+            "cancelled_at",
+            "last_scan_value",
+            "last_error",
+            "created_at",
+            "updated_at",
+        ]
+

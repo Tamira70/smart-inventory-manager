@@ -1,6 +1,7 @@
 from django.contrib import admin
 
 from .models import (
+    TransportOrder,
     PackagingType,
     StorageStrategySettings,
     Product,
@@ -354,3 +355,40 @@ class PackagingTypeAdmin(admin.ModelAdmin):
 @admin.register(StorageStrategySettings)
 class StorageStrategySettingsAdmin(admin.ModelAdmin):
     list_display = ("removal_strategy", "putaway_strategy", "capacity_check_enabled")
+
+
+@admin.register(TransportOrder)
+class TransportOrderAdmin(admin.ModelAdmin):
+    list_display = (
+        "transport_order_number",
+        "transport_slip_number",
+        "product",
+        "quantity",
+        "source_location",
+        "target_location",
+        "status",
+        "assigned_to",
+        "created_at",
+    )
+    list_filter = ("status", "created_at", "assigned_to")
+    search_fields = (
+        "transport_order_number",
+        "transport_slip_number",
+        "reference_number",
+        "product__name",
+        "product__sku",
+        "source_location__code",
+        "target_location__code",
+    )
+    readonly_fields = (
+        "transport_order_number",
+        "transport_slip_number",
+        "created_at",
+        "updated_at",
+        "picked_at",
+        "completed_at",
+        "cancelled_at",
+        "last_scan_value",
+        "last_error",
+    )
+
