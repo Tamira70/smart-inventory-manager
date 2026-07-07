@@ -601,6 +601,132 @@ class TransportOrderViewSet(viewsets.ModelViewSet):
 
         return None
 
+
+    def _sync_location_empty_state(self, location):
+        has_stock = StorageLocationStock.objects.filter(
+            storage_location=location,
+            quantity__gt=0,
+        ).exists()
+
+        location.is_empty = not has_stock
+        location.save(update_fields=["is_empty"])
+
+    def _get_transfer_source_stock(self, order):
+        queryset = (
+            StorageLocationStock.objects.select_for_update()
+            .filter(
+                product=order.product,
+                storage_location=order.source_location,
+                quantity__gte=order.quantity,
+            )
+        )
+
+        strategy = getattr(order.product, "removal_strategy", "FIFO")
+
+        if strategy == "LIFO":
+            queryset = queryset.order_by("-created_at")
+        elif strategy == "FEFO":
+            queryset = queryset.order_by("expiry_date", "created_at")
+        elif strategy == "HIFO":
+            queryset = queryset.order_by("-unit_purchase_price", "created_at")
+        elif strategy == "LOFO":
+            queryset = queryset.order_by("unit_purchase_price", "created_at")
+        else:
+            queryset = queryset.order_by("created_at")
+
+        return queryset.first()
+
+    def _execute_stock_transfer(self, order, user, scan_value: str):
+        if not order.target_location:
+            return self._error_response(
+                order,
+                "Für diesen Transportauftrag ist kein Zielplatz hinterlegt.",
+                scan_value,
+            )
+
+        source_stock = self._get_transfer_source_stock(order)
+
+        if not source_stock:
+            return self._error_response(
+                order,
+                (
+                    "Bestandsumbuchung nicht möglich: Am Quellplatz "
+                    f"{order.source_location.code} ist nicht genug Bestand vorhanden."
+                ),
+                scan_value,
+            )
+
+        quantity = order.quantity
+
+        packaging_type = source_stock.packaging_type
+        load_carrier_type = source_stock.load_carrier_type
+        packaging_quantity = source_stock.packaging_quantity
+        unit_purchase_price = source_stock.unit_purchase_price
+        expiry_date = source_stock.expiry_date
+
+        target_stock, _ = StorageLocationStock.objects.select_for_update().get_or_create(
+            product=order.product,
+            storage_location=order.target_location,
+            packaging_type=packaging_type,
+            load_carrier_type=load_carrier_type,
+            unit_purchase_price=unit_purchase_price,
+            expiry_date=expiry_date,
+            defaults={
+                "quantity": 0,
+                "packaging_quantity": packaging_quantity,
+            },
+        )
+
+        source_stock.quantity -= quantity
+
+        if source_stock.quantity <= 0:
+            source_stock.delete()
+        else:
+            source_stock.save(update_fields=["quantity", "updated_at"])
+
+        target_stock.quantity += quantity
+        target_stock.packaging_quantity = packaging_quantity
+        target_stock.save(update_fields=["quantity", "packaging_quantity", "updated_at"])
+
+        self._sync_location_empty_state(order.source_location)
+        self._sync_location_empty_state(order.target_location)
+
+        reference = order.transport_order_number or order.reference_number or f"TA-{order.id}"
+
+        movement_base = {
+            "product": order.product,
+            "quantity": quantity,
+            "reference_number": reference,
+            "packaging_type": packaging_type,
+            "load_carrier_type": load_carrier_type,
+            "packaging_quantity": packaging_quantity,
+            "unit_purchase_price": unit_purchase_price,
+            "expiry_date": expiry_date,
+            "created_by": user,
+        }
+
+        StockMovement.objects.create(
+            **movement_base,
+            movement_type="OUT",
+            storage_location=order.source_location,
+            note=(
+                f"WMS-Transportauftrag {reference}: Entnahme vom Quellplatz "
+                f"{order.source_location.code} zum Zielplatz {order.target_location.code}."
+            ),
+        )
+
+        StockMovement.objects.create(
+            **movement_base,
+            movement_type="IN",
+            storage_location=order.target_location,
+            note=(
+                f"WMS-Transportauftrag {reference}: Zugang am Zielplatz "
+                f"{order.target_location.code} vom Quellplatz {order.source_location.code}."
+            ),
+        )
+
+        return None
+
     def _error_response(self, order, message: str, scan_value: str, status_code=status.HTTP_400_BAD_REQUEST):
         order.last_scan_value = scan_value
         order.last_error = message
@@ -858,6 +984,11 @@ class TransportOrderViewSet(viewsets.ModelViewSet):
                 )
 
             if scanned_location and scanned_location.id == order.target_location_id:
+                transfer_response = self._execute_stock_transfer(order, request.user, scan_value)
+
+                if transfer_response is not None:
+                    return transfer_response
+
                 order.status = TransportOrder.Status.COMPLETED
                 order.completed_at = timezone.now()
                 order.last_scan_value = scan_value
@@ -876,7 +1007,7 @@ class TransportOrderViewSet(viewsets.ModelViewSet):
 
                 return Response(
                     {
-                        "detail": "Zielplatz bestätigt. Transportauftrag wurde abgeschlossen.",
+                        "detail": "Zielplatz bestätigt. Transportauftrag wurde abgeschlossen und der Bestand wurde umgebucht.",
                         "transport_order": serializer.data,
                         "next_step": "Transport abgeschlossen.",
                     }
