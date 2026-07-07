@@ -7,6 +7,13 @@ from django.utils import timezone
 
 
 class StorageLocation(models.Model):
+    class LocationType(models.TextChoices):
+        RECEIVING = "RECEIVING", "Wareneingangsfläche"
+        STORAGE = "STORAGE", "Lagerplatz"
+        SHIPPING = "SHIPPING", "Warenausgang / Bereitstellung"
+        QUALITY = "QUALITY", "Prüfung / Klärung"
+        BLOCKED = "BLOCKED", "Sperrfläche"
+
     code = models.CharField(max_length=50, unique=True)
     name = models.CharField(max_length=120)
 
@@ -14,6 +21,13 @@ class StorageLocation(models.Model):
     aisle = models.CharField(max_length=50, blank=True)
     rack = models.CharField(max_length=50, blank=True)
     shelf = models.CharField(max_length=50, blank=True)
+
+    location_type = models.CharField(
+        max_length=20,
+        choices=LocationType.choices,
+        default=LocationType.STORAGE,
+        verbose_name="Lagerplatztyp",
+    )
 
     description = models.TextField(blank=True)
 

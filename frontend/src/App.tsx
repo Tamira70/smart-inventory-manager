@@ -57,6 +57,7 @@ type StorageLocation = {
   aisle: string;
   rack: string;
   shelf: string;
+  location_type?: "RECEIVING" | "STORAGE" | "SHIPPING" | "QUALITY" | "BLOCKED";
   description: string;
 
   is_active: boolean;
@@ -3801,6 +3802,10 @@ const exportMovementsToCsv = async () => {
               </section>
             )}
 
+            {activeSection === "dashboard" && (
+              <ReceivingAreasDashboardPanel storageLocations={storageLocations} />
+            )}
+
             {activeSection === "orders" && (
             <OrdersSection
               purchaseOrders={purchaseOrders}
@@ -6676,6 +6681,106 @@ function ReorderSection({
 
 
 
+
+function ReceivingAreasDashboardPanel({
+  storageLocations,
+}: {
+  storageLocations: StorageLocation[];
+}) {
+  const receivingAreas = storageLocations
+    .filter(
+      (location) =>
+        location.location_type === "RECEIVING" ||
+        location.code.toUpperCase().startsWith("WE-")
+    )
+    .sort((first, second) => first.code.localeCompare(second.code));
+
+  const freeReceivingAreas = receivingAreas.filter(
+    (location) => location.is_active && !location.is_blocked && location.is_empty
+  );
+
+  const occupiedReceivingAreas = receivingAreas.filter(
+    (location) => location.is_active && !location.is_blocked && !location.is_empty
+  );
+
+  return (
+    <section style={{ ...sectionStyle, marginTop: "22px" }}>
+      <h2 style={sectionTitleStyle}>📥 Wareneingangsflächen</h2>
+
+      <p style={infoStyle}>
+        Übersicht der WE-Flächen für den Wareneingang. Freie WE-Flächen wie
+        WE-0001 können direkt für neue Wareneingänge genutzt werden.
+      </p>
+
+      <div style={dashboardGridStyle}>
+        <Card title="WE-Flächen gesamt" value={String(receivingAreas.length)} />
+        <Card title="Freie WE-Flächen" value={String(freeReceivingAreas.length)} />
+        <Card
+          title="Belegte WE-Flächen"
+          value={String(occupiedReceivingAreas.length)}
+          danger={occupiedReceivingAreas.length > 0}
+        />
+      </div>
+
+      {receivingAreas.length === 0 ? (
+        <p style={errorStyle}>
+          ⛔ Keine Wareneingangsflächen vorhanden. Bitte WE-0001 bis WE-0005
+          anlegen.
+        </p>
+      ) : (
+        <div style={{ ...tableWrapStyle, marginTop: "18px" }}>
+          <table style={dataTableStyle}>
+            <thead>
+              <tr style={tableHeaderRowStyle}>
+                <th style={tableHeadStyle}>WE-Fläche</th>
+                <th style={tableHeadStyle}>Name</th>
+                <th style={tableHeadStyle}>Bereich</th>
+                <th style={tableHeadStyle}>Status</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {receivingAreas.map((location) => {
+                const isFree =
+                  location.is_active && !location.is_blocked && location.is_empty;
+
+                return (
+                  <tr
+                    key={location.id}
+                    style={{
+                      borderTop: "1px solid rgba(148, 163, 184, 0.12)",
+                      background: isFree
+                        ? "rgba(22, 101, 52, 0.10)"
+                        : "rgba(127, 29, 29, 0.10)",
+                    }}
+                  >
+                    <td style={tableCellStyle}>
+                      <strong>{location.code}</strong>
+                    </td>
+                    <td style={tableCellStyle}>{location.name}</td>
+                    <td style={tableCellStyle}>
+                      {location.zone || "WE"}
+                      {location.aisle ? ` / ${location.aisle}` : ""}
+                    </td>
+                    <td style={tableCellStyle}>
+                      {location.is_blocked
+                        ? "⛔ Gesperrt"
+                        : !location.is_active
+                        ? "⚪ Inaktiv"
+                        : isFree
+                        ? "✅ Frei für Wareneingang"
+                        : "📦 Belegt / TA-Prüfung erforderlich"}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
 
 function ForkliftTerminalSection({
   orders,

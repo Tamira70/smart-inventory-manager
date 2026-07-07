@@ -98,6 +98,7 @@ class Command(BaseCommand):
             StorageLocation.objects.create(
                 code=code,
                 name="Wareneingangsfläche",
+                location_type=StorageLocation.LocationType.RECEIVING,
                 zone="WE",
                 aisle="WE",
                 rack=f"{number:04d}",
@@ -116,7 +117,7 @@ class Command(BaseCommand):
 
     def create_transport_orders_for_receiving_areas(self, dry_run: bool):
         receiving_locations = StorageLocation.objects.filter(
-            code__startswith="WE-",
+            location_type=StorageLocation.LocationType.RECEIVING,
             is_active=True,
             is_blocked=False,
         ).order_by("code")
@@ -239,6 +240,7 @@ class Command(BaseCommand):
                 product=product,
                 storage_location__is_active=True,
                 storage_location__is_blocked=False,
+                storage_location__location_type=StorageLocation.LocationType.STORAGE,
             )
             .exclude(storage_location=source_location)
             .exclude(storage_location__code__startswith="WE-")
@@ -255,6 +257,7 @@ class Command(BaseCommand):
                 is_active=True,
                 is_blocked=False,
                 is_empty=True,
+                location_type=StorageLocation.LocationType.STORAGE,
             )
             .exclude(id=source_location.id)
             .exclude(code__startswith="WE-")
@@ -270,6 +273,7 @@ class Command(BaseCommand):
             .filter(
                 is_active=True,
                 is_blocked=False,
+                location_type=StorageLocation.LocationType.STORAGE,
             )
             .exclude(id=source_location.id)
             .exclude(code__startswith="WE-")

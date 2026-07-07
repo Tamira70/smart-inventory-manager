@@ -188,6 +188,7 @@ class StorageLocationSerializer(serializers.ModelSerializer):
             "aisle",
             "rack",
             "shelf",
+            "location_type",
             "description",
             "is_active",
             "is_blocked",
