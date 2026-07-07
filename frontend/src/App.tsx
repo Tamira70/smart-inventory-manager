@@ -790,6 +790,10 @@ const [loggedIn, setLoggedIn] = useState(isLoggedIn());
   const [activeTransportOrderId, setActiveTransportOrderId] = useState("");
   const [forkliftScanValue, setForkliftScanValue] = useState("");
   const [forkliftScanFeedback, setForkliftScanFeedback] = useState("");
+  const [transportOrderProductId, setTransportOrderProductId] = useState("");
+  const [transportOrderQuantity, setTransportOrderQuantity] = useState("1");
+  const [transportOrderTargetLocationId, setTransportOrderTargetLocationId] = useState("");
+  const [transportOrderSaving, setTransportOrderSaving] = useState(false);
 
   const [storageLocations, setStorageLocations] = useState<StorageLocation[]>([]);
   const [locationStocks, setLocationStocks] = useState<StorageLocationStock[]>([]);
@@ -1134,6 +1138,79 @@ if (role === "einkauf") {
       oscillator.stop(audioContext.currentTime + 0.18);
     } catch {
       // Akustische Warnung ist optional.
+    }
+  };
+
+
+  const handleCreateTransportOrder = async (event: FormEvent) => {
+    event.preventDefault();
+
+    if (!hasPermission("lager")) {
+      setError("Nur Admin oder Lager dürfen Transportaufträge erstellen.");
+      return;
+    }
+
+    if (!transportOrderProductId) {
+      setError("Bitte ein Produkt für den Transportauftrag auswählen.");
+      return;
+    }
+
+    if (!transportOrderQuantity || Number(transportOrderQuantity) <= 0) {
+      setError("Bitte eine gültige Menge größer 0 eintragen.");
+      return;
+    }
+
+    if (!transportOrderTargetLocationId) {
+      setError("Bitte einen Ziel- oder Bereitstellplatz auswählen.");
+      return;
+    }
+
+    try {
+      setTransportOrderSaving(true);
+      setError("");
+      setSuccess("");
+      setForkliftScanFeedback("");
+
+      const response = await apiFetch("/inventory-api/transport-orders/create-from-outbound/", {
+        method: "POST",
+        body: JSON.stringify({
+          product: Number(transportOrderProductId),
+          quantity: transportOrderQuantity,
+          target_location: Number(transportOrderTargetLocationId),
+          reference_number: `WMS-${new Date().toISOString().slice(0, 10)}`,
+        }),
+      });
+
+      const data = (await response.json()) as {
+        detail?: string;
+        transport_order?: TransportOrder;
+        next_step?: string;
+      };
+
+      if (!response.ok) {
+        throw new Error(data.detail || "Transportauftrag konnte nicht erstellt werden.");
+      }
+
+      setTransportOrderProductId("");
+      setTransportOrderQuantity("1");
+      setTransportOrderTargetLocationId("");
+
+      if (data.transport_order?.id) {
+        setActiveTransportOrderId(String(data.transport_order.id));
+      }
+
+      setSuccess(data.detail || "Transportauftrag wurde erstellt.");
+      setForkliftScanFeedback(data.next_step || "Bitte Quellplatz scannen.");
+
+      await loadTransportOrders();
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Fehler beim Erstellen des Transportauftrags.";
+      setError(message);
+    } finally {
+      setTransportOrderSaving(false);
     }
   };
 
@@ -4033,7 +4110,18 @@ const exportMovementsToCsv = async () => {
                 onAssign={handleAssignTransportOrder}
                 onRefresh={loadTransportOrders}
                 canUseTerminal={hasPermission("forklift_terminal")}
-              />
+              
+                products={products}
+                storageLocations={storageLocations}
+                createProductId={transportOrderProductId}
+                setCreateProductId={setTransportOrderProductId}
+                createQuantity={transportOrderQuantity}
+                setCreateQuantity={setTransportOrderQuantity}
+                createTargetLocationId={transportOrderTargetLocationId}
+                setCreateTargetLocationId={setTransportOrderTargetLocationId}
+                createSaving={transportOrderSaving}
+                onCreateTransportOrder={handleCreateTransportOrder}
+                canCreateTransportOrder={hasPermission("lager")}/>
             )}
 
             {activeSection === "inventory" && (
@@ -6591,6 +6679,8 @@ function ReorderSection({
 
 function ForkliftTerminalSection({
   orders,
+  products,
+  storageLocations,
   loading,
   selectedOrderId,
   setSelectedOrderId,
@@ -6601,8 +6691,19 @@ function ForkliftTerminalSection({
   onAssign,
   onRefresh,
   canUseTerminal,
+  createProductId,
+  setCreateProductId,
+  createQuantity,
+  setCreateQuantity,
+  createTargetLocationId,
+  setCreateTargetLocationId,
+  createSaving,
+  onCreateTransportOrder,
+  canCreateTransportOrder,
 }: {
   orders: TransportOrder[];
+  products: Product[];
+  storageLocations: StorageLocation[];
   loading: boolean;
   selectedOrderId: string;
   setSelectedOrderId: (value: string) => void;
@@ -6613,6 +6714,15 @@ function ForkliftTerminalSection({
   onAssign: (order: TransportOrder) => void;
   onRefresh: () => void;
   canUseTerminal: boolean;
+  createProductId: string;
+  setCreateProductId: (value: string) => void;
+  createQuantity: string;
+  setCreateQuantity: (value: string) => void;
+  createTargetLocationId: string;
+  setCreateTargetLocationId: (value: string) => void;
+  createSaving: boolean;
+  onCreateTransportOrder: (event: FormEvent) => void;
+  canCreateTransportOrder: boolean;
 }) {
   const scanInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -6784,6 +6894,71 @@ function ForkliftTerminalSection({
       </p>
 
       <div style={terminalShellStyle}>
+
+        {canCreateTransportOrder && (
+          <div style={panelStyle}>
+            <h3 style={panelTitleStyle}>Transportauftrag erstellen</h3>
+
+            <form
+              onSubmit={onCreateTransportOrder}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "minmax(220px, 1.4fr) 120px minmax(220px, 1.2fr) auto",
+                gap: "10px",
+                alignItems: "center",
+              }}
+            >
+              <select
+                value={createProductId}
+                onChange={(event) => setCreateProductId(event.target.value)}
+                style={inputStyle}
+                required
+              >
+                <option value="">Produkt auswählen</option>
+                {products.map((product) => (
+                  <option key={product.id} value={product.id}>
+                    {product.name} · {product.sku}
+                  </option>
+                ))}
+              </select>
+
+              <input
+                type="number"
+                min="1"
+                value={createQuantity}
+                onChange={(event) => setCreateQuantity(event.target.value)}
+                placeholder="Menge"
+                style={inputStyle}
+                required
+              />
+
+              <select
+                value={createTargetLocationId}
+                onChange={(event) => setCreateTargetLocationId(event.target.value)}
+                style={inputStyle}
+                required
+              >
+                <option value="">Ziel-/Bereitstellplatz</option>
+                {storageLocations
+                  .filter((location) => location.is_active && !location.is_blocked)
+                  .map((location) => (
+                    <option key={location.id} value={location.id}>
+                      {location.code} · {location.name}
+                    </option>
+                  ))}
+              </select>
+
+              <button
+                type="submit"
+                disabled={createSaving}
+                style={createSaving ? disabledButtonStyle : primaryButtonStyle}
+              >
+                {createSaving ? "Erstelle..." : "TA erstellen"}
+              </button>
+            </form>
+          </div>
+        )}
+
         <div style={panelStyle}>
           <div
             style={{
