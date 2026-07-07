@@ -1023,8 +1023,23 @@ if (role === "einkauf") {
 };
 
 const visibleSidebarMenus = useMemo(() => {
-  if (role === "admin" || role === "viewer") {
+  if (role === "admin") {
     return sidebarMenus;
+  }
+
+  if (role === "viewer") {
+    return sidebarMenus
+      .filter((menu) => menu.id === "dashboard" || menu.id === "lager")
+      .map((menu) =>
+        menu.id === "lager"
+          ? {
+              ...menu,
+              items: menu.items.filter(
+                (item) => item.id === "forklift-terminal"
+              ),
+            }
+          : menu
+      );
   }
 
   if (role === "lager") {
@@ -3545,7 +3560,7 @@ const exportMovementsToCsv = async () => {
                 <p style={{ marginTop: "8px", color: "#94a3b8" }}>
                   Eingeloggt als: <strong>{user?.username}</strong> | Rolle: <strong>{role}</strong>
                 </p>
-                {role === "viewer" && <p style={infoStyle}>🔒 Viewer-Modus aktiv: Bearbeiten und Buchungen sind deaktiviert.</p>}
+                {role === "viewer" && <p style={infoStyle}>🔒 Zuschauer-Modus: Du kannst das Stapler-Terminal als Demo ansehen, aber keine Scans oder Buchungen durchführen.</p>}
                 {role === "lager" && <p style={infoStyle}>📦 Lager-Modus aktiv: Du kannst Wareneingang, Warenausgang und Inventur buchen.</p>}
                 {role === "stapler" && <p style={infoStyle}>STAPLER-TERMINAL aktiv: Du kannst Transportaufträge übernehmen und per Scan bearbeiten.</p>}
                 {role === "admin" && <p style={infoStyle}>⚙️ Admin-Modus aktiv: Du hast vollen Zugriff auf alle Funktionen.</p>}

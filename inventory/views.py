@@ -541,7 +541,10 @@ class TransportOrderViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_permissions(self):
-        if self.action in ["active", "assign_to_me", "scan", "retrieve", "list"]:
+        if self.action in ["active", "retrieve", "list"]:
+            return [IsAuthenticated()]
+
+        if self.action in ["assign_to_me", "scan"]:
             return [IsForkliftOrAdmin()]
 
         if self.action in ["create", "create_from_outbound", "update", "partial_update", "destroy"]:
