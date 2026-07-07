@@ -640,6 +640,7 @@ class UserProfile(models.Model):
         ("lager", "Lager"),
         ("einkauf", "Einkauf"),
         ("dispo", "Dispo"),
+        ("stapler", "Stapler-Terminal"),
         ("viewer", "Viewer"),
     ]
 

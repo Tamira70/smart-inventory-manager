@@ -68,7 +68,7 @@ from .serializers import (
     AdminUserSerializer,
     AuditLogSerializer,
 )
-from .permissions import IsAdmin, IsLagerOrAdmin, IsEinkaufOrAdmin
+from .permissions import IsAdmin, IsLagerOrAdmin, IsEinkaufOrAdmin, IsForkliftOrAdmin
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -539,6 +539,15 @@ class TransportOrderViewSet(viewsets.ModelViewSet):
     )
     serializer_class = TransportOrderSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        if self.action in ["active", "assign_to_me", "scan", "retrieve", "list"]:
+            return [IsForkliftOrAdmin()]
+
+        if self.action in ["create", "create_from_outbound", "update", "partial_update", "destroy"]:
+            return [IsLagerOrAdmin()]
+
+        return super().get_permissions()
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)

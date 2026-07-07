@@ -467,7 +467,7 @@ type SidebarMenu = {
   }[];
 };
 
-type PermissionRole = "admin" | "lager";
+type PermissionRole = "admin" | "lager" | "forklift_terminal";
 
 type InventorySummary = {
   total: number;
@@ -726,6 +726,7 @@ const [activeSection, setActiveSection] = useState<ActiveSection>("dashboard");
     "einkauf",
     "dispo",
     "lager",
+    "stapler",
   ]);
   const [windowWidth, setWindowWidth] = useState<number>(window.innerWidth);
 
@@ -944,6 +945,8 @@ const selectSection = (section: ActiveSection) => {
     if (!role) return false;
     if (required === "admin") return role === "admin";
     if (required === "lager") return role === "admin" || role === "lager";
+    if (required === "forklift_terminal")
+      return role === "admin" || role === "stapler";
     return false;
   };
   const isReadOnlyRole = role === "viewer";
@@ -956,6 +959,21 @@ const canAccessSection = (section: ActiveSection) => {
   if (role === "viewer") return true;
 
   // Lager: operative Lagerbereiche.
+  if (role === "stapler") {
+    return sidebarMenus
+      .filter((menu) => menu.id === "dashboard" || menu.id === "lager")
+      .map((menu) =>
+        menu.id === "lager"
+          ? {
+              ...menu,
+              items: menu.items.filter(
+                (item) => item.id === "forklift-terminal"
+              ),
+            }
+          : menu
+      );
+  }
+
   if (role === "lager") {
     return [
       "dashboard",
@@ -3427,6 +3445,7 @@ const exportMovementsToCsv = async () => {
                 </p>
                 {role === "viewer" && <p style={infoStyle}>🔒 Viewer-Modus aktiv: Bearbeiten und Buchungen sind deaktiviert.</p>}
                 {role === "lager" && <p style={infoStyle}>📦 Lager-Modus aktiv: Du kannst Wareneingang, Warenausgang und Inventur buchen.</p>}
+                {role === "stapler" && <p style={infoStyle}>🚜 Stapler-Terminal aktiv: Du kannst Transportaufträge übernehmen und per Scan bearbeiten.</p>}
                 {role === "admin" && <p style={infoStyle}>⚙️ Admin-Modus aktiv: Du hast vollen Zugriff auf alle Funktionen.</p>}
               </div>
               <button onClick={handleLogout} style={secondaryButtonStyle}>Logout</button>
@@ -4013,7 +4032,7 @@ const exportMovementsToCsv = async () => {
                 onScan={handleForkliftScan}
                 onAssign={handleAssignTransportOrder}
                 onRefresh={loadTransportOrders}
-                canUseTerminal={hasPermission("lager")}
+                canUseTerminal={hasPermission("forklift_terminal")}
               />
             )}
 
@@ -4772,6 +4791,7 @@ function AdminUsersSection({
     { value: "lager", label: "Lager" },
     { value: "einkauf", label: "Einkauf" },
     { value: "dispo", label: "Dispo" },
+    { value: "stapler", label: "Stapler-Terminal" },
     { value: "admin", label: "Admin" },
   ];
 
@@ -4959,6 +4979,7 @@ function RoleRightsSection({
     { value: "lager", label: "Lager" },
     { value: "einkauf", label: "Einkauf" },
     { value: "dispo", label: "Dispo" },
+    { value: "stapler", label: "Stapler-Terminal" },
     { value: "viewer", label: "Viewer / Recruiter" },
   ];
 
