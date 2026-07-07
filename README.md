@@ -66,52 +66,29 @@ Geplante Screenshots für die Portfolio-Dokumentation:
 - Wareneingang mit ausgewählter offener Bestellposition
 - Automatisch erzeugte Lagerbewegung mit Referenz `WE-PO-...`
 
-### 🚜 Geplantes WMS-/Lagerleitsystem: Transportauftrag, Transportschein & Stapler-Terminal
+### 🚜 WMS-/Lagerleitsystem: Transportauftrag, Transportschein & Stapler-Terminal
 
-Dieses Modul soll den nächsten professionellen Ausbauschritt des Smart Inventory Managers abbilden. Ziel ist nicht nur ein einfaches Scan-Feld, sondern eine zentrale WMS-Logik, die Transportaufträge automatisch erzeugt und direkt an Stapler-Terminals übergibt.
+#### 🟨 Teilweise umgesetzt
 
-#### Geplanter Ablauf
+Der Smart Inventory Manager wurde um eine erste WMS-Logik für Transportaufträge erweitert. Ziel dieses Moduls ist eine zentrale Lagerleitlogik, die Transportaufträge automatisch erstellt, Quell- und Zielplätze vorgibt und später direkt mit Stapler-Terminals kommunizieren kann.
 
-Sobald am Warenausgang ein Auftrag gestartet wird oder Produkte angefordert werden, erstellt das System automatisch einen Transportauftrag.
+Bereits umgesetzt:
 
-Der Ablauf soll folgendermaßen funktionieren:
+- automatische Erstellung eines Transportauftrags (TA) aus einer Warenausgangsanforderung
+- automatische Erstellung einer Transportschein-Nummer (TS)
+- automatische Ermittlung eines geeigneten Entnahmeplatzes auf Basis vorhandener Lagerplatzbestände
+- API-Endpunkte für aktive Transportaufträge
+- Scan-Logik für Quell- und Zielplatz
+- Statusführung von `CREATED` über `IN_TRANSIT` bis `COMPLETED`
+- Fehlerschutz bei falschem Quell- oder Zielscan
+- automatische Bestandsumbuchung vom Quellplatz auf den Zielplatz beim Abschluss
+- automatische OUT- und IN-Lagerbewegung mit TA-Referenz
 
-1. **Automatische TA-Erstellung**  
-   Das System erstellt einen Transportauftrag und ermittelt anhand der vorhandenen Bestände, Lagerplätze und Auslagerungsstrategien den optimalen Entnahmeplatz.
+#### 🔜 Nächster Ausbau
 
-2. **Automatische TS-Erstellung**  
-   Aus dem Transportauftrag wird ein Transportschein erzeugt. Dieser wird dem zuständigen Stapler-Terminal angezeigt.
-
-3. **Stapler-Terminal mit Ein-Scan-Feld-Logik**  
-   Das Stapler-Terminal besitzt nur ein dauerhaft aktives Scan-Feld. Der Fahrer muss keinen Cursor manuell setzen und keine unterschiedlichen Felder auswählen.
-
-4. **Automatische Scan-Erkennung**  
-   Das System erkennt anhand von Präfixen, QR-Inhalten oder Längen automatisch, was gescannt wurde:
-
-   - Produkt
-   - Lagerort
-   - Quellplatz
-   - Zielplatz
-   - Palette / NVE / SSCC
-
-5. **Quell-Bestätigung**  
-   Der erste gültige Scan bestätigt die Aufnahme der Ware am Entnahmeplatz. Der TA wechselt in den Status „Ware aufgenommen“ oder „in Transport“.
-
-6. **Ziel-Bestätigung**  
-   Der zweite gültige Scan bestätigt die Abstellung am Ziel- oder Bereitstellungsplatz. Der TA wird automatisch abgeschlossen und der Bestand wird umgebucht.
-
-7. **Fehlerschutz**  
-   Falsche Scans werden sofort blockiert. Das Terminal zeigt eine Fehlermeldung und gibt eine akustische Warnung aus.
-
-#### Ziel des Moduls
-
-Das Modul soll zeigen, wie der Smart Inventory Manager zu einem echten Lagerleitsystem erweitert werden kann:
-
-- automatische Transportaufträge
-- automatische Quell- und Zielermittlung
-- direkte Staplerführung
-- Ein-Scan-Feld-Bedienung
-- Plausibilitätsprüfung gegen falsche Plätze
-- automatische Statusführung
-- automatische Bestandsbuchung nach erfolgreichem Transport
-
+- eigenes Stapler-Terminal im Frontend
+- dauerhaft aktives Ein-Scan-Feld
+- Anzeige von aktuellem TA/TS, Produkt, Menge, Quelle und Ziel
+- akustische Warnung bei falschem Scan
+- spätere Erweiterung für Palette / NVE / SSCC
+- direkte Zuweisung von Transportaufträgen an Stapler oder Benutzer
