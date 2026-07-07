@@ -3445,7 +3445,7 @@ const exportMovementsToCsv = async () => {
                 </p>
                 {role === "viewer" && <p style={infoStyle}>🔒 Viewer-Modus aktiv: Bearbeiten und Buchungen sind deaktiviert.</p>}
                 {role === "lager" && <p style={infoStyle}>📦 Lager-Modus aktiv: Du kannst Wareneingang, Warenausgang und Inventur buchen.</p>}
-                {role === "stapler" && <p style={infoStyle}>🚜 Stapler-Terminal aktiv: Du kannst Transportaufträge übernehmen und per Scan bearbeiten.</p>}
+                {role === "stapler" && <p style={infoStyle}>STAPLER-TERMINAL aktiv: Du kannst Transportaufträge übernehmen und per Scan bearbeiten.</p>}
                 {role === "admin" && <p style={infoStyle}>⚙️ Admin-Modus aktiv: Du hast vollen Zugriff auf alle Funktionen.</p>}
               </div>
               <button onClick={handleLogout} style={secondaryButtonStyle}>Logout</button>
@@ -6776,7 +6776,7 @@ function ForkliftTerminalSection({
 
   return (
     <section style={sectionStyle}>
-      <h2 style={sectionTitleStyle}>🚜 Stapler-Terminal</h2>
+      <h2 style={sectionTitleStyle}>STAPLER-TERMINAL</h2>
 
       <p style={infoStyle}>
         Tablet-optimierte Stapleranzeige mit TA-Liste, klarer Fahranweisung,
