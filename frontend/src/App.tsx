@@ -395,6 +395,44 @@ type PurchaseOrderForm = {
   item_note: string;
 };
 
+type TransportOrder = {
+  id: number;
+  transport_order_number: string | null;
+  transport_slip_number: string | null;
+  product: number;
+  product_name: string;
+  product_sku: string;
+  quantity: string;
+  source_location: number;
+  source_location_code: string;
+  source_location_name: string;
+  target_location: number | null;
+  target_location_code: string | null;
+  target_location_name: string | null;
+  status:
+    | "CREATED"
+    | "ASSIGNED"
+    | "PICKED"
+    | "IN_TRANSIT"
+    | "COMPLETED"
+    | "CANCELLED"
+    | "ERROR";
+  status_display: string;
+  reference_number: string;
+  priority: number;
+  assigned_to: number | null;
+  assigned_to_username: string | null;
+  created_by: number | null;
+  created_by_username: string | null;
+  picked_at: string | null;
+  completed_at: string | null;
+  cancelled_at: string | null;
+  last_scan_value: string;
+  last_error: string;
+  created_at: string;
+  updated_at: string;
+};
+
 type ActiveSection =
   | "dashboard"
   | "orders"
@@ -406,6 +444,7 @@ type ActiveSection =
   | "inventory"
   | "goods-in"
   | "goods-out"
+  | "forklift-terminal"
   | "history"
   | "corrections"
   | "locations"
@@ -645,6 +684,7 @@ const sidebarMenus: SidebarMenu[] = [
     items: [
       { id: "goods-in", label: "Wareneingang" },
       { id: "goods-out", label: "Warenausgang" },
+      { id: "forklift-terminal", label: "Stapler-Terminal" },
       { id: "history", label: "Bewegungshistorie" },
       { id: "corrections", label: "Lagerkorrekturen" },
       { id: "locations", label: "Lagerorte" },
@@ -743,6 +783,12 @@ const [loggedIn, setLoggedIn] = useState(isLoggedIn());
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [movementsLoading, setMovementsLoading] = useState(false);
   const [movementProductFilter, setMovementProductFilter] = useState("");
+
+  const [transportOrders, setTransportOrders] = useState<TransportOrder[]>([]);
+  const [transportOrdersLoading, setTransportOrdersLoading] = useState(false);
+  const [activeTransportOrderId, setActiveTransportOrderId] = useState("");
+  const [forkliftScanValue, setForkliftScanValue] = useState("");
+  const [forkliftScanFeedback, setForkliftScanFeedback] = useState("");
 
   const [storageLocations, setStorageLocations] = useState<StorageLocation[]>([]);
   const [locationStocks, setLocationStocks] = useState<StorageLocationStock[]>([]);
@@ -1016,6 +1062,171 @@ if (role === "einkauf") {
     return () => window.clearTimeout(timer);
   }, [success]);
 
+
+  const loadTransportOrders = async () => {
+    try {
+      setTransportOrdersLoading(true);
+
+      const response = await apiFetch("/inventory-api/transport-orders/active/");
+      const data = (await response.json()) as TransportOrder[];
+
+      setTransportOrders(data);
+
+      if (
+        activeTransportOrderId &&
+        !data.some((order) => String(order.id) === activeTransportOrderId)
+      ) {
+        setActiveTransportOrderId("");
+      }
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Fehler beim Laden der Transportaufträge.";
+      setError(message);
+    } finally {
+      setTransportOrdersLoading(false);
+    }
+  };
+
+  const playForkliftWarningBeep = () => {
+    try {
+      const AudioContextClass =
+        window.AudioContext ||
+        (window as unknown as {
+          webkitAudioContext?: typeof window.AudioContext;
+        }).webkitAudioContext;
+
+      if (!AudioContextClass) {
+        return;
+      }
+
+      const audioContext = new AudioContextClass();
+      const oscillator = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+
+      oscillator.type = "square";
+      oscillator.frequency.value = 520;
+      gain.gain.value = 0.12;
+
+      oscillator.connect(gain);
+      gain.connect(audioContext.destination);
+
+      oscillator.start();
+      oscillator.stop(audioContext.currentTime + 0.18);
+    } catch {
+      // Akustische Warnung ist optional.
+    }
+  };
+
+  const handleAssignTransportOrder = async (order: TransportOrder) => {
+    try {
+      setError("");
+      setSuccess("");
+      setForkliftScanFeedback("");
+
+      const response = await apiFetch(
+        `/inventory-api/transport-orders/${order.id}/assign-to-me/`,
+        {
+          method: "POST",
+        }
+      );
+
+      const data = (await response.json()) as {
+        detail?: string;
+        transport_order?: TransportOrder;
+        next_step?: string;
+      };
+
+      if (!response.ok) {
+        throw new Error(data.detail || "Transportauftrag konnte nicht übernommen werden.");
+      }
+
+      setActiveTransportOrderId(String(order.id));
+      setSuccess(data.detail || "Transportauftrag übernommen.");
+      setForkliftScanFeedback(data.next_step || "Bitte Quellplatz scannen.");
+
+      await loadTransportOrders();
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Fehler beim Übernehmen des Transportauftrags.";
+      setError(message);
+    }
+  };
+
+  const handleForkliftScan = async () => {
+    const scanValue = forkliftScanValue.trim();
+
+    const activeOrder =
+      transportOrders.find((order) => String(order.id) === activeTransportOrderId) ??
+      transportOrders[0] ??
+      null;
+
+    if (!activeOrder) {
+      playForkliftWarningBeep();
+      setForkliftScanFeedback("⛔ Kein aktiver Transportauftrag vorhanden.");
+      return;
+    }
+
+    if (!scanValue) {
+      playForkliftWarningBeep();
+      setForkliftScanFeedback("⛔ Bitte zuerst einen Lagerort-, Produkt- oder Palettencode scannen.");
+      return;
+    }
+
+    try {
+      setError("");
+      setSuccess("");
+
+      const response = await apiFetch(
+        `/inventory-api/transport-orders/${activeOrder.id}/scan/`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            scan_value: scanValue,
+          }),
+        }
+      );
+
+      const data = (await response.json()) as {
+        detail?: string;
+        warning?: string;
+        transport_order?: TransportOrder;
+        next_step?: string;
+      };
+
+      if (!response.ok) {
+        playForkliftWarningBeep();
+        setForkliftScanFeedback(`⛔ ${data.detail || "Falscher Scan."}`);
+        return;
+      }
+
+      setForkliftScanValue("");
+      setForkliftScanFeedback(
+        `✅ ${data.detail || "Scan erfolgreich."}${
+          data.next_step ? ` ${data.next_step}` : ""
+        }`
+      );
+
+      if (data.transport_order?.status === "COMPLETED") {
+        setActiveTransportOrderId("");
+      } else if (data.transport_order?.id) {
+        setActiveTransportOrderId(String(data.transport_order.id));
+      }
+
+      await loadTransportOrders();
+    } catch (err) {
+      playForkliftWarningBeep();
+
+      const message =
+        err instanceof Error ? err.message : "Fehler beim Verarbeiten des Scans.";
+
+      setForkliftScanFeedback(`⛔ ${message}`);
+    }
+  };
+
   const loadProducts = async () => {
     try {
       setLoading(true);
@@ -1263,6 +1474,7 @@ if (role === "einkauf") {
   if (loggedIn) {
     void loadProducts();
     void loadMovements();
+    void loadTransportOrders();
     void loadInventorySessions();
     void loadStorageLocations();
     void loadLocationStocks();
@@ -3786,6 +3998,22 @@ const exportMovementsToCsv = async () => {
                 goodsOutProductRef={goodsOutProductRef}
                 goodsOutQuantityRef={goodsOutQuantityRef}
                 focusNextOnEnter={focusNextOnEnter}
+              />
+            )}
+
+            {activeSection === "forklift-terminal" && (
+              <ForkliftTerminalSection
+                orders={transportOrders}
+                loading={transportOrdersLoading}
+                selectedOrderId={activeTransportOrderId}
+                setSelectedOrderId={setActiveTransportOrderId}
+                scanValue={forkliftScanValue}
+                setScanValue={setForkliftScanValue}
+                scanFeedback={forkliftScanFeedback}
+                onScan={handleForkliftScan}
+                onAssign={handleAssignTransportOrder}
+                onRefresh={loadTransportOrders}
+                canUseTerminal={hasPermission("lager")}
               />
             )}
 
@@ -6332,6 +6560,291 @@ function ReorderSection({
           </table>
         </div>
       )}
+    </section>
+  );
+}
+
+
+function ForkliftTerminalSection({
+  orders,
+  loading,
+  selectedOrderId,
+  setSelectedOrderId,
+  scanValue,
+  setScanValue,
+  scanFeedback,
+  onScan,
+  onAssign,
+  onRefresh,
+  canUseTerminal,
+}: {
+  orders: TransportOrder[];
+  loading: boolean;
+  selectedOrderId: string;
+  setSelectedOrderId: (value: string) => void;
+  scanValue: string;
+  setScanValue: (value: string) => void;
+  scanFeedback: string;
+  onScan: () => void;
+  onAssign: (order: TransportOrder) => void;
+  onRefresh: () => void;
+  canUseTerminal: boolean;
+}) {
+  const activeOrder =
+    orders.find((order) => String(order.id) === selectedOrderId) ??
+    orders[0] ??
+    null;
+
+  const statusLabel = (status: TransportOrder["status"]) => {
+    switch (status) {
+      case "CREATED":
+        return "📝 Erstellt";
+      case "ASSIGNED":
+        return "👤 Zugewiesen";
+      case "PICKED":
+        return "📦 Ware aufgenommen";
+      case "IN_TRANSIT":
+        return "🚜 In Transport";
+      case "COMPLETED":
+        return "✅ Abgeschlossen";
+      case "CANCELLED":
+        return "🚫 Storniert";
+      case "ERROR":
+        return "⛔ Fehler";
+      default:
+        return status;
+    }
+  };
+
+  const nextStep = activeOrder
+    ? activeOrder.status === "CREATED" || activeOrder.status === "ASSIGNED"
+      ? `Quellplatz scannen: ${activeOrder.source_location_code}`
+      : activeOrder.status === "IN_TRANSIT"
+      ? `Zielplatz scannen: ${activeOrder.target_location_code ?? "kein Ziel hinterlegt"}`
+      : "Kein Scan-Schritt offen."
+    : "Kein aktiver Transportauftrag vorhanden.";
+
+  return (
+    <section style={sectionStyle}>
+      <h2 style={sectionTitleStyle}>🚜 Stapler-Terminal</h2>
+
+      <p style={infoStyle}>
+        Terminalansicht für Transportaufträge. Der Fahrer arbeitet über ein einziges
+        dauerhaft aktives Scan-Feld. Das System erkennt automatisch, ob Quelle oder
+        Ziel gescannt wurde.
+      </p>
+
+      <div style={dashboardGridStyle}>
+        <Card title="Aktive TA" value={String(orders.length)} />
+        <Card
+          title="Aktueller Status"
+          value={activeOrder ? statusLabel(activeOrder.status) : "—"}
+        />
+        <Card
+          title="Nächster Schritt"
+          value={activeOrder ? nextStep : "Warten"}
+        />
+      </div>
+
+      <div
+        style={{
+          marginTop: "22px",
+          display: "grid",
+          gridTemplateColumns: "minmax(0, 1.1fr) minmax(320px, 0.9fr)",
+          gap: "18px",
+          alignItems: "start",
+        }}
+      >
+        <div
+          style={{
+            padding: "18px",
+            borderRadius: "18px",
+            border: "1px solid rgba(148, 163, 184, 0.22)",
+            background: "rgba(15, 23, 42, 0.52)",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: "12px",
+              alignItems: "center",
+              marginBottom: "14px",
+            }}
+          >
+            <h3 style={{ margin: 0, color: "#e5e7eb" }}>Aktueller Auftrag</h3>
+
+            <button
+              type="button"
+              onClick={onRefresh}
+              style={secondaryButtonStyle}
+            >
+              Aktualisieren
+            </button>
+          </div>
+
+          {loading && <p style={infoStyle}>Lade Transportaufträge...</p>}
+
+          {!loading && !activeOrder && (
+            <p style={successStyle}>
+              ✅ Aktuell ist kein offener Transportauftrag vorhanden.
+            </p>
+          )}
+
+          {activeOrder && (
+            <>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                  gap: "12px",
+                  marginBottom: "16px",
+                }}
+              >
+                <Card
+                  title="Transportauftrag"
+                  value={activeOrder.transport_order_number ?? `TA-${activeOrder.id}`}
+                />
+                <Card
+                  title="Transportschein"
+                  value={activeOrder.transport_slip_number ?? "—"}
+                />
+                <Card title="Status" value={statusLabel(activeOrder.status)} />
+              </div>
+
+              <div style={{ lineHeight: 1.8, color: "#e5e7eb" }}>
+                <p>
+                  <strong>Produkt:</strong> {activeOrder.product_name}{" "}
+                  <span style={{ color: "#94a3b8" }}>
+                    ({activeOrder.product_sku})
+                  </span>
+                </p>
+                <p>
+                  <strong>Menge:</strong> {activeOrder.quantity}
+                </p>
+                <p>
+                  <strong>Quelle:</strong> {activeOrder.source_location_code} ·{" "}
+                  {activeOrder.source_location_name}
+                </p>
+                <p>
+                  <strong>Ziel:</strong>{" "}
+                  {activeOrder.target_location_code
+                    ? `${activeOrder.target_location_code} · ${activeOrder.target_location_name ?? ""}`
+                    : "Kein Ziel hinterlegt"}
+                </p>
+                <p>
+                  <strong>Nächster Schritt:</strong> {nextStep}
+                </p>
+                {activeOrder.last_error && (
+                  <p style={errorStyle}>
+                    Letzter Fehler: {activeOrder.last_error}
+                  </p>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => onAssign(activeOrder)}
+                style={canUseTerminal ? primaryButtonStyle : disabledButtonStyle}
+                disabled={!canUseTerminal}
+              >
+                Auftrag übernehmen
+              </button>
+            </>
+          )}
+        </div>
+
+        <div
+          style={{
+            padding: "18px",
+            borderRadius: "18px",
+            border: "1px solid rgba(34, 197, 94, 0.28)",
+            background: "rgba(20, 83, 45, 0.18)",
+          }}
+        >
+          <h3 style={{ marginTop: 0, color: "#dcfce7" }}>
+            Ein-Scan-Feld
+          </h3>
+
+          <p style={{ ...infoStyle, marginTop: 0 }}>
+            Scanner oder Tastatur nutzen. Nach jedem Scan Enter drücken. Falsche
+            Codes werden blockiert und mit Warnton quittiert.
+          </p>
+
+          <input
+            autoFocus
+            value={scanValue}
+            onChange={(event) => setScanValue(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                onScan();
+              }
+            }}
+            placeholder="LOCATION:1|CODE:A-R2-F4 oder Lagerort-Code scannen"
+            style={{
+              ...inputStyle,
+              fontSize: "18px",
+              padding: "16px",
+              borderColor: "rgba(34, 197, 94, 0.45)",
+            }}
+            disabled={!canUseTerminal || !activeOrder}
+          />
+
+          <button
+            type="button"
+            onClick={onScan}
+            style={{
+              ...(canUseTerminal && activeOrder ? primaryButtonStyle : disabledButtonStyle),
+              width: "100%",
+              marginTop: "12px",
+            }}
+            disabled={!canUseTerminal || !activeOrder}
+          >
+            Scan verarbeiten
+          </button>
+
+          {scanFeedback && (
+            <p
+              style={{
+                ...(scanFeedback.startsWith("⛔") ? errorStyle : successStyle),
+                marginTop: "14px",
+              }}
+            >
+              {scanFeedback}
+            </p>
+          )}
+
+          <div style={{ marginTop: "18px" }}>
+            <h4 style={{ color: "#e5e7eb", marginBottom: "8px" }}>
+              Offene Transportaufträge
+            </h4>
+
+            {orders.length === 0 ? (
+              <p style={infoStyle}>Keine offenen Transportaufträge.</p>
+            ) : (
+              <div style={{ display: "grid", gap: "8px" }}>
+                {orders.map((order) => (
+                  <button
+                    key={order.id}
+                    type="button"
+                    onClick={() => setSelectedOrderId(String(order.id))}
+                    style={
+                      String(order.id) === String(activeOrder?.id)
+                        ? primaryButtonStyle
+                        : secondaryButtonStyle
+                    }
+                  >
+                    {order.transport_order_number ?? `TA-${order.id}`} ·{" "}
+                    {order.product_name} · {order.source_location_code} →{" "}
+                    {order.target_location_code ?? "?"}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </section>
   );
 }
