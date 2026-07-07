@@ -1023,7 +1023,7 @@ if (role === "einkauf") {
 };
 
 const visibleSidebarMenus = useMemo(() => {
-  if (role === "admin") {
+  if (role === "admin" || role === "viewer") {
     return sidebarMenus;
   }
 
@@ -3560,7 +3560,7 @@ const exportMovementsToCsv = async () => {
                 <p style={{ marginTop: "8px", color: "#94a3b8" }}>
                   Eingeloggt als: <strong>{user?.username}</strong> | Rolle: <strong>{role}</strong>
                 </p>
-                {role === "viewer" && <p style={infoStyle}>🔒 Zuschauer-Modus: Du kannst das Stapler-Terminal als Demo ansehen, aber keine Scans oder Buchungen durchführen.</p>}
+                {role === "viewer" && <p style={infoStyle}>🔒 Zuschauer-Modus aktiv: Du kannst alle Bereiche ansehen, aber keine Daten bearbeiten, keine Buchungen durchführen und keine Scans ausführen.</p>}
                 {role === "lager" && <p style={infoStyle}>📦 Lager-Modus aktiv: Du kannst Wareneingang, Warenausgang und Inventur buchen.</p>}
                 {role === "stapler" && <p style={infoStyle}>STAPLER-TERMINAL aktiv: Du kannst Transportaufträge übernehmen und per Scan bearbeiten.</p>}
                 {role === "admin" && <p style={infoStyle}>⚙️ Admin-Modus aktiv: Du hast vollen Zugriff auf alle Funktionen.</p>}
