@@ -6812,6 +6812,7 @@ function ReorderSection({
   );
 }
 
+
 function ForkliftTerminalSection({
   orders,
   products,
@@ -6959,7 +6960,7 @@ function ForkliftTerminalSection({
 
   const valueStyle: CSSProperties = {
     color: "#f8fafc",
-    fontSize: "16px",
+    fontSize: "18px",
     fontWeight: 800,
     lineHeight: 1.2,
   };
@@ -6975,7 +6976,7 @@ function ForkliftTerminalSection({
     border: "1px solid rgba(148, 163, 184, 0.2)",
     background: "rgba(30, 41, 59, 0.86)",
     padding: "14px",
-    minHeight: "78px",
+    minHeight: "76px",
   };
 
   const nextStepStyle: CSSProperties = {
@@ -6986,7 +6987,7 @@ function ForkliftTerminalSection({
     background: hasScanError
       ? "rgba(127, 29, 29, 0.45)"
       : "rgba(20, 83, 45, 0.34)",
-    padding: "28px",
+    padding: "26px",
     textAlign: "center",
     marginBottom: "16px",
   };
@@ -7009,7 +7010,7 @@ function ForkliftTerminalSection({
     ...inputStyle,
     width: "100%",
     fontSize: "20px",
-    padding: "22px",
+    padding: "18px",
     borderRadius: "20px",
     border: hasScanError
       ? "3px solid rgba(248, 113, 113, 0.9)"
@@ -7022,6 +7023,7 @@ function ForkliftTerminalSection({
   return (
     <section style={sectionStyle}>
       <h2 style={sectionTitleStyle}>STAPLER-TERMINAL</h2>
+
       <div
         style={{
           margin: "12px 0 18px",
@@ -7037,14 +7039,12 @@ function ForkliftTerminalSection({
         Bitte nur für Test- und Demo-Zwecke verwenden.
       </div>
 
-
       <p style={infoStyle}>
-        Tablet-optimierte Stapleranzeige mit TA-Liste, klarer Fahranweisung,
+        Tablet-optimierte Stapleranzeige mit klarer Fahranweisung,
         Lagerbereichen und einem einzigen Scan-Feld.
       </p>
 
       <div style={terminalShellStyle}>
-
         {canCreateTransportOrder && (
           <div style={panelStyle}>
             <h3 style={panelTitleStyle}>Transportauftrag erstellen</h3>
@@ -7053,7 +7053,8 @@ function ForkliftTerminalSection({
               onSubmit={onCreateTransportOrder}
               style={{
                 display: "grid",
-                gridTemplateColumns: "minmax(220px, 1.4fr) 120px minmax(220px, 1.2fr) auto",
+                gridTemplateColumns:
+                  "minmax(220px, 1.4fr) 120px minmax(220px, 1.2fr) auto",
                 gap: "10px",
                 alignItems: "center",
               }}
@@ -7084,13 +7085,17 @@ function ForkliftTerminalSection({
 
               <select
                 value={createTargetLocationId}
-                onChange={(event) => setCreateTargetLocationId(event.target.value)}
+                onChange={(event) =>
+                  setCreateTargetLocationId(event.target.value)
+                }
                 style={inputStyle}
                 required
               >
                 <option value="">Ziel-/Bereitstellplatz</option>
                 {storageLocations
-                  .filter((location) => location.is_active && !location.is_blocked)
+                  .filter(
+                    (location) => location.is_active && !location.is_blocked
+                  )
                   .map((location) => (
                     <option key={location.id} value={location.id}>
                       {location.code} · {location.name}
@@ -7110,6 +7115,219 @@ function ForkliftTerminalSection({
         )}
 
         <div style={panelStyle}>
+          <div style={topGridStyle}>
+            <div style={topBoxStyle}>
+              <span style={labelStyle}>TA-Nummer</span>
+              <strong style={valueStyle}>
+                {activeOrder?.transport_order_number ?? "—"}
+              </strong>
+            </div>
+
+            <div style={topBoxStyle}>
+              <span style={labelStyle}>TS-Nummer</span>
+              <strong style={valueStyle}>
+                {activeOrder?.transport_slip_number ?? "—"}
+              </strong>
+            </div>
+
+            <div style={topBoxStyle}>
+              <span style={labelStyle}>Status</span>
+              <strong
+                style={{
+                  ...valueStyle,
+                  color: hasScanError
+                    ? "#fecaca"
+                    : activeOrder?.status === "IN_TRANSIT"
+                    ? "#fde68a"
+                    : "#bbf7d0",
+                }}
+              >
+                {activeOrder ? statusLabel(activeOrder.status) : "WARTEN"}
+              </strong>
+            </div>
+          </div>
+        </div>
+
+        <div style={nextStepStyle}>
+          {hasScanError ? (
+            <>
+              <div
+                style={{
+                  color: "#fecaca",
+                  fontSize: "28px",
+                  fontWeight: 850,
+                  letterSpacing: "0.05em",
+                  marginBottom: "12px",
+                }}
+              >
+                ⛔ FALSCHER SCAN
+              </div>
+
+              <div style={{ color: "#fee2e2", fontSize: "20px", lineHeight: 1.7 }}>
+                <div>
+                  Erwartet: <strong>{expectedCode}</strong>
+                </div>
+                <div>
+                  Gescannt: <strong>{scannedValue}</strong>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div
+                style={{
+                  color: "#bbf7d0",
+                  fontSize: "15px",
+                  fontWeight: 800,
+                  letterSpacing: "0.16em",
+                  marginBottom: "12px",
+                }}
+              >
+                NÄCHSTER SCHRITT
+              </div>
+
+              <div
+                style={{
+                  color: "#f8fafc",
+                  fontSize: "30px",
+                  fontWeight: 850,
+                  lineHeight: 1.15,
+                  letterSpacing: "0.03em",
+                }}
+              >
+                {expectedScanLabel}
+              </div>
+
+              <div
+                style={{
+                  color: "#e0f2fe",
+                  fontSize: "30px",
+                  fontWeight: 850,
+                  marginTop: "10px",
+                }}
+              >
+                {expectedCode}
+              </div>
+            </>
+          )}
+        </div>
+
+        <div style={areaGridStyle}>
+          <div style={areaBoxStyle}>
+            <h3 style={panelTitleStyle}>Bereich 1 · Auftrag</h3>
+
+            {activeOrder ? (
+              <>
+                <span style={labelStyle}>Produkt</span>
+                <strong style={{ ...valueStyle, fontSize: "20px" }}>
+                  {activeOrder.product_name}
+                </strong>
+
+                <div style={{ color: "#94a3b8", marginTop: "8px" }}>
+                  SKU: {activeOrder.product_sku}
+                </div>
+
+                <div style={{ marginTop: "18px" }}>
+                  <span style={labelStyle}>Menge</span>
+                  <strong style={{ color: "#f8fafc", fontSize: "26px" }}>
+                    {activeOrder.quantity}
+                  </strong>
+                </div>
+              </>
+            ) : (
+              <p style={infoStyle}>Kein Auftrag ausgewählt.</p>
+            )}
+          </div>
+
+          <div style={areaBoxStyle}>
+            <h3 style={panelTitleStyle}>Bereich 2 · Lagerung</h3>
+
+            {activeOrder ? (
+              <div style={{ display: "grid", gap: "14px" }}>
+                <div>
+                  <span style={labelStyle}>Quellbereich</span>
+                  <strong style={{ color: "#f8fafc", fontSize: "24px" }}>
+                    {activeOrder.source_location_code}
+                  </strong>
+                  <div style={{ color: "#94a3b8", marginTop: "4px" }}>
+                    {activeOrder.source_location_name}
+                  </div>
+                </div>
+
+                <div>
+                  <span style={labelStyle}>Zielbereich</span>
+                  <strong style={{ color: "#f8fafc", fontSize: "24px" }}>
+                    {activeOrder.target_location_code ?? "—"}
+                  </strong>
+                  <div style={{ color: "#94a3b8", marginTop: "4px" }}>
+                    {activeOrder.target_location_name ?? ""}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p style={infoStyle}>Keine Lagerbereiche vorhanden.</p>
+            )}
+          </div>
+        </div>
+
+        <div style={{ ...areaBoxStyle, marginTop: "14px" }}>
+          <h3 style={panelTitleStyle}>Bereich 3 · Ein-Scan-Feld</h3>
+
+          <input
+            ref={scanInputRef}
+            autoFocus
+            value={scanValue}
+            onChange={(event) => setScanValue(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                onScan();
+              }
+            }}
+            placeholder="SCAN AKTIV · Lagerort / QR-Code scannen"
+            style={scanInputStyle}
+            disabled={!canUseTerminal || !activeOrder}
+          />
+
+          <button
+            type="button"
+            onClick={onScan}
+            style={{
+              ...(canUseTerminal && activeOrder
+                ? primaryButtonStyle
+                : disabledButtonStyle),
+              width: "100%",
+              marginTop: "14px",
+              fontSize: "16px",
+              padding: "16px",
+            }}
+            disabled={!canUseTerminal || !activeOrder}
+          >
+            Scan verarbeiten
+          </button>
+
+          {scanFeedback && !hasScanError && (
+            <p style={{ ...successStyle, marginTop: "14px" }}>
+              {scanFeedback}
+            </p>
+          )}
+        </div>
+
+        {activeOrder && (
+          <div style={{ marginTop: "14px" }}>
+            <button
+              type="button"
+              onClick={() => onAssign(activeOrder)}
+              style={canUseTerminal ? secondaryButtonStyle : disabledButtonStyle}
+              disabled={!canUseTerminal}
+            >
+              Auftrag übernehmen
+            </button>
+          </div>
+        )}
+
+        {/* TA-Liste ganz unten */}
+        <div style={{ ...panelStyle, marginTop: "16px", marginBottom: 0 }}>
           <div
             style={{
               display: "flex",
@@ -7200,218 +7418,6 @@ function ForkliftTerminalSection({
             </div>
           )}
         </div>
-
-        <div style={panelStyle}>
-          <div style={topGridStyle}>
-            <div style={topBoxStyle}>
-              <span style={labelStyle}>TA-Nummer</span>
-              <strong style={valueStyle}>
-                {activeOrder?.transport_order_number ?? "—"}
-              </strong>
-            </div>
-
-            <div style={topBoxStyle}>
-              <span style={labelStyle}>TS-Nummer</span>
-              <strong style={valueStyle}>
-                {activeOrder?.transport_slip_number ?? "—"}
-              </strong>
-            </div>
-
-            <div style={topBoxStyle}>
-              <span style={labelStyle}>Status</span>
-              <strong
-                style={{
-                  ...valueStyle,
-                  color: hasScanError
-                    ? "#fecaca"
-                    : activeOrder?.status === "IN_TRANSIT"
-                    ? "#fde68a"
-                    : "#bbf7d0",
-                }}
-              >
-                {activeOrder ? statusLabel(activeOrder.status) : "WARTEN"}
-              </strong>
-            </div>
-          </div>
-        </div>
-
-        <div style={nextStepStyle}>
-          {hasScanError ? (
-            <>
-              <div
-                style={{
-                  color: "#fecaca",
-                  fontSize: "16px",
-                  fontWeight: 850,
-                  letterSpacing: "0.05em",
-                  marginBottom: "12px",
-                }}
-              >
-                ⛔ FALSCHER SCAN
-              </div>
-
-              <div style={{ color: "#fee2e2", fontSize: "20px", lineHeight: 1.7 }}>
-                <div>
-                  Erwartet: <strong>{expectedCode}</strong>
-                </div>
-                <div>
-                  Gescannt: <strong>{scannedValue}</strong>
-                </div>
-              </div>
-            </>
-          ) : (
-            <>
-              <div
-                style={{
-                  color: "#bbf7d0",
-                  fontSize: "15px",
-                  fontWeight: 800,
-                  letterSpacing: "0.16em",
-                  marginBottom: "12px",
-                }}
-              >
-                NÄCHSTER SCHRITT
-              </div>
-
-              <div
-                style={{
-                  color: "#f8fafc",
-                  fontSize: "30px",
-                  fontWeight: 850,
-                  lineHeight: 1.15,
-                  letterSpacing: "0.03em",
-                }}
-              >
-                {expectedScanLabel}
-              </div>
-
-              <div
-                style={{
-                  color: "#e0f2fe",
-                  fontSize: "30px",
-                  fontWeight: 850,
-                  marginTop: "10px",
-                }}
-              >
-                {expectedCode}
-              </div>
-            </>
-          )}
-        </div>
-
-        <div style={areaGridStyle}>
-          <div style={areaBoxStyle}>
-            <h3 style={panelTitleStyle}>Bereich 1 · Auftrag</h3>
-
-            {activeOrder ? (
-              <>
-                <span style={labelStyle}>Produkt</span>
-                <strong style={{ ...valueStyle, fontSize: "20px" }}>
-                  {activeOrder.product_name}
-                </strong>
-
-                <div style={{ color: "#94a3b8", marginTop: "8px" }}>
-                  SKU: {activeOrder.product_sku}
-                </div>
-
-                <div style={{ marginTop: "18px" }}>
-                  <span style={labelStyle}>Menge</span>
-                  <strong style={{ color: "#f8fafc", fontSize: "20px" }}>
-                    {activeOrder.quantity}
-                  </strong>
-                </div>
-              </>
-            ) : (
-              <p style={infoStyle}>Kein Auftrag ausgewählt.</p>
-            )}
-          </div>
-
-          <div style={areaBoxStyle}>
-            <h3 style={panelTitleStyle}>Bereich 2 · Lagerung</h3>
-
-            {activeOrder ? (
-              <div style={{ display: "grid", gap: "14px" }}>
-                <div>
-                  <span style={labelStyle}>Quellbereich</span>
-                  <strong style={{ color: "#f8fafc", fontSize: "20px" }}>
-                    {activeOrder.source_location_code}
-                  </strong>
-                  <div style={{ color: "#94a3b8", marginTop: "4px" }}>
-                    {activeOrder.source_location_name}
-                  </div>
-                </div>
-
-                <div>
-                  <span style={labelStyle}>Zielbereich</span>
-                  <strong style={{ color: "#f8fafc", fontSize: "20px" }}>
-                    {activeOrder.target_location_code ?? "—"}
-                  </strong>
-                  <div style={{ color: "#94a3b8", marginTop: "4px" }}>
-                    {activeOrder.target_location_name ?? ""}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <p style={infoStyle}>Keine Lagerbereiche vorhanden.</p>
-            )}
-          </div>
-        </div>
-
-        <div style={{ ...areaBoxStyle, marginTop: "14px" }}>
-          <h3 style={panelTitleStyle}>Bereich 3 · Ein-Scan-Feld</h3>
-
-          <input
-            ref={scanInputRef}
-            autoFocus
-            value={scanValue}
-            onChange={(event) => setScanValue(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                onScan();
-              }
-            }}
-            placeholder="SCAN AKTIV · Lagerort / QR-Code scannen"
-            style={scanInputStyle}
-            disabled={!canUseTerminal || !activeOrder}
-          />
-
-          <button
-            type="button"
-            onClick={onScan}
-            style={{
-              ...(canUseTerminal && activeOrder
-                ? primaryButtonStyle
-                : disabledButtonStyle),
-              width: "100%",
-              marginTop: "14px",
-              fontSize: "16px",
-              padding: "16px",
-            }}
-            disabled={!canUseTerminal || !activeOrder}
-          >
-            Scan verarbeiten
-          </button>
-
-          {scanFeedback && !hasScanError && (
-            <p style={{ ...successStyle, marginTop: "14px" }}>
-              {scanFeedback}
-            </p>
-          )}
-        </div>
-
-        {activeOrder && (
-          <div style={{ marginTop: "14px" }}>
-            <button
-              type="button"
-              onClick={() => onAssign(activeOrder)}
-              style={canUseTerminal ? secondaryButtonStyle : disabledButtonStyle}
-              disabled={!canUseTerminal}
-            >
-              Auftrag übernehmen
-            </button>
-          </div>
-        )}
       </div>
     </section>
   );
