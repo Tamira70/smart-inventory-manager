@@ -66,29 +66,39 @@ Geplante Screenshots für die Portfolio-Dokumentation:
 - Wareneingang mit ausgewählter offener Bestellposition
 - Automatisch erzeugte Lagerbewegung mit Referenz `WE-PO-...`
 
-### 🚜 WMS-/Lagerleitsystem: Transportauftrag, Transportschein & Stapler-Terminal
+### 🚜 WMS-/Lagerleitsystem: Wareneingangsflächen, Transportauftrag & Stapler-Terminal
 
 #### 🟨 Teilweise umgesetzt
 
-Der Smart Inventory Manager wurde um eine erste WMS-Logik für Transportaufträge erweitert. Ziel dieses Moduls ist eine zentrale Lagerleitlogik, die Transportaufträge automatisch erstellt, Quell- und Zielplätze vorgibt und später direkt mit Stapler-Terminals kommunizieren kann.
+Der Smart Inventory Manager wurde um eine erste WMS-/Lagerleitlogik erweitert. Der Wareneingang wird nicht mehr direkt auf normale Lagerplätze gebucht, sondern zuerst auf definierte Wareneingangsflächen. Von dort erzeugt das System automatisch Transportaufträge für die weitere Einlagerung.
 
-Bereits umgesetzt:
+Bereits lokal umgesetzt:
 
-- automatische Erstellung eines Transportauftrags (TA) aus einer Warenausgangsanforderung
-- automatische Erstellung einer Transportschein-Nummer (TS)
-- automatische Ermittlung eines geeigneten Entnahmeplatzes auf Basis vorhandener Lagerplatzbestände
-- API-Endpunkte für aktive Transportaufträge
-- Scan-Logik für Quell- und Zielplatz
-- Statusführung von `CREATED` über `IN_TRANSIT` bis `COMPLETED`
-- Fehlerschutz bei falschem Quell- oder Zielscan
-- automatische Bestandsumbuchung vom Quellplatz auf den Zielplatz beim Abschluss
+- Lagerplatztypen für unterschiedliche Lagerbereiche:
+  - `RECEIVING` = Wareneingangsfläche
+  - `STORAGE` = regulärer Lagerplatz
+  - `SHIPPING` = Warenausgang / Bereitstellung
+  - `QUALITY` = Prüfung / Klärung
+  - `BLOCKED` = Sperrfläche
+- Wareneingangsflächen `WE-0001` bis `WE-0005`
+- Wareneingang nur noch auf WE-Flächen
+- Dashboard-Anzeige für freie und belegte WE-Flächen
+- automatische Prüfung belegter WE-Flächen
+- automatische TA-Erstellung, wenn Bestand auf einer WE-Fläche liegt und noch kein offener TA existiert
+- Schutz vor doppelten Transportaufträgen für denselben WE-Bestand
+- automatische Erstellung von TA-Nummer und TS-Nummer
+- automatische Ermittlung eines geeigneten Ziel-Lagerplatzes
+- Stapler-Terminal mit TA-Liste, aktuellem Auftrag und Ein-Scan-Feld
+- Scan-Logik für Quellplatz und Zielplatz
+- Bestandsumbuchung von WE-Fläche auf Lagerplatz beim Abschluss des Transportauftrags
 - automatische OUT- und IN-Lagerbewegung mit TA-Referenz
 
 #### 🔜 Nächster Ausbau
 
-- eigenes Stapler-Terminal im Frontend
-- dauerhaft aktives Ein-Scan-Feld
-- Anzeige von aktuellem TA/TS, Produkt, Menge, Quelle und Ziel
-- akustische Warnung bei falschem Scan
-- spätere Erweiterung für Palette / NVE / SSCC
+- Stapler-Terminal weiter optimieren
+- akustische Warnung und visuelle Fehlerführung weiter ausbauen
+- automatische 15-Minuten-Prüfung später als Hintergrunddienst oder Scheduler betreiben
+- Warenausgangsflächen `WA-0001` bis `WA-0005`
+- Transportaufträge vom Lagerplatz zur WA-/Bereitstellfläche
+- Erweiterung für Palette / NVE / SSCC
 - direkte Zuweisung von Transportaufträgen an Stapler oder Benutzer
