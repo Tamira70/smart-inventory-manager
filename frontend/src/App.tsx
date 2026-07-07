@@ -3422,6 +3422,30 @@ const exportMovementsToCsv = async () => {
       )
     : 1;
 
+  const receivingAreaDashboardData = useMemo(() => {
+    const receivingAreas = storageLocations
+      .filter(
+        (location) =>
+          location.location_type === "RECEIVING" ||
+          location.code.toUpperCase().startsWith("WE-")
+      )
+      .sort((first, second) => first.code.localeCompare(second.code));
+
+    const freeReceivingAreas = receivingAreas.filter(
+      (location) => location.is_active && !location.is_blocked && location.is_empty
+    );
+
+    const occupiedReceivingAreas = receivingAreas.filter(
+      (location) => location.is_active && !location.is_blocked && !location.is_empty
+    );
+
+    return {
+      receivingAreas,
+      freeReceivingAreas,
+      occupiedReceivingAreas,
+    };
+  }, [storageLocations]);
+
   const storageLocationStatusData = useMemo(() => {
     const occupied = storageLocations.filter(
       (location) => !location.is_empty
@@ -3668,6 +3692,105 @@ const exportMovementsToCsv = async () => {
                     <h3 style={dashboardChartTitleStyle}>
                       📍 Lagerplatzstatus
                     </h3>
+
+                      <div
+                        style={{
+                          marginBottom: "16px",
+                          padding: "12px",
+                          borderRadius: "14px",
+                          background: "rgba(15, 23, 42, 0.55)",
+                          border: "1px solid rgba(148, 163, 184, 0.18)",
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            gap: "12px",
+                            marginBottom: "8px",
+                          }}
+                        >
+                          <strong style={{ color: "#bbf7d0" }}>
+                            WE-Flächen frei
+                          </strong>
+                          <span style={{ color: "#e5e7eb", fontWeight: 800 }}>
+                            {receivingAreaDashboardData.freeReceivingAreas.length}
+                          </span>
+                        </div>
+
+                        {receivingAreaDashboardData.freeReceivingAreas.length > 0 ? (
+                          <div
+                            style={{
+                              display: "flex",
+                              flexWrap: "wrap",
+                              gap: "8px",
+                            }}
+                          >
+                            {receivingAreaDashboardData.freeReceivingAreas.map((location) => (
+                              <span
+                                key={location.id}
+                                style={{
+                                  padding: "6px 10px",
+                                  borderRadius: "999px",
+                                  background: "rgba(22, 101, 52, 0.28)",
+                                  border: "1px solid rgba(34, 197, 94, 0.38)",
+                                  color: "#dcfce7",
+                                  fontWeight: 800,
+                                }}
+                              >
+                                {location.code}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <p style={{ ...infoStyle, margin: 0 }}>
+                            Keine freie WE-Fläche.
+                          </p>
+                        )}
+
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            gap: "12px",
+                            marginTop: "12px",
+                            marginBottom: "8px",
+                          }}
+                        >
+                          <strong style={{ color: "#fde68a" }}>
+                            WE-Flächen belegt
+                          </strong>
+                          <span style={{ color: "#e5e7eb", fontWeight: 800 }}>
+                            {receivingAreaDashboardData.occupiedReceivingAreas.length}
+                          </span>
+                        </div>
+
+                        {receivingAreaDashboardData.occupiedReceivingAreas.length > 0 && (
+                          <div
+                            style={{
+                              display: "flex",
+                              flexWrap: "wrap",
+                              gap: "8px",
+                            }}
+                          >
+                            {receivingAreaDashboardData.occupiedReceivingAreas.map((location) => (
+                              <span
+                                key={location.id}
+                                style={{
+                                  padding: "6px 10px",
+                                  borderRadius: "999px",
+                                  background: "rgba(120, 53, 15, 0.28)",
+                                  border: "1px solid rgba(251, 191, 36, 0.38)",
+                                  color: "#fef3c7",
+                                  fontWeight: 800,
+                                }}
+                              >
+                                {location.code}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
 
                     <div style={{ display: "grid", gap: "14px" }}>
                       {storageLocationStatusData.map((item) => {
