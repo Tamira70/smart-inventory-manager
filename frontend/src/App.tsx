@@ -7356,6 +7356,13 @@ function GoodsInSection({
       ({ item }) => String(item.id) === selectedPurchaseOrderItemId
     ) ?? null;
 
+  const receivingStorageLocations = storageLocations.filter(
+    (location) =>
+      location.is_active &&
+      !location.is_blocked &&
+      location.code.toUpperCase().startsWith("WE-")
+  );
+
   const selectedProduct =
     products.find((product) => String(product.id) === movementProductId) ?? null;
 
@@ -7404,7 +7411,7 @@ function GoodsInSection({
       );
     });
 
-    const scannedLocation = storageLocations.find((location) => {
+    const scannedLocation = receivingStorageLocations.find((location) => {
       const code = String(location.code ?? "").toLowerCase();
 
       return (
@@ -7506,7 +7513,7 @@ function GoodsInSection({
       location.allow_mixed_products ||
       product?.storage_location === location.id);
 
-  const freeLocations = storageLocations.filter((location) =>
+  const freeLocations = receivingStorageLocations.filter((location) =>
     isLocationAvailableForProduct(location, selectedProduct)
   );
 
@@ -7555,12 +7562,12 @@ function GoodsInSection({
   const getCapacitySuitableLocationsForProduct = (
     product?: Product | null
   ) =>
-    storageLocations
+    receivingStorageLocations
       .filter((location) => isLocationAvailableForProduct(location, product))
       .filter((location) => getLocationCapacity(location).fits);
 
   const getPreferredLocationForProduct = (product?: Product | null) => {
-    const availableLocationsForProduct = storageLocations.filter((location) =>
+    const availableLocationsForProduct = receivingStorageLocations.filter((location) =>
       isLocationAvailableForProduct(location, product)
     );
 
@@ -7568,13 +7575,13 @@ function GoodsInSection({
       getCapacitySuitableLocationsForProduct(product);
 
     const fixedLocation = product?.fixed_storage_location
-      ? storageLocations.find(
+      ? receivingStorageLocations.find(
           (location) => location.id === product.fixed_storage_location
         ) ?? null
       : null;
 
     const currentProductLocation = product?.storage_location
-      ? storageLocations.find(
+      ? receivingStorageLocations.find(
           (location) => location.id === product.storage_location
         ) ?? null
       : null;
@@ -7630,7 +7637,7 @@ function GoodsInSection({
   const selectedStorageLocationId = movementStorageLocationId;
 
   const selectedStorageLocation =
-    storageLocations.find(
+    receivingStorageLocations.find(
       (location) => String(location.id) === selectedStorageLocationId
     ) ?? null;
 
@@ -7729,8 +7736,8 @@ function GoodsInSection({
         <Card title="Verfügbare Plätze" value={String(freeLocations.length)} />
         <Card
           title="Gesperrte Plätze"
-          value={String(storageLocations.filter((location) => location.is_blocked).length)}
-          danger={storageLocations.some((location) => location.is_blocked)}
+          value={String(receivingStorageLocations.filter((location) => location.is_blocked).length)}
+          danger={receivingStorageLocations.some((location) => location.is_blocked)}
         />
         <Card
           title="Vorschlag"
@@ -7781,7 +7788,7 @@ function GoodsInSection({
 
             <div style={{ marginTop: "8px", lineHeight: 1.6 }}>
               {!movementStorageLocationId && (
-                <div>• Bitte einen Lagerplatz auswählen.</div>
+                <div>• Bitte einen WE-Fläche auswählen.</div>
               )}
 
               {!movementPackagingTypeId && (
@@ -7857,6 +7864,12 @@ function GoodsInSection({
           </p>
         )}
       </div>
+
+      {receivingStorageLocations.length === 0 && (
+        <p style={errorStyle}>
+          ⛔ Keine aktiven WE-Flächen vorhanden. Bitte zuerst WE-0001 bis WE-0005 anlegen.
+        </p>
+      )}
 
       <form onSubmit={handleGoodsReceipt} style={formGridStyle}>
         <select
@@ -7967,7 +7980,7 @@ function GoodsInSection({
           style={inputStyle}
           disabled={!hasPermission("lager")}
         >
-          <option value="">Lagerplatz auswählen</option>
+          <option value="">WE-Fläche auswählen</option>
 
           {freeLocations.map((location) => {
             const locationCapacity = getLocationCapacity(location);
