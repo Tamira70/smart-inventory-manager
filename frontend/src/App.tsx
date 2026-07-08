@@ -719,6 +719,7 @@ const sidebarMenus: SidebarMenu[] = [
 function App() {
   const user = getUser();
   const role = user?.role ?? "viewer";
+  const previousRoleRef = useRef(role);
 
 
 const [activeSection, setActiveSection] = useState<ActiveSection>(
@@ -1130,10 +1131,37 @@ if (role === "einkauf") {
   };
 
   useEffect(() => {
+    if (!loggedIn) return;
+
+    if (role === "stapler") {
+      if (activeSection !== "forklift-terminal") {
+        setActiveSection("forklift-terminal");
+      }
+
+      setExpandedMenus(["stapler-terminal"]);
+      previousRoleRef.current = role;
+      return;
+    }
+
+    if (
+      previousRoleRef.current !== role &&
+      activeSection === "forklift-terminal"
+    ) {
+      setActiveSection("dashboard");
+      setExpandedMenus((current) =>
+        current.includes("dashboard") ? current : ["dashboard", ...current]
+      );
+      setActiveTransportOrderId("");
+      setForkliftScanValue("");
+      setForkliftScanFeedback("");
+    }
+
+    previousRoleRef.current = role;
+  }, [loggedIn, role, activeSection]);
+
+  useEffect(() => {
     if (!loggedIn || role !== "stapler") return;
 
-    setActiveSection("forklift-terminal");
-    setExpandedMenus(["stapler-terminal"]);
     void loadTransportOrders();
 
     const refreshTimer = window.setInterval(() => {
@@ -2444,6 +2472,11 @@ if (role === "einkauf") {
     setForm(initialForm);
     setError("");
     setSuccess("");
+    setActiveSection("dashboard");
+    setExpandedMenus(["dashboard", "einkauf", "dispo", "lager"]);
+    setActiveTransportOrderId("");
+    setForkliftScanValue("");
+    setForkliftScanFeedback("");
   };
 
   const handleChange = (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -4254,7 +4287,7 @@ const exportMovementsToCsv = async () => {
               />
             )}
 
-            {activeSection === "forklift-terminal" && (
+            {activeSection === "forklift-terminal" && canAccessSection("forklift-terminal") && (
               <ForkliftTerminalSection
                 orders={transportOrders}
                 loading={transportOrdersLoading}
