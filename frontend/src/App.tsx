@@ -721,7 +721,9 @@ function App() {
   const role = user?.role ?? "viewer";
 
 
-const [activeSection, setActiveSection] = useState<ActiveSection>("dashboard");
+const [activeSection, setActiveSection] = useState<ActiveSection>(
+  role === "stapler" ? "forklift-terminal" : "dashboard"
+);
   const [expandedMenus, setExpandedMenus] = useState<string[]>([
     "dashboard",
     "einkauf",
@@ -965,18 +967,7 @@ const canAccessSection = (section: ActiveSection) => {
 
   // Lager: operative Lagerbereiche.
   if (role === "stapler") {
-    return sidebarMenus
-      .filter((menu) => menu.id === "dashboard" || menu.id === "lager")
-      .map((menu) =>
-        menu.id === "lager"
-          ? {
-              ...menu,
-              items: menu.items.filter(
-                (item) => item.id === "forklift-terminal"
-              ),
-            }
-          : menu
-      );
+    return section === "forklift-terminal";
   }
 
   if (role === "lager") {
@@ -1023,6 +1014,17 @@ if (role === "einkauf") {
 };
 
 const visibleSidebarMenus = useMemo(() => {
+  if (role === "stapler") {
+    return [
+      {
+        id: "stapler-terminal",
+        title: "STAPLER-TERMINAL",
+        icon: "",
+        items: [{ id: "forklift-terminal" as ActiveSection, label: "STAPLER-TERMINAL" }],
+      },
+    ];
+  }
+
   if (role === "admin" || role === "viewer") {
     return sidebarMenus;
   }
@@ -1126,6 +1128,20 @@ if (role === "einkauf") {
       setTransportOrdersLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!loggedIn || role !== "stapler") return;
+
+    setActiveSection("forklift-terminal");
+    setExpandedMenus(["stapler-terminal"]);
+    void loadTransportOrders();
+
+    const refreshTimer = window.setInterval(() => {
+      void loadTransportOrders();
+    }, 6 * 60 * 1000);
+
+    return () => window.clearInterval(refreshTimer);
+  }, [loggedIn, role]);
 
   const playForkliftWarningBeep = () => {
     try {
@@ -3516,6 +3532,7 @@ const exportMovementsToCsv = async () => {
     <div style={isMobileLayout ? pageStyleMobile : pageStyle}>
       <div style={pageShellStyle}>
         <div style={isCompactLayout ? appLayoutMobileStyle : appLayoutStyle}>
+          {role !== "stapler" && (
           <aside style={isCompactLayout ? sidebarMobileStyle : sidebarStyle}>
             <div style={sidebarHeaderStyle}>
               <strong>Module</strong>
@@ -3548,8 +3565,9 @@ const exportMovementsToCsv = async () => {
               );
             })}
           </aside>
+          )}
 
-          <main style={isCompactLayout ? contentAreaMobileStyle : contentAreaStyle}>
+          <main style={role === "stapler" || isCompactLayout ? contentAreaMobileStyle : contentAreaStyle}>
             <header style={headerStyle}>
               <div>
                 <p style={eyebrowStyle}>Portfolio Project</p>
