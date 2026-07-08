@@ -25,7 +25,7 @@ OPEN_TRANSPORT_STATUSES = [
 class Command(BaseCommand):
     help = (
         "Erstellt Wareneingangsflächen und erzeugt automatisch Transportaufträge "
-        "für WE-Flächen mit Bestand ohne offenen TA."
+        "für WE-Flächen mit Bestand ohne offenen TA. Zusätzlich können WA-Flächen angelegt werden."
     )
 
     def add_arguments(self, parser):
@@ -39,6 +39,17 @@ class Command(BaseCommand):
             type=int,
             default=5,
             help="Anzahl der anzulegenden WE-Flächen. Standard: 5.",
+        )
+        parser.add_argument(
+            "--create-shipping-areas",
+            action="store_true",
+            help="Legt Warenausgangs-/Bereitstellflächen WA-0001 bis WA-000X an.",
+        )
+        parser.add_argument(
+            "--shipping-count",
+            type=int,
+            default=5,
+            help="Anzahl der anzulegenden WA-Flächen. Standard: 5.",
         )
         parser.add_argument(
             "--loop",
@@ -61,6 +72,12 @@ class Command(BaseCommand):
         if options["create_areas"]:
             self.create_receiving_areas(
                 count=options["count"],
+                dry_run=options["dry_run"],
+            )
+
+        if options["create_shipping_areas"]:
+            self.create_shipping_areas(
+                count=options["shipping_count"],
                 dry_run=options["dry_run"],
             )
 
@@ -114,6 +131,38 @@ class Command(BaseCommand):
             )
 
             self.stdout.write(self.style.SUCCESS(f"WE-Fläche angelegt: {code}"))
+
+    def create_shipping_areas(self, count: int, dry_run: bool):
+        for number in range(1, count + 1):
+            code = f"WA-{number:04d}"
+
+            if StorageLocation.objects.filter(code=code).exists():
+                self.stdout.write(f"WA-Fläche existiert bereits: {code}")
+                continue
+
+            if dry_run:
+                self.stdout.write(f"[DRY-RUN] Würde WA-Fläche anlegen: {code}")
+                continue
+
+            StorageLocation.objects.create(
+                code=code,
+                name="Warenausgangsfläche / Bereitstellung",
+                location_type=StorageLocation.LocationType.SHIPPING,
+                zone="WA",
+                aisle="WA",
+                rack=f"{number:04d}",
+                shelf="0001",
+                description=(
+                    "Automatisch angelegte Warenausgangs- und Bereitstellfläche. "
+                    "Diese Fläche dient als Zielplatz für Transportaufträge aus dem Lager."
+                ),
+                is_active=True,
+                is_blocked=False,
+                is_empty=True,
+                allow_mixed_products=True,
+            )
+
+            self.stdout.write(self.style.SUCCESS(f"WA-Fläche angelegt: {code}"))
 
     def create_transport_orders_for_receiving_areas(self, dry_run: bool):
         receiving_locations = StorageLocation.objects.filter(
