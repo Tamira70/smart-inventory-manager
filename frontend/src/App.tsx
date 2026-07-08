@@ -6913,6 +6913,32 @@ function ForkliftTerminalSection({
 }) {
   const scanInputRef = useRef<HTMLInputElement | null>(null);
 
+  const shippingLocations = useMemo(
+    () =>
+      storageLocations
+        .filter(
+          (location) =>
+            location.is_active &&
+            !location.is_blocked &&
+            (location.location_type === "SHIPPING" ||
+              location.code.toUpperCase().startsWith("WA-"))
+        )
+        .sort((first, second) => first.code.localeCompare(second.code)),
+    [storageLocations]
+  );
+
+  useEffect(() => {
+    if (!createTargetLocationId) return;
+
+    const selectedTargetStillValid = shippingLocations.some(
+      (location) => String(location.id) === createTargetLocationId
+    );
+
+    if (!selectedTargetStillValid) {
+      setCreateTargetLocationId("");
+    }
+  }, [createTargetLocationId, shippingLocations, setCreateTargetLocationId]);
+
   const activeOrder =
     orders.find((order) => String(order.id) === selectedOrderId) ??
     orders[0] ??
@@ -7098,7 +7124,17 @@ function ForkliftTerminalSection({
       <div style={terminalShellStyle}>
         {canCreateTransportOrder && (
           <div style={panelStyle}>
-            <h3 style={panelTitleStyle}>Transportauftrag erstellen</h3>
+            <h3 style={panelTitleStyle}>Transportauftrag zur WA-Fläche erstellen</h3>
+
+            <p style={{ ...infoStyle, marginTop: 0 }}>
+              Zielplätze sind Warenausgangs-/Bereitstellflächen wie WA-0001 bis WA-0005.
+            </p>
+
+            {shippingLocations.length === 0 && (
+              <p style={errorStyle}>
+                ⛔ Keine aktiven WA-Flächen vorhanden. Bitte zuerst WA-0001 bis WA-0005 anlegen.
+              </p>
+            )}
 
             <form
               onSubmit={onCreateTransportOrder}
@@ -7142,22 +7178,22 @@ function ForkliftTerminalSection({
                 style={inputStyle}
                 required
               >
-                <option value="">Ziel-/Bereitstellplatz</option>
-                {storageLocations
-                  .filter(
-                    (location) => location.is_active && !location.is_blocked
-                  )
-                  .map((location) => (
-                    <option key={location.id} value={location.id}>
-                      {location.code} · {location.name}
-                    </option>
-                  ))}
+                <option value="">WA-Fläche auswählen</option>
+                {shippingLocations.map((location) => (
+                  <option key={location.id} value={location.id}>
+                    {location.code} · {location.name}
+                  </option>
+                ))}
               </select>
 
               <button
                 type="submit"
-                disabled={createSaving}
-                style={createSaving ? disabledButtonStyle : primaryButtonStyle}
+                disabled={createSaving || shippingLocations.length === 0}
+                style={
+                  createSaving || shippingLocations.length === 0
+                    ? disabledButtonStyle
+                    : primaryButtonStyle
+                }
               >
                 {createSaving ? "Erstelle..." : "TA erstellen"}
               </button>
