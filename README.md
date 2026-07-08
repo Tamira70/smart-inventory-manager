@@ -102,3 +102,32 @@ Bereits lokal umgesetzt:
 - Transportaufträge vom Lagerplatz zur WA-/Bereitstellfläche
 - Erweiterung für Palette / NVE / SSCC
 - direkte Zuweisung von Transportaufträgen an Stapler oder Benutzer
+### Warenausgangsflächen / WA-Prozess
+
+Ergänzend zum Wareneingangsprozess wurden Warenausgangs- bzw. Bereitstellflächen vorbereitet.
+
+Umgesetzt:
+
+- Automatische Anlage von `WA-0001` bis `WA-0005` als Warenausgangs-/Bereitstellflächen
+- Lagerplatztyp `SHIPPING` für WA-Flächen
+- Neuer Command-Parameter: `python manage.py auto_create_transport_orders --create-shipping-areas`
+- Optional mit `--shipping-count`
+- STAPLER-TERMINAL nutzt beim Erstellen von Warenausgangs-Transportaufträgen nur noch WA-Flächen als Zielauswahl
+- Getesteter Ablauf: `A-R2-F4 -> WA-0001`
+- Quellplatzscan und Zielplatzscan erfolgreich getestet
+- Bestand wurde erfolgreich auf `WA-0001` umgebucht
+
+Damit ist neben dem Wareneingangsprozess auch ein Warenausgangsprozess vorbereitet:
+
+Wareneingang:
+WE-Fläche -> Lagerplatz
+
+Warenausgang:
+Lagerplatz -> WA-Fläche
+
+Nächste mögliche Ausbaustufen:
+
+- Automatische Erzeugung von Warenausgangs-Transportaufträgen aus Kundenauftrag / Kommissionierbedarf
+- WA-Flächen im Dashboard gesondert anzeigen
+- Status „bereitgestellt“ für Ware auf WA-Fläche
+- Übergabe an Versand / Warenausgangsbuchung
