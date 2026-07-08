@@ -102,6 +102,7 @@ Bereits lokal umgesetzt:
 - Transportaufträge vom Lagerplatz zur WA-/Bereitstellfläche
 - Erweiterung für Palette / NVE / SSCC
 - direkte Zuweisung von Transportaufträgen an Stapler oder Benutzer
+
 ### Warenausgangsflächen / WA-Prozess
 
 Ergänzend zum Wareneingangsprozess wurden Warenausgangs- bzw. Bereitstellflächen vorbereitet.
