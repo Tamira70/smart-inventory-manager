@@ -687,7 +687,7 @@ const sidebarMenus: SidebarMenu[] = [
       { id: "goods-in", label: "Wareneingang" },
       { id: "goods-out", label: "Warenausgang" },
       { id: "forklift-terminal", label: "Stapler-Terminal" },
-      { id: "transport-report", label: "Transportbericht" },
+      { id: "transport-report", label: "Transport-Dashboard" },
       { id: "history", label: "Bewegungshistorie" },
       { id: "corrections", label: "Lagerkorrekturen" },
       { id: "locations", label: "Lagerorte" },
@@ -1191,7 +1191,7 @@ if (role === "einkauf") {
       const message =
         err instanceof Error
           ? err.message
-          : "Fehler beim Laden des Transportbericht.";
+          : "Fehler beim Laden des Transport-Dashboards.";
       setError(message);
     } finally {
       setTransportOrderReportLoading(false);
@@ -7075,6 +7075,36 @@ function TransportReportSection({
 
   const errorCount = orders.filter((order) => order.status === "ERROR").length;
 
+  const inTransitCount = orders.filter(
+    (order) => order.status === "IN_TRANSIT"
+  ).length;
+
+  const cancelledCount = orders.filter(
+    (order) => order.status === "CANCELLED"
+  ).length;
+
+  const receivingTransportCount = orders.filter((order) =>
+    getTransactionType(order).startsWith("Wareneingang")
+  ).length;
+
+  const shippingTransportCount = orders.filter((order) =>
+    getTransactionType(order).startsWith("Warenausgang")
+  ).length;
+
+  const internalTransportCount = orders.filter(
+    (order) => getTransactionType(order) === "Lagerintern"
+  ).length;
+
+  const latestCompletedOrder =
+    orders
+      .filter((order) => order.status === "COMPLETED")
+      .slice()
+      .sort(
+        (first, second) =>
+          new Date(second.completed_at ?? second.updated_at).getTime() -
+          new Date(first.completed_at ?? first.updated_at).getTime()
+      )[0] ?? null;
+
   const typeOptions = [
     "Wareneingang · WE → Lager",
     "Warenausgang · Lager → WA",
@@ -7083,7 +7113,7 @@ function TransportReportSection({
 
   return (
     <section style={sectionStyle}>
-      <h2 style={sectionTitleStyle}>📑 Transportbericht</h2>
+      <h2 style={sectionTitleStyle}>📊 Transport-Dashboard</h2>
 
       <p style={infoStyle}>
         Übersicht aller WMS-Transportaufträge mit TA-/TS-Nummer, Produkt,
@@ -7093,8 +7123,73 @@ function TransportReportSection({
       <div style={dashboardGridStyle}>
         <Card title="Transportaufträge" value={String(orders.length)} />
         <Card title="Offen" value={String(openCount)} danger={openCount > 0} />
+        <Card title="In Transport" value={String(inTransitCount)} danger={inTransitCount > 0} />
         <Card title="Abgeschlossen" value={String(completedCount)} />
+        <Card title="Storniert" value={String(cancelledCount)} />
         <Card title="Fehler" value={String(errorCount)} danger={errorCount > 0} />
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+          gap: "18px",
+          marginTop: "22px",
+        }}
+      >
+        <div style={dashboardChartCardStyle}>
+          <h3 style={dashboardChartTitleStyle}>🚚 Transportarten</h3>
+
+          <div style={{ display: "grid", gap: "12px" }}>
+            <div style={dashboardChartLabelRowStyle}>
+              <strong>WE → Lager</strong>
+              <span>{receivingTransportCount}</span>
+            </div>
+
+            <div style={dashboardChartLabelRowStyle}>
+              <strong>Lager → WA</strong>
+              <span>{shippingTransportCount}</span>
+            </div>
+
+            <div style={dashboardChartLabelRowStyle}>
+              <strong>Lagerintern</strong>
+              <span>{internalTransportCount}</span>
+            </div>
+          </div>
+        </div>
+
+        <div style={dashboardChartCardStyle}>
+          <h3 style={dashboardChartTitleStyle}>✅ Letzter abgeschlossener Transport</h3>
+
+          {latestCompletedOrder ? (
+            <div style={{ color: "#e2e8f0", lineHeight: 1.7 }}>
+              <div>
+                <strong>
+                  {latestCompletedOrder.transport_order_number ??
+                    `TA-${latestCompletedOrder.id}`}
+                </strong>
+                {" / "}
+                {latestCompletedOrder.transport_slip_number ?? "—"}
+              </div>
+
+              <div>
+                {latestCompletedOrder.source_location_code}
+                {" → "}
+                {latestCompletedOrder.target_location_code ?? "—"}
+              </div>
+
+              <div>{latestCompletedOrder.product_name}</div>
+
+              <div style={{ color: "#94a3b8" }}>
+                {latestCompletedOrder.completed_at
+                  ? new Date(latestCompletedOrder.completed_at).toLocaleString("de-DE")
+                  : "—"}
+              </div>
+            </div>
+          ) : (
+            <p style={infoStyle}>Noch kein abgeschlossener Transport vorhanden.</p>
+          )}
+        </div>
       </div>
 
       <div style={{ ...filterGridStyle, marginTop: "22px" }}>
@@ -7138,7 +7233,7 @@ function TransportReportSection({
         </button>
       </div>
 
-      {loading && <p style={infoStyle}>Lade Transportbericht..</p>}
+      {loading && <p style={infoStyle}>Lade Transport-Dashboard...</p>}
 
       {!loading && filteredOrders.length === 0 && (
         <p style={infoStyle}>Keine Transportaufträge für die aktuelle Auswahl gefunden.</p>
