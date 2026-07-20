@@ -884,10 +884,12 @@ const [suppliers, setSuppliers] = useState<Supplier[]>([]);
 
   const [goodsOutProductId, setGoodsOutProductId] = useState("");
   const [goodsOutStorageLocationId, setGoodsOutStorageLocationId] = useState("");
+  const [goodsOutTargetLocationId, setGoodsOutTargetLocationId] = useState("");
   const [goodsOutQuantity, setGoodsOutQuantity] = useState("");
   const [goodsOutReferenceNumber, setGoodsOutReferenceNumber] = useState("");
   const [goodsOutNote, setGoodsOutNote] = useState("");
   const [goodsOutSaving, setGoodsOutSaving] = useState(false);
+  const [goodsOutTransportOrderSaving, setGoodsOutTransportOrderSaving] = useState(false);
 
   const [correctionProductId, setCorrectionProductId] = useState("");
   const [correctionTargetQuantity, setCorrectionTargetQuantity] = useState("");
@@ -2772,6 +2774,74 @@ if (role === "einkauf") {
     return "";
   };
 
+  const handleCreateGoodsOutTransportOrder = async () => {
+    if (!hasPermission("lager")) {
+      setError("Nur Lager oder Admin dürfen Warenausgangs-Transportaufträge erstellen.");
+      return;
+    }
+
+    if (!goodsOutProductId) {
+      setError("Bitte ein Produkt für den Warenausgang auswählen.");
+      return;
+    }
+
+    if (goodsOutQuantity === "" || Number(goodsOutQuantity) <= 0) {
+      setError("Bitte eine gültige Warenausgangs-Menge größer 0 eintragen.");
+      return;
+    }
+
+    if (!goodsOutTargetLocationId) {
+      setError("Bitte eine WA-Fläche als Ziel auswählen.");
+      return;
+    }
+
+    try {
+      setGoodsOutTransportOrderSaving(true);
+      setError("");
+      setSuccess("");
+
+      const response = await apiFetch("/inventory-api/transport-orders/create-from-outbound/", {
+        method: "POST",
+        body: JSON.stringify({
+          product: Number(goodsOutProductId),
+          quantity: Number(goodsOutQuantity),
+          target_location: Number(goodsOutTargetLocationId),
+          reference_number:
+            goodsOutReferenceNumber.trim() ||
+            `WA-TA-${new Date().toISOString().slice(0, 10)}`,
+        }),
+      });
+
+      const data = (await response.json()) as {
+        detail?: string;
+        transport_order?: TransportOrder;
+        next_step?: string;
+      };
+
+      if (!response.ok) {
+        throw new Error(data.detail || "Warenausgangs-Transportauftrag konnte nicht erstellt werden.");
+      }
+
+      if (data.transport_order?.id) {
+        setActiveTransportOrderId(String(data.transport_order.id));
+      }
+
+      setSuccess(data.detail || "Warenausgangs-Transportauftrag wurde erstellt.");
+      setForkliftScanFeedback(data.next_step || "Bitte Quellplatz scannen.");
+      setActiveSection("forklift-terminal");
+
+      await loadTransportOrders();
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Fehler beim Erstellen des Warenausgangs-Transportauftrags.";
+      setError(message);
+    } finally {
+      setGoodsOutTransportOrderSaving(false);
+    }
+  };
+
   const handleGoodsIssue = async (event: FormEvent) => {
     event.preventDefault();
 
@@ -4271,6 +4341,8 @@ const exportMovementsToCsv = async () => {
                 goodsOutProductId={goodsOutProductId}
                 goodsOutStorageLocationId={goodsOutStorageLocationId}
                 setGoodsOutStorageLocationId={setGoodsOutStorageLocationId}
+                goodsOutTargetLocationId={goodsOutTargetLocationId}
+                setGoodsOutTargetLocationId={setGoodsOutTargetLocationId}
                 setGoodsOutProductId={setGoodsOutProductId}
                 goodsOutQuantity={goodsOutQuantity}
                 setGoodsOutQuantity={setGoodsOutQuantity}
@@ -4279,8 +4351,10 @@ const exportMovementsToCsv = async () => {
                 goodsOutNote={goodsOutNote}
                 setGoodsOutNote={setGoodsOutNote}
                 goodsOutSaving={goodsOutSaving}
+                goodsOutTransportOrderSaving={goodsOutTransportOrderSaving}
                 hasPermission={hasPermission}
                 handleGoodsIssue={handleGoodsIssue}
+                handleCreateGoodsOutTransportOrder={handleCreateGoodsOutTransportOrder}
                 goodsOutProductRef={goodsOutProductRef}
                 goodsOutQuantityRef={goodsOutQuantityRef}
                 focusNextOnEnter={focusNextOnEnter}
@@ -8565,6 +8639,8 @@ function GoodsOutSection({
   goodsOutProductId,
   goodsOutStorageLocationId,
   setGoodsOutStorageLocationId,
+  goodsOutTargetLocationId,
+  setGoodsOutTargetLocationId,
   setGoodsOutProductId,
   goodsOutQuantity,
   setGoodsOutQuantity,
@@ -8573,8 +8649,10 @@ function GoodsOutSection({
   goodsOutNote,
   setGoodsOutNote,
   goodsOutSaving,
+  goodsOutTransportOrderSaving,
   hasPermission,
   handleGoodsIssue,
+  handleCreateGoodsOutTransportOrder,
   goodsOutProductRef,
   goodsOutQuantityRef,
   focusNextOnEnter,
@@ -8586,6 +8664,8 @@ function GoodsOutSection({
   goodsOutProductId: string;
   goodsOutStorageLocationId: string;
   setGoodsOutStorageLocationId: (value: string) => void;
+  goodsOutTargetLocationId: string;
+  setGoodsOutTargetLocationId: (value: string) => void;
   setGoodsOutProductId: (value: string) => void;
   goodsOutQuantity: string;
   setGoodsOutQuantity: (value: string) => void;
@@ -8594,8 +8674,10 @@ function GoodsOutSection({
   goodsOutNote: string;
   setGoodsOutNote: (value: string) => void;
   goodsOutSaving: boolean;
+  goodsOutTransportOrderSaving: boolean;
   hasPermission: (required: PermissionRole) => boolean;
   handleGoodsIssue: (event: FormEvent) => void;
+  handleCreateGoodsOutTransportOrder: () => Promise<void>;
   goodsOutProductRef: RefObject<HTMLSelectElement | null>;
   goodsOutQuantityRef: RefObject<HTMLInputElement | null>;
   focusNextOnEnter: (
@@ -8608,6 +8690,32 @@ function GoodsOutSection({
 
   const selectedGoodsOutProduct =
     products.find((product) => product.id === selectedProductId) ?? null;
+
+  const shippingLocations = useMemo(
+    () =>
+      storageLocations
+        .filter(
+          (location) =>
+            location.is_active &&
+            !location.is_blocked &&
+            (location.location_type === "SHIPPING" ||
+              location.code.toUpperCase().startsWith("WA-"))
+        )
+        .sort((first, second) => first.code.localeCompare(second.code)),
+    [storageLocations]
+  );
+
+  useEffect(() => {
+    if (!goodsOutTargetLocationId) return;
+
+    const selectedTargetStillValid = shippingLocations.some(
+      (location) => String(location.id) === goodsOutTargetLocationId
+    );
+
+    if (!selectedTargetStillValid) {
+      setGoodsOutTargetLocationId("");
+    }
+  }, [goodsOutTargetLocationId, shippingLocations, setGoodsOutTargetLocationId]);
 
   const goodsOutAvailableLocations = storageLocations.filter((location) => {
     if (!location.is_active || location.is_blocked || !selectedGoodsOutProduct) {
@@ -8889,6 +8997,21 @@ function GoodsOutSection({
         </select>
         <input ref={goodsOutQuantityRef} type="number" placeholder="Menge" value={goodsOutQuantity} onChange={(event) => setGoodsOutQuantity(event.target.value)} required min="1" style={inputStyle} disabled={!hasPermission("lager")} />
         <select
+          value={goodsOutTargetLocationId}
+          onChange={(event) => setGoodsOutTargetLocationId(event.target.value)}
+          required
+          style={inputStyle}
+          disabled={!hasPermission("lager") || shippingLocations.length === 0}
+        >
+          <option value="">WA-Fläche für Transportauftrag auswählen</option>
+          {shippingLocations.map((location) => (
+            <option key={location.id} value={location.id}>
+              {location.code} - {location.name}
+            </option>
+          ))}
+        </select>
+
+        <select
           value={goodsOutStorageLocationId}
           onChange={(event) => setGoodsOutStorageLocationId(event.target.value)}
           required
@@ -8988,9 +9111,55 @@ function GoodsOutSection({
           </div>
         )}
 
-        <div style={{ gridColumn: "1 / -1" }}>
-          <button type="submit" disabled={goodsOutSaving || !hasPermission("lager")} style={hasPermission("lager") ? primaryButtonStyle : disabledButtonStyle}>
-            {goodsOutSaving ? "Buche..." : "Warenausgang buchen"}
+        {shippingLocations.length === 0 && (
+          <p style={{ ...errorStyle, gridColumn: "1 / -1" }}>
+            ⛔ Keine aktiven WA-Flächen vorhanden. Bitte zuerst WA-0001 bis WA-0005 anlegen.
+          </p>
+        )}
+
+        <div
+          style={{
+            gridColumn: "1 / -1",
+            display: "flex",
+            gap: "10px",
+            flexWrap: "wrap",
+          }}
+        >
+          <button
+            type="submit"
+            disabled={goodsOutSaving || !hasPermission("lager")}
+            style={hasPermission("lager") ? primaryButtonStyle : disabledButtonStyle}
+          >
+            {goodsOutSaving ? "Buche..." : "Warenausgang direkt buchen"}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => void handleCreateGoodsOutTransportOrder()}
+            disabled={
+              goodsOutTransportOrderSaving ||
+              !hasPermission("lager") ||
+              !goodsOutProductId ||
+              !goodsOutQuantity ||
+              Number(goodsOutQuantity) <= 0 ||
+              !goodsOutTargetLocationId ||
+              shippingLocations.length === 0
+            }
+            style={
+              goodsOutTransportOrderSaving ||
+              !hasPermission("lager") ||
+              !goodsOutProductId ||
+              !goodsOutQuantity ||
+              Number(goodsOutQuantity) <= 0 ||
+              !goodsOutTargetLocationId ||
+              shippingLocations.length === 0
+                ? disabledButtonStyle
+                : secondaryButtonStyle
+            }
+          >
+            {goodsOutTransportOrderSaving
+              ? "Erstelle TA..."
+              : "TA zur WA-Fläche erstellen"}
           </button>
         </div>
       </form>
