@@ -894,6 +894,7 @@ const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [goodsOutNote, setGoodsOutNote] = useState("");
   const [goodsOutSaving, setGoodsOutSaving] = useState(false);
   const [goodsOutTransportOrderSaving, setGoodsOutTransportOrderSaving] = useState(false);
+  const [shippingCompletionSavingId, setShippingCompletionSavingId] = useState<number | null>(null);
 
   const [correctionProductId, setCorrectionProductId] = useState("");
   const [correctionTargetQuantity, setCorrectionTargetQuantity] = useState("");
@@ -2873,6 +2874,65 @@ if (role === "einkauf") {
     }
   };
 
+  const handleCompleteShippingFromWa = async (stock: StorageLocationStock) => {
+    if (!hasPermission("lager")) {
+      setError("Nur Lager oder Admin dürfen den Versand abschließen.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Versand für "${stock.product_name}" von ${stock.storage_location_code} abschließen?\n\nMenge: ${stock.quantity} ${stock.product_unit}`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setShippingCompletionSavingId(stock.id);
+      setError("");
+      setSuccess("");
+
+      const reference =
+        goodsOutReferenceNumber.trim() ||
+        `VERSAND-${new Date().toISOString().slice(0, 10)}-${stock.storage_location_code}`;
+
+      const response = await apiFetch("/inventory-api/stock-movements/", {
+        method: "POST",
+        body: JSON.stringify({
+          product: stock.product,
+          movement_type: "OUT",
+          quantity: stock.quantity,
+          storage_location: stock.storage_location,
+          reference_number: reference,
+          note:
+            `Versandabschluss von WA-Fläche ${stock.storage_location_code}. ` +
+            (goodsOutNote.trim() || "Ware wurde an Versand übergeben."),
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(JSON.stringify(errorData));
+      }
+
+      await loadProducts();
+      await loadMovements();
+      await loadStorageLocations();
+      await loadLocationStocks();
+
+      setSuccess(
+        `🚚 Versand abgeschlossen: ${stock.product_name} wurde von ${stock.storage_location_code} ausgebucht.`
+      );
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Fehler beim Abschließen des Versands.";
+      setError(message);
+    } finally {
+      setShippingCompletionSavingId(null);
+    }
+  };
+
   const handleGoodsIssue = async (event: FormEvent) => {
     event.preventDefault();
 
@@ -4367,6 +4427,7 @@ const exportMovementsToCsv = async () => {
               <GoodsOutSection
                 products={products}
                 storageLocations={storageLocations}
+                locationStocks={locationStocks}
                 movements={movements}
                 packagingTypes={packagingTypes}
                 goodsOutProductId={goodsOutProductId}
@@ -4383,9 +4444,11 @@ const exportMovementsToCsv = async () => {
                 setGoodsOutNote={setGoodsOutNote}
                 goodsOutSaving={goodsOutSaving}
                 goodsOutTransportOrderSaving={goodsOutTransportOrderSaving}
+                shippingCompletionSavingId={shippingCompletionSavingId}
                 hasPermission={hasPermission}
                 handleGoodsIssue={handleGoodsIssue}
                 handleCreateGoodsOutTransportOrder={handleCreateGoodsOutTransportOrder}
+                handleCompleteShippingFromWa={handleCompleteShippingFromWa}
                 goodsOutProductRef={goodsOutProductRef}
                 goodsOutQuantityRef={goodsOutQuantityRef}
                 focusNextOnEnter={focusNextOnEnter}
@@ -9160,6 +9223,7 @@ function GoodsInSection({
 function GoodsOutSection({
   products,
   storageLocations,
+  locationStocks,
   movements,
   packagingTypes,
   goodsOutProductId,
@@ -9176,15 +9240,18 @@ function GoodsOutSection({
   setGoodsOutNote,
   goodsOutSaving,
   goodsOutTransportOrderSaving,
+  shippingCompletionSavingId,
   hasPermission,
   handleGoodsIssue,
   handleCreateGoodsOutTransportOrder,
+  handleCompleteShippingFromWa,
   goodsOutProductRef,
   goodsOutQuantityRef,
   focusNextOnEnter,
 }: {
   products: Product[];
   storageLocations: StorageLocation[];
+  locationStocks: StorageLocationStock[];
   movements: StockMovement[];
   packagingTypes: PackagingType[];
   goodsOutProductId: string;
@@ -9201,9 +9268,11 @@ function GoodsOutSection({
   setGoodsOutNote: (value: string) => void;
   goodsOutSaving: boolean;
   goodsOutTransportOrderSaving: boolean;
+  shippingCompletionSavingId: number | null;
   hasPermission: (required: PermissionRole) => boolean;
   handleGoodsIssue: (event: FormEvent) => void;
   handleCreateGoodsOutTransportOrder: () => Promise<void>;
+  handleCompleteShippingFromWa: (stock: StorageLocationStock) => Promise<void>;
   goodsOutProductRef: RefObject<HTMLSelectElement | null>;
   goodsOutQuantityRef: RefObject<HTMLInputElement | null>;
   focusNextOnEnter: (
@@ -9216,6 +9285,17 @@ function GoodsOutSection({
 
   const selectedGoodsOutProduct =
     products.find((product) => product.id === selectedProductId) ?? null;
+
+  const waLocationStocks = locationStocks
+    .filter(
+      (stock) =>
+        stock.quantity > 0 &&
+        stock.storage_location_code.toUpperCase().startsWith("WA-") &&
+        (!goodsOutProductId || stock.product === selectedProductId)
+    )
+    .sort((first, second) =>
+      first.storage_location_code.localeCompare(second.storage_location_code)
+    );
 
   const shippingLocations = useMemo(
     () =>
@@ -9422,6 +9502,79 @@ function GoodsOutSection({
   return (
     <section style={sectionStyle}>
       <h2 style={sectionTitleStyle}>📤 Warenausgang buchen</h2>
+
+      <div
+        style={{
+          marginTop: "18px",
+          marginBottom: "18px",
+          padding: "16px",
+          borderRadius: "16px",
+          border: "1px solid rgba(34, 197, 94, 0.28)",
+          background: "rgba(20, 83, 45, 0.16)",
+        }}
+      >
+        <h3 style={{ margin: "0 0 10px", color: "#bbf7d0" }}>
+          🚚 Versand aus WA-Fläche abschließen
+        </h3>
+
+        <p style={{ ...infoStyle, marginTop: 0 }}>
+          Hier wird bereitgestellte Ware von einer WA-Fläche final aus dem Bestand ausgebucht.
+          Wenn unten eine Referenznummer eingetragen ist, wird sie für den Versandabschluss verwendet.
+        </p>
+
+        {waLocationStocks.length === 0 ? (
+          <p style={infoStyle}>
+            Keine bereitgestellte Ware auf WA-Flächen für die aktuelle Produktauswahl.
+          </p>
+        ) : (
+          <div style={{ display: "grid", gap: "12px" }}>
+            {waLocationStocks.map((stock) => (
+              <div
+                key={stock.id}
+                style={{
+                  border: "1px solid rgba(148, 163, 184, 0.18)",
+                  borderRadius: "14px",
+                  padding: "14px",
+                  background: "rgba(15, 23, 42, 0.72)",
+                  display: "grid",
+                  gridTemplateColumns: "minmax(0, 1fr) auto",
+                  gap: "12px",
+                  alignItems: "center",
+                }}
+              >
+                <div style={{ color: "#e2e8f0", lineHeight: 1.6 }}>
+                  <strong>{stock.storage_location_code}</strong>
+                  {" · "}
+                  {stock.product_name}
+                  <div style={{ color: "#94a3b8" }}>
+                    Menge: {stock.quantity} {stock.product_unit}
+                    {stock.product_sku ? ` · SKU: ${stock.product_sku}` : ""}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => void handleCompleteShippingFromWa(stock)}
+                  disabled={
+                    !hasPermission("lager") ||
+                    shippingCompletionSavingId === stock.id
+                  }
+                  style={
+                    hasPermission("lager") &&
+                    shippingCompletionSavingId !== stock.id
+                      ? primaryButtonStyle
+                      : disabledButtonStyle
+                  }
+                >
+                  {shippingCompletionSavingId === stock.id
+                    ? "Schließe ab..."
+                    : "Versand abschließen"}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {selectedGoodsOutProduct && (
         <p style={infoStyle}>
