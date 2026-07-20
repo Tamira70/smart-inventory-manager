@@ -6982,6 +6982,7 @@ function ReorderSection({
 
 
 
+
 function TransportReportSection({
   orders,
   loading,
@@ -7021,10 +7022,8 @@ function TransportReportSection({
 
   const getShiftKey = (date: Date) => {
     const hour = date.getHours();
-
     if (hour >= 6 && hour < 14) return "early";
     if (hour >= 14 && hour < 22) return "late";
-
     return "night";
   };
 
@@ -7093,21 +7092,14 @@ function TransportReportSection({
   }, [orders]);
 
   const timeFilteredOrders = useMemo(() => {
-    if (hasInvalidDateRange) {
-      return [];
-    }
+    if (hasInvalidDateRange) return [];
 
     return orders.filter((order) => {
       const referenceDate = getReferenceDate(order);
 
-      const matchesStart =
-        !selectedStartDate || referenceDate >= selectedStartDate;
-
-      const matchesEnd =
-        !selectedEndDate || referenceDate <= selectedEndDate;
-
-      const matchesShift =
-        !shiftFilter || getShiftKey(referenceDate) === shiftFilter;
+      const matchesStart = !selectedStartDate || referenceDate >= selectedStartDate;
+      const matchesEnd = !selectedEndDate || referenceDate <= selectedEndDate;
+      const matchesShift = !shiftFilter || getShiftKey(referenceDate) === shiftFilter;
 
       return matchesStart && matchesEnd && matchesShift;
     });
@@ -7148,31 +7140,16 @@ function TransportReportSection({
           .join(" ")
           .toLowerCase();
 
-        return (
-          matchesUser &&
-          matchesStatus &&
-          matchesType &&
-          haystack.includes(query)
-        );
+        return matchesUser && matchesStatus && matchesType && haystack.includes(query);
       });
   }, [timeFilteredOrders, search, userFilter, statusFilter, typeFilter]);
 
-  const completedCount = filteredOrders.filter(
-    (order) => order.status === "COMPLETED"
-  ).length;
-
+  const completedCount = filteredOrders.filter((order) => order.status === "COMPLETED").length;
   const openCount = filteredOrders.filter(
     (order) => !["COMPLETED", "CANCELLED"].includes(order.status)
   ).length;
-
-  const inTransitCount = filteredOrders.filter(
-    (order) => order.status === "IN_TRANSIT"
-  ).length;
-
-  const cancelledCount = filteredOrders.filter(
-    (order) => order.status === "CANCELLED"
-  ).length;
-
+  const inTransitCount = filteredOrders.filter((order) => order.status === "IN_TRANSIT").length;
+  const cancelledCount = filteredOrders.filter((order) => order.status === "CANCELLED").length;
   const errorCount = filteredOrders.filter((order) => order.status === "ERROR").length;
 
   const receivingTransportCount = filteredOrders.filter((order) =>
@@ -7215,7 +7192,6 @@ function TransportReportSection({
         };
 
       current.total += 1;
-
       if (order.status === "COMPLETED") current.completed += 1;
       if (!["COMPLETED", "CANCELLED"].includes(order.status)) current.open += 1;
       if (order.status === "IN_TRANSIT") current.inTransit += 1;
@@ -7267,25 +7243,10 @@ function TransportReportSection({
       </p>
 
       <div style={{ ...filterGridStyle, marginTop: "22px" }}>
-        <input
-          type="date"
-          value={startDate}
-          onChange={(event) => setStartDate(event.target.value)}
-          style={inputStyle}
-        />
+        <input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} style={inputStyle} />
+        <input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} style={inputStyle} />
 
-        <input
-          type="date"
-          value={endDate}
-          onChange={(event) => setEndDate(event.target.value)}
-          style={inputStyle}
-        />
-
-        <select
-          value={shiftFilter}
-          onChange={(event) => setShiftFilter(event.target.value)}
-          style={inputStyle}
-        >
+        <select value={shiftFilter} onChange={(event) => setShiftFilter(event.target.value)} style={inputStyle}>
           <option value="">Alle Schichten</option>
           {shiftOptions.map((shift) => (
             <option key={shift.value} value={shift.value}>
@@ -7294,11 +7255,7 @@ function TransportReportSection({
           ))}
         </select>
 
-        <select
-          value={userFilter}
-          onChange={(event) => setUserFilter(event.target.value)}
-          style={inputStyle}
-        >
+        <select value={userFilter} onChange={(event) => setUserFilter(event.target.value)} style={inputStyle}>
           <option value="">Alle Benutzer</option>
           {userOptions.map((userName) => (
             <option key={userName} value={userName}>
@@ -7307,11 +7264,7 @@ function TransportReportSection({
           ))}
         </select>
 
-        <select
-          value={statusFilter}
-          onChange={(event) => setStatusFilter(event.target.value)}
-          style={inputStyle}
-        >
+        <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} style={inputStyle}>
           <option value="">Alle Status</option>
           <option value="CREATED">Erstellt</option>
           <option value="ASSIGNED">Zugewiesen</option>
@@ -7322,11 +7275,7 @@ function TransportReportSection({
           <option value="ERROR">Fehler</option>
         </select>
 
-        <select
-          value={typeFilter}
-          onChange={(event) => setTypeFilter(event.target.value)}
-          style={inputStyle}
-        >
+        <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} style={inputStyle}>
           <option value="">Alle Transportarten</option>
           {typeOptions.map((type) => (
             <option key={type} value={type}>
@@ -7387,15 +7336,9 @@ function TransportReportSection({
       )}
 
       <p style={infoStyle}>
-        Zeitraum:{" "}
-        <strong>
-          {startDate || "ohne Startdatum"} bis {endDate || "ohne Enddatum"}
-        </strong>
-        {" · "}
-        Schicht:{" "}
-        <strong>{shiftFilter ? getShiftLabel(shiftFilter) : "Alle Schichten"}</strong>
-        {" · "}
-        Benutzer: <strong>{userFilter || "Alle Benutzer"}</strong>
+        Zeitraum: <strong>{startDate || "ohne Startdatum"} bis {endDate || "ohne Enddatum"}</strong>
+        {" · "}Schicht: <strong>{shiftFilter ? getShiftLabel(shiftFilter) : "Alle Schichten"}</strong>
+        {" · "}Benutzer: <strong>{userFilter || "Alle Benutzer"}</strong>
       </p>
 
       {loading && <p style={infoStyle}>Lade Transport-Dashboard...</p>}
@@ -7419,56 +7362,30 @@ function TransportReportSection({
       >
         <div style={dashboardChartCardStyle}>
           <h3 style={dashboardChartTitleStyle}>🚚 Transportarten im Zeitraum</h3>
-
           <div style={{ display: "grid", gap: "12px" }}>
-            <div style={dashboardChartLabelRowStyle}>
-              <strong>WE → Lager</strong>
-              <span>{receivingTransportCount}</span>
-            </div>
-
-            <div style={dashboardChartLabelRowStyle}>
-              <strong>Lager → WA</strong>
-              <span>{shippingTransportCount}</span>
-            </div>
-
-            <div style={dashboardChartLabelRowStyle}>
-              <strong>Lagerintern</strong>
-              <span>{internalTransportCount}</span>
-            </div>
+            <div style={dashboardChartLabelRowStyle}><strong>WE → Lager</strong><span>{receivingTransportCount}</span></div>
+            <div style={dashboardChartLabelRowStyle}><strong>Lager → WA</strong><span>{shippingTransportCount}</span></div>
+            <div style={dashboardChartLabelRowStyle}><strong>Lagerintern</strong><span>{internalTransportCount}</span></div>
           </div>
         </div>
 
         <div style={dashboardChartCardStyle}>
           <h3 style={dashboardChartTitleStyle}>👤 TA je Benutzer / Zeitraum</h3>
-
           {userTransportStats.length === 0 ? (
             <p style={infoStyle}>Keine TA für die aktuelle Auswahl.</p>
           ) : (
             <div style={{ display: "grid", gap: "12px" }}>
               {userTransportStats.slice(0, 8).map((item) => (
-                <div
-                  key={item.user}
-                  style={{
-                    border: "1px solid rgba(148, 163, 184, 0.16)",
-                    borderRadius: "14px",
-                    padding: "12px",
-                    background: "rgba(30, 41, 59, 0.58)",
-                  }}
-                >
+                <div key={item.user} style={{ border: "1px solid rgba(148, 163, 184, 0.16)", borderRadius: "14px", padding: "12px", background: "rgba(30, 41, 59, 0.58)" }}>
                   <div style={dashboardChartLabelRowStyle}>
                     <strong>{item.user}</strong>
                     <span>{item.total} TA</span>
                   </div>
-
                   <div style={{ color: "#94a3b8", lineHeight: 1.6 }}>
                     Gefahren/abgeschlossen: <strong>{item.completed}</strong>
                     {" · "}Offen: <strong>{item.open}</strong>
                     {" · "}In Transport: <strong>{item.inTransit}</strong>
-                    {item.errors > 0 && (
-                      <>
-                        {" · "}Fehler: <strong>{item.errors}</strong>
-                      </>
-                    )}
+                    {item.errors > 0 && <>{" · "}Fehler: <strong>{item.errors}</strong></>}
                   </div>
                 </div>
               ))}
@@ -7478,12 +7395,9 @@ function TransportReportSection({
 
         <div style={dashboardChartCardStyle}>
           <h3 style={dashboardChartTitleStyle}>🏁 Aktivster Benutzer</h3>
-
           {topDriver ? (
             <div style={{ color: "#e2e8f0", lineHeight: 1.7 }}>
-              <div style={{ fontSize: "1.25rem", fontWeight: 800 }}>
-                {topDriver.user}
-              </div>
+              <div style={{ fontSize: "1.25rem", fontWeight: 800 }}>{topDriver.user}</div>
               <div>TA gesamt: {topDriver.total}</div>
               <div>Gefahren/abgeschlossen: {topDriver.completed}</div>
               <div>Offen: {topDriver.open}</div>
@@ -7495,26 +7409,15 @@ function TransportReportSection({
 
         <div style={dashboardChartCardStyle}>
           <h3 style={dashboardChartTitleStyle}>✅ Letzter abgeschlossener Transport</h3>
-
           {latestCompletedOrder ? (
             <div style={{ color: "#e2e8f0", lineHeight: 1.7 }}>
               <div>
-                <strong>
-                  {latestCompletedOrder.transport_order_number ??
-                    `TA-${latestCompletedOrder.id}`}
-                </strong>
+                <strong>{latestCompletedOrder.transport_order_number ?? `TA-${latestCompletedOrder.id}`}</strong>
                 {" / "}
                 {latestCompletedOrder.transport_slip_number ?? "—"}
               </div>
-
-              <div>
-                {latestCompletedOrder.source_location_code}
-                {" → "}
-                {latestCompletedOrder.target_location_code ?? "—"}
-              </div>
-
+              <div>{latestCompletedOrder.source_location_code} → {latestCompletedOrder.target_location_code ?? "—"}</div>
               <div>{latestCompletedOrder.product_name}</div>
-
               <div style={{ color: "#94a3b8" }}>
                 {latestCompletedOrder.completed_at
                   ? new Date(latestCompletedOrder.completed_at).toLocaleString("de-DE")
@@ -7530,50 +7433,25 @@ function TransportReportSection({
       {!loading && (
         <div style={{ ...dashboardChartCardStyle, marginTop: "22px" }}>
           <h3 style={dashboardChartTitleStyle}>📌 Aktuelle offene Transporte</h3>
-
           {openOrdersPreview.length === 0 ? (
             <p style={infoStyle}>Keine offenen Transporte für die aktuelle Auswahl.</p>
           ) : (
             <div style={{ display: "grid", gap: "12px" }}>
               {openOrdersPreview.map((order) => (
-                <div
-                  key={order.id}
-                  style={{
-                    border: "1px solid rgba(148, 163, 184, 0.18)",
-                    borderRadius: "14px",
-                    padding: "14px",
-                    background: "rgba(30, 41, 59, 0.58)",
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      gap: "12px",
-                      flexWrap: "wrap",
-                      marginBottom: "8px",
-                    }}
-                  >
+                <div key={order.id} style={{ border: "1px solid rgba(148, 163, 184, 0.18)", borderRadius: "14px", padding: "14px", background: "rgba(30, 41, 59, 0.58)" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", flexWrap: "wrap", marginBottom: "8px" }}>
                     <strong style={{ color: "#f8fafc" }}>
                       {order.transport_order_number ?? `TA-${order.id}`}
                     </strong>
-
                     <span style={{ color: "#bfdbfe", fontWeight: 800 }}>
                       {getStatusLabel(order.status)}
                     </span>
                   </div>
-
                   <div style={{ color: "#e2e8f0", lineHeight: 1.6 }}>
                     <div>{order.product_name} · Menge {order.quantity}</div>
-                    <div>
-                      {order.source_location_code}
-                      {" → "}
-                      {order.target_location_code ?? "—"}
-                    </div>
+                    <div>{order.source_location_code} → {order.target_location_code ?? "—"}</div>
                     <div style={{ color: "#94a3b8" }}>
-                      {getTransportType(order)}
-                      {" · Fahrer: "}
-                      {getAssignedUser(order)}
+                      {getTransportType(order)} · Fahrer: {getAssignedUser(order)}
                     </div>
                   </div>
                 </div>
