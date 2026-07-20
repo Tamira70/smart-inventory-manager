@@ -446,6 +446,7 @@ type ActiveSection =
   | "goods-in"
   | "goods-out"
   | "forklift-terminal"
+  | "transport-report"
   | "history"
   | "corrections"
   | "locations"
@@ -686,6 +687,7 @@ const sidebarMenus: SidebarMenu[] = [
       { id: "goods-in", label: "Wareneingang" },
       { id: "goods-out", label: "Warenausgang" },
       { id: "forklift-terminal", label: "Stapler-Terminal" },
+      { id: "transport-report", label: "Transaktionsbericht" },
       { id: "history", label: "Bewegungshistorie" },
       { id: "corrections", label: "Lagerkorrekturen" },
       { id: "locations", label: "Lagerorte" },
@@ -791,6 +793,8 @@ const [loggedIn, setLoggedIn] = useState(isLoggedIn());
 
   const [transportOrders, setTransportOrders] = useState<TransportOrder[]>([]);
   const [transportOrdersLoading, setTransportOrdersLoading] = useState(false);
+  const [transportOrderReport, setTransportOrderReport] = useState<TransportOrder[]>([]);
+  const [transportOrderReportLoading, setTransportOrderReportLoading] = useState(false);
   const [activeTransportOrderId, setActiveTransportOrderId] = useState("");
   const [forkliftScanValue, setForkliftScanValue] = useState("");
   const [forkliftScanFeedback, setForkliftScanFeedback] = useState("");
@@ -978,6 +982,8 @@ const canAccessSection = (section: ActiveSection) => {
       "dashboard",
       "goods-in",
       "goods-out",
+      "forklift-terminal",
+      "transport-report",
       "history",
       "corrections",
       "locations",
@@ -1172,6 +1178,25 @@ if (role === "einkauf") {
 
     return () => window.clearInterval(refreshTimer);
   }, [loggedIn, role]);
+
+  const loadTransportOrderReport = async () => {
+    try {
+      setTransportOrderReportLoading(true);
+
+      const response = await apiFetch("/inventory-api/transport-orders/");
+      const data = (await response.json()) as TransportOrder[];
+
+      setTransportOrderReport(data);
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Fehler beim Laden des Transaktionsberichts.";
+      setError(message);
+    } finally {
+      setTransportOrderReportLoading(false);
+    }
+  };
 
   const playForkliftWarningBeep = () => {
     try {
@@ -1657,6 +1682,12 @@ if (role === "einkauf") {
       void loadInventoryCounts(selectedInventorySessionId);
     }
   }, [loggedIn, selectedInventorySessionId]);
+
+  useEffect(() => {
+    if (loggedIn && activeSection === "transport-report") {
+      void loadTransportOrderReport();
+    }
+  }, [loggedIn, activeSection]);
 
   const lowStockProducts = useMemo(
     () => products.filter((product) => product.quantity <= product.min_stock),
@@ -4361,6 +4392,14 @@ const exportMovementsToCsv = async () => {
               />
             )}
 
+            {activeSection === "transport-report" && (
+              <TransportReportSection
+                orders={transportOrderReport}
+                loading={transportOrderReportLoading}
+                onRefresh={loadTransportOrderReport}
+              />
+            )}
+
             {activeSection === "forklift-terminal" && canAccessSection("forklift-terminal") && (
               <ForkliftTerminalSection
                 orders={transportOrders}
@@ -6925,6 +6964,272 @@ function ReorderSection({
                           ? "Bestellung vorbereiten"
                           : "Nur ansehen"}
                       </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
+
+
+function TransportReportSection({
+  orders,
+  loading,
+  onRefresh,
+}: {
+  orders: TransportOrder[];
+  loading: boolean;
+  onRefresh: () => Promise<void>;
+}) {
+  const [statusFilter, setStatusFilter] = useState("");
+  const [typeFilter, setTypeFilter] = useState("");
+  const [search, setSearch] = useState("");
+
+  const getStatusLabel = (status: TransportOrder["status"]) => {
+    switch (status) {
+      case "CREATED":
+        return "Erstellt";
+      case "ASSIGNED":
+        return "Zugewiesen";
+      case "PICKED":
+        return "Ware aufgenommen";
+      case "IN_TRANSIT":
+        return "In Transport";
+      case "COMPLETED":
+        return "Abgeschlossen";
+      case "CANCELLED":
+        return "Storniert";
+      case "ERROR":
+        return "Fehler";
+      default:
+        return status;
+    }
+  };
+
+  const getTransactionType = (order: TransportOrder) => {
+    const sourceCode = order.source_location_code.toUpperCase();
+    const targetCode = (order.target_location_code ?? "").toUpperCase();
+
+    if (sourceCode.startsWith("WE-")) {
+      return "Wareneingang · WE → Lager";
+    }
+
+    if (targetCode.startsWith("WA-")) {
+      return "Warenausgang · Lager → WA";
+    }
+
+    return "Lagerintern";
+  };
+
+  const filteredOrders = useMemo(() => {
+    const query = search.trim().toLowerCase();
+
+    return orders
+      .slice()
+      .sort(
+        (first, second) =>
+          new Date(second.created_at).getTime() -
+          new Date(first.created_at).getTime()
+      )
+      .filter((order) => {
+        const transactionType = getTransactionType(order);
+
+        const matchesStatus = !statusFilter || order.status === statusFilter;
+        const matchesType = !typeFilter || transactionType === typeFilter;
+
+        const haystack = [
+          order.transport_order_number ?? "",
+          order.transport_slip_number ?? "",
+          order.product_name,
+          order.product_sku,
+          order.source_location_code,
+          order.source_location_name,
+          order.target_location_code ?? "",
+          order.target_location_name ?? "",
+          order.reference_number,
+          order.assigned_to_username ?? "",
+          order.created_by_username ?? "",
+          transactionType,
+          getStatusLabel(order.status),
+        ]
+          .join(" ")
+          .toLowerCase();
+
+        return matchesStatus && matchesType && haystack.includes(query);
+      });
+  }, [orders, search, statusFilter, typeFilter]);
+
+  const completedCount = orders.filter(
+    (order) => order.status === "COMPLETED"
+  ).length;
+
+  const openCount = orders.filter(
+    (order) => !["COMPLETED", "CANCELLED"].includes(order.status)
+  ).length;
+
+  const errorCount = orders.filter((order) => order.status === "ERROR").length;
+
+  const typeOptions = [
+    "Wareneingang · WE → Lager",
+    "Warenausgang · Lager → WA",
+    "Lagerintern",
+  ];
+
+  return (
+    <section style={sectionStyle}>
+      <h2 style={sectionTitleStyle}>📑 Transaktionsbericht</h2>
+
+      <p style={infoStyle}>
+        Übersicht aller WMS-Transportaufträge mit TA-/TS-Nummer, Produkt,
+        Quelle, Ziel, Status und Zeitstempel.
+      </p>
+
+      <div style={dashboardGridStyle}>
+        <Card title="Transportaufträge" value={String(orders.length)} />
+        <Card title="Offen" value={String(openCount)} danger={openCount > 0} />
+        <Card title="Abgeschlossen" value={String(completedCount)} />
+        <Card title="Fehler" value={String(errorCount)} danger={errorCount > 0} />
+      </div>
+
+      <div style={{ ...filterGridStyle, marginTop: "22px" }}>
+        <input
+          type="text"
+          placeholder="Suche nach TA, TS, Produkt, Quelle, Ziel oder Benutzer"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          style={inputStyle}
+        />
+
+        <select
+          value={statusFilter}
+          onChange={(event) => setStatusFilter(event.target.value)}
+          style={inputStyle}
+        >
+          <option value="">Alle Status</option>
+          <option value="CREATED">Erstellt</option>
+          <option value="ASSIGNED">Zugewiesen</option>
+          <option value="IN_TRANSIT">In Transport</option>
+          <option value="COMPLETED">Abgeschlossen</option>
+          <option value="CANCELLED">Storniert</option>
+          <option value="ERROR">Fehler</option>
+        </select>
+
+        <select
+          value={typeFilter}
+          onChange={(event) => setTypeFilter(event.target.value)}
+          style={inputStyle}
+        >
+          <option value="">Alle Transaktionen</option>
+          {typeOptions.map((type) => (
+            <option key={type} value={type}>
+              {type}
+            </option>
+          ))}
+        </select>
+
+        <button type="button" onClick={() => void onRefresh()} style={secondaryButtonStyle}>
+          Aktualisieren
+        </button>
+      </div>
+
+      {loading && <p style={infoStyle}>Lade Transaktionsbericht...</p>}
+
+      {!loading && filteredOrders.length === 0 && (
+        <p style={infoStyle}>Keine Transportaufträge für die aktuelle Auswahl gefunden.</p>
+      )}
+
+      {!loading && filteredOrders.length > 0 && (
+        <div style={{ ...tableWrapStyle, marginTop: "22px" }}>
+          <table style={dataTableStyle}>
+            <thead>
+              <tr style={tableHeaderRowStyle}>
+                <th style={tableHeadStyle}>Erstellt</th>
+                <th style={tableHeadStyle}>TA / TS</th>
+                <th style={tableHeadStyle}>Transaktion</th>
+                <th style={tableHeadStyle}>Status</th>
+                <th style={tableHeadStyle}>Produkt</th>
+                <th style={tableHeadStyle}>Menge</th>
+                <th style={tableHeadStyle}>Quelle → Ziel</th>
+                <th style={tableHeadStyle}>Referenz</th>
+                <th style={tableHeadStyle}>Benutzer</th>
+                <th style={tableHeadStyle}>Abgeschlossen</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {filteredOrders.map((order) => {
+                const transactionType = getTransactionType(order);
+                const isError = order.status === "ERROR";
+                const isCompleted = order.status === "COMPLETED";
+
+                return (
+                  <tr
+                    key={order.id}
+                    style={{
+                      borderTop: "1px solid rgba(148, 163, 184, 0.12)",
+                      background: isError
+                        ? "rgba(127, 29, 29, 0.12)"
+                        : isCompleted
+                        ? "rgba(22, 101, 52, 0.08)"
+                        : "rgba(30, 64, 175, 0.10)",
+                    }}
+                  >
+                    <td style={tableCellStyle}>
+                      {new Date(order.created_at).toLocaleString("de-DE")}
+                    </td>
+
+                    <td style={tableCellStyle}>
+                      <strong>{order.transport_order_number ?? `TA-${order.id}`}</strong>
+                      <div style={{ color: "#94a3b8" }}>
+                        {order.transport_slip_number ?? "—"}
+                      </div>
+                    </td>
+
+                    <td style={tableCellStyle}>{transactionType}</td>
+
+                    <td style={tableCellStyle}>
+                      <strong>{getStatusLabel(order.status)}</strong>
+                      {order.last_error && (
+                        <div style={{ color: "#fecaca", marginTop: "4px" }}>
+                          {order.last_error}
+                        </div>
+                      )}
+                    </td>
+
+                    <td style={tableCellStyle}>
+                      <strong>{order.product_name}</strong>
+                      <div style={{ color: "#94a3b8" }}>{order.product_sku}</div>
+                    </td>
+
+                    <td style={tableCellStyle}>{order.quantity}</td>
+
+                    <td style={tableCellStyle}>
+                      <strong>{order.source_location_code}</strong>
+                      {" → "}
+                      <strong>{order.target_location_code ?? "—"}</strong>
+                      <div style={{ color: "#94a3b8" }}>
+                        {order.source_location_name}
+                        {" → "}
+                        {order.target_location_name ?? "—"}
+                      </div>
+                    </td>
+
+                    <td style={tableCellStyle}>{order.reference_number || "—"}</td>
+
+                    <td style={tableCellStyle}>
+                      {order.assigned_to_username || order.created_by_username || "—"}
+                    </td>
+
+                    <td style={tableCellStyle}>
+                      {order.completed_at
+                        ? new Date(order.completed_at).toLocaleString("de-DE")
+                        : "—"}
                     </td>
                   </tr>
                 );
