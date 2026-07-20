@@ -6979,6 +6979,7 @@ function ReorderSection({
 
 
 
+
 function TransportReportSection({
   orders,
   loading,
@@ -6988,9 +6989,42 @@ function TransportReportSection({
   loading: boolean;
   onRefresh: () => Promise<void>;
 }) {
+  const formatDateKey = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const todayKey = formatDateKey(new Date());
+
+  const [selectedDate, setSelectedDate] = useState(todayKey);
+  const [shiftFilter, setShiftFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [search, setSearch] = useState("");
+
+  const shiftOptions = [
+    { value: "early", label: "Frühschicht 06:00–14:00" },
+    { value: "late", label: "Spätschicht 14:00–22:00" },
+    { value: "night", label: "Nachtschicht 22:00–06:00" },
+  ];
+
+  const getShiftKey = (date: Date) => {
+    const hour = date.getHours();
+
+    if (hour >= 6 && hour < 14) return "early";
+    if (hour >= 14 && hour < 22) return "late";
+
+    return "night";
+  };
+
+  const getShiftLabel = (shiftKey: string) =>
+    shiftOptions.find((option) => option.value === shiftKey)?.label ??
+    "Unbekannte Schicht";
+
+  const getReferenceDate = (order: TransportOrder) =>
+    new Date(order.completed_at || order.picked_at || order.created_at);
 
   const getStatusLabel = (status: TransportOrder["status"]) => {
     switch (status) {
@@ -7013,7 +7047,7 @@ function TransportReportSection({
     }
   };
 
-  const getTransactionType = (order: TransportOrder) => {
+  const getTransportType = (order: TransportOrder) => {
     const sourceCode = order.source_location_code.toUpperCase();
     const targetCode = (order.target_location_code ?? "").toUpperCase();
 
@@ -7028,21 +7062,34 @@ function TransportReportSection({
     return "Lagerintern";
   };
 
+  const timeFilteredOrders = useMemo(() => {
+    return orders.filter((order) => {
+      const referenceDate = getReferenceDate(order);
+
+      const matchesDate =
+        !selectedDate || formatDateKey(referenceDate) === selectedDate;
+
+      const matchesShift =
+        !shiftFilter || getShiftKey(referenceDate) === shiftFilter;
+
+      return matchesDate && matchesShift;
+    });
+  }, [orders, selectedDate, shiftFilter]);
+
   const filteredOrders = useMemo(() => {
     const query = search.trim().toLowerCase();
 
-    return orders
+    return timeFilteredOrders
       .slice()
       .sort(
         (first, second) =>
-          new Date(second.created_at).getTime() -
-          new Date(first.created_at).getTime()
+          getReferenceDate(second).getTime() - getReferenceDate(first).getTime()
       )
       .filter((order) => {
-        const transactionType = getTransactionType(order);
+        const transportType = getTransportType(order);
 
         const matchesStatus = !statusFilter || order.status === statusFilter;
-        const matchesType = !typeFilter || transactionType === typeFilter;
+        const matchesType = !typeFilter || transportType === typeFilter;
 
         const haystack = [
           order.transport_order_number ?? "",
@@ -7056,7 +7103,7 @@ function TransportReportSection({
           order.reference_number,
           order.assigned_to_username ?? "",
           order.created_by_username ?? "",
-          transactionType,
+          transportType,
           getStatusLabel(order.status),
         ]
           .join(" ")
@@ -7064,36 +7111,36 @@ function TransportReportSection({
 
         return matchesStatus && matchesType && haystack.includes(query);
       });
-  }, [orders, search, statusFilter, typeFilter]);
+  }, [timeFilteredOrders, search, statusFilter, typeFilter]);
 
-  const completedCount = orders.filter(
+  const completedCount = filteredOrders.filter(
     (order) => order.status === "COMPLETED"
   ).length;
 
-  const openCount = orders.filter(
+  const openCount = filteredOrders.filter(
     (order) => !["COMPLETED", "CANCELLED"].includes(order.status)
   ).length;
 
-  const inTransitCount = orders.filter(
+  const inTransitCount = filteredOrders.filter(
     (order) => order.status === "IN_TRANSIT"
   ).length;
 
-  const cancelledCount = orders.filter(
+  const cancelledCount = filteredOrders.filter(
     (order) => order.status === "CANCELLED"
   ).length;
 
-  const errorCount = orders.filter((order) => order.status === "ERROR").length;
+  const errorCount = filteredOrders.filter((order) => order.status === "ERROR").length;
 
-  const receivingTransportCount = orders.filter((order) =>
-    getTransactionType(order).startsWith("Wareneingang")
+  const receivingTransportCount = filteredOrders.filter((order) =>
+    getTransportType(order).startsWith("Wareneingang")
   ).length;
 
-  const shippingTransportCount = orders.filter((order) =>
-    getTransactionType(order).startsWith("Warenausgang")
+  const shippingTransportCount = filteredOrders.filter((order) =>
+    getTransportType(order).startsWith("Warenausgang")
   ).length;
 
-  const internalTransportCount = orders.filter(
-    (order) => getTransactionType(order) === "Lagerintern"
+  const internalTransportCount = filteredOrders.filter(
+    (order) => getTransportType(order) === "Lagerintern"
   ).length;
 
   const userTransportStats = useMemo(() => {
@@ -7109,7 +7156,7 @@ function TransportReportSection({
       }
     >();
 
-    orders.forEach((order) => {
+    filteredOrders.forEach((order) => {
       const userName = order.assigned_to_username || "Nicht zugewiesen";
 
       const current =
@@ -7125,21 +7172,10 @@ function TransportReportSection({
 
       current.total += 1;
 
-      if (order.status === "COMPLETED") {
-        current.completed += 1;
-      }
-
-      if (!["COMPLETED", "CANCELLED"].includes(order.status)) {
-        current.open += 1;
-      }
-
-      if (order.status === "IN_TRANSIT") {
-        current.inTransit += 1;
-      }
-
-      if (order.status === "ERROR") {
-        current.errors += 1;
-      }
+      if (order.status === "COMPLETED") current.completed += 1;
+      if (!["COMPLETED", "CANCELLED"].includes(order.status)) current.open += 1;
+      if (order.status === "IN_TRANSIT") current.inTransit += 1;
+      if (order.status === "ERROR") current.errors += 1;
 
       stats.set(userName, current);
     });
@@ -7150,7 +7186,7 @@ function TransportReportSection({
         second.total - first.total ||
         first.user.localeCompare(second.user)
     );
-  }, [orders]);
+  }, [filteredOrders]);
 
   const topDriver =
     userTransportStats.find((item) => item.user !== "Nicht zugewiesen") ??
@@ -7158,7 +7194,7 @@ function TransportReportSection({
     null;
 
   const latestCompletedOrder =
-    orders
+    filteredOrders
       .filter((order) => order.status === "COMPLETED")
       .slice()
       .sort(
@@ -7182,12 +7218,96 @@ function TransportReportSection({
       <h2 style={sectionTitleStyle}>📊 Transport-Dashboard</h2>
 
       <p style={infoStyle}>
-        Übersicht über Transportaufträge, Status, Transportarten und wie viele
-        TA je Benutzer gefahren bzw. übernommen wurden.
+        Auswertung der Transportaufträge pro Tag und Schicht. Gezählt wird über
+        den Benutzer, der den TA übernommen hat.
       </p>
 
+      <div style={{ ...filterGridStyle, marginTop: "22px" }}>
+        <input
+          type="date"
+          value={selectedDate}
+          onChange={(event) => setSelectedDate(event.target.value)}
+          style={inputStyle}
+        />
+
+        <select
+          value={shiftFilter}
+          onChange={(event) => setShiftFilter(event.target.value)}
+          style={inputStyle}
+        >
+          <option value="">Alle Schichten</option>
+          {shiftOptions.map((shift) => (
+            <option key={shift.value} value={shift.value}>
+              {shift.label}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={statusFilter}
+          onChange={(event) => setStatusFilter(event.target.value)}
+          style={inputStyle}
+        >
+          <option value="">Alle Status</option>
+          <option value="CREATED">Erstellt</option>
+          <option value="ASSIGNED">Zugewiesen</option>
+          <option value="PICKED">Ware aufgenommen</option>
+          <option value="IN_TRANSIT">In Transport</option>
+          <option value="COMPLETED">Abgeschlossen</option>
+          <option value="CANCELLED">Storniert</option>
+          <option value="ERROR">Fehler</option>
+        </select>
+
+        <select
+          value={typeFilter}
+          onChange={(event) => setTypeFilter(event.target.value)}
+          style={inputStyle}
+        >
+          <option value="">Alle Transportarten</option>
+          {typeOptions.map((type) => (
+            <option key={type} value={type}>
+              {type}
+            </option>
+          ))}
+        </select>
+
+        <input
+          type="text"
+          placeholder="Suche nach TA, Produkt, Quelle, Ziel oder Benutzer"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          style={inputStyle}
+        />
+
+        <button type="button" onClick={() => void onRefresh()} style={secondaryButtonStyle}>
+          Aktualisieren
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setSelectedDate("");
+            setShiftFilter("");
+            setStatusFilter("");
+            setTypeFilter("");
+            setSearch("");
+          }}
+          style={secondaryButtonStyle}
+        >
+          Filter zurücksetzen
+        </button>
+      </div>
+
+      <p style={infoStyle}>
+        Zeitraum: <strong>{selectedDate || "Alle Tage"}</strong>
+        {" · "}
+        Schicht: <strong>{shiftFilter ? getShiftLabel(shiftFilter) : "Alle Schichten"}</strong>
+      </p>
+
+      {loading && <p style={infoStyle}>Lade Transport-Dashboard...</p>}
+
       <div style={dashboardGridStyle}>
-        <Card title="Transportaufträge" value={String(orders.length)} />
+        <Card title="TA im Zeitraum" value={String(filteredOrders.length)} />
         <Card title="Offen" value={String(openCount)} danger={openCount > 0} />
         <Card title="In Transport" value={String(inTransitCount)} danger={inTransitCount > 0} />
         <Card title="Abgeschlossen" value={String(completedCount)} />
@@ -7204,7 +7324,7 @@ function TransportReportSection({
         }}
       >
         <div style={dashboardChartCardStyle}>
-          <h3 style={dashboardChartTitleStyle}>🚚 Transportarten</h3>
+          <h3 style={dashboardChartTitleStyle}>🚚 Transportarten im Zeitraum</h3>
 
           <div style={{ display: "grid", gap: "12px" }}>
             <div style={dashboardChartLabelRowStyle}>
@@ -7225,13 +7345,13 @@ function TransportReportSection({
         </div>
 
         <div style={dashboardChartCardStyle}>
-          <h3 style={dashboardChartTitleStyle}>👤 TA je Benutzer</h3>
+          <h3 style={dashboardChartTitleStyle}>👤 TA je Benutzer / Schicht</h3>
 
           {userTransportStats.length === 0 ? (
-            <p style={infoStyle}>Noch keine Benutzerzuweisung vorhanden.</p>
+            <p style={infoStyle}>Keine TA für die aktuelle Auswahl.</p>
           ) : (
             <div style={{ display: "grid", gap: "12px" }}>
-              {userTransportStats.slice(0, 6).map((item) => (
+              {userTransportStats.slice(0, 8).map((item) => (
                 <div
                   key={item.user}
                   style={{
@@ -7275,7 +7395,7 @@ function TransportReportSection({
               <div>Offen: {topDriver.open}</div>
             </div>
           ) : (
-            <p style={infoStyle}>Noch keine TA vorhanden.</p>
+            <p style={infoStyle}>Keine TA für die aktuelle Auswahl.</p>
           )}
         </div>
 
@@ -7308,54 +7428,10 @@ function TransportReportSection({
               </div>
             </div>
           ) : (
-            <p style={infoStyle}>Noch kein abgeschlossener Transport vorhanden.</p>
+            <p style={infoStyle}>Noch kein abgeschlossener Transport in der Auswahl.</p>
           )}
         </div>
       </div>
-
-      <div style={{ ...filterGridStyle, marginTop: "22px" }}>
-        <input
-          type="text"
-          placeholder="Suche nach TA, TS, Produkt, Quelle, Ziel oder Benutzer"
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          style={inputStyle}
-        />
-
-        <select
-          value={statusFilter}
-          onChange={(event) => setStatusFilter(event.target.value)}
-          style={inputStyle}
-        >
-          <option value="">Alle Status</option>
-          <option value="CREATED">Erstellt</option>
-          <option value="ASSIGNED">Zugewiesen</option>
-          <option value="PICKED">Ware aufgenommen</option>
-          <option value="IN_TRANSIT">In Transport</option>
-          <option value="COMPLETED">Abgeschlossen</option>
-          <option value="CANCELLED">Storniert</option>
-          <option value="ERROR">Fehler</option>
-        </select>
-
-        <select
-          value={typeFilter}
-          onChange={(event) => setTypeFilter(event.target.value)}
-          style={inputStyle}
-        >
-          <option value="">Alle Transportarten</option>
-          {typeOptions.map((type) => (
-            <option key={type} value={type}>
-              {type}
-            </option>
-          ))}
-        </select>
-
-        <button type="button" onClick={() => void onRefresh()} style={secondaryButtonStyle}>
-          Aktualisieren
-        </button>
-      </div>
-
-      {loading && <p style={infoStyle}>Lade Transport-Dashboard...</p>}
 
       {!loading && (
         <div style={{ ...dashboardChartCardStyle, marginTop: "22px" }}>
@@ -7401,7 +7477,7 @@ function TransportReportSection({
                       {order.target_location_code ?? "—"}
                     </div>
                     <div style={{ color: "#94a3b8" }}>
-                      {getTransactionType(order)}
+                      {getTransportType(order)}
                       {" · Fahrer: "}
                       {order.assigned_to_username || "Nicht zugewiesen"}
                     </div>
