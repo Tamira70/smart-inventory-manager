@@ -6978,6 +6978,7 @@ function ReorderSection({
 
 
 
+
 function TransportReportSection({
   orders,
   loading,
@@ -7073,8 +7074,6 @@ function TransportReportSection({
     (order) => !["COMPLETED", "CANCELLED"].includes(order.status)
   ).length;
 
-  const errorCount = orders.filter((order) => order.status === "ERROR").length;
-
   const inTransitCount = orders.filter(
     (order) => order.status === "IN_TRANSIT"
   ).length;
@@ -7082,6 +7081,8 @@ function TransportReportSection({
   const cancelledCount = orders.filter(
     (order) => order.status === "CANCELLED"
   ).length;
+
+  const errorCount = orders.filter((order) => order.status === "ERROR").length;
 
   const receivingTransportCount = orders.filter((order) =>
     getTransactionType(order).startsWith("Wareneingang")
@@ -7094,6 +7095,67 @@ function TransportReportSection({
   const internalTransportCount = orders.filter(
     (order) => getTransactionType(order) === "Lagerintern"
   ).length;
+
+  const userTransportStats = useMemo(() => {
+    const stats = new Map<
+      string,
+      {
+        user: string;
+        total: number;
+        completed: number;
+        open: number;
+        inTransit: number;
+        errors: number;
+      }
+    >();
+
+    orders.forEach((order) => {
+      const userName = order.assigned_to_username || "Nicht zugewiesen";
+
+      const current =
+        stats.get(userName) ??
+        {
+          user: userName,
+          total: 0,
+          completed: 0,
+          open: 0,
+          inTransit: 0,
+          errors: 0,
+        };
+
+      current.total += 1;
+
+      if (order.status === "COMPLETED") {
+        current.completed += 1;
+      }
+
+      if (!["COMPLETED", "CANCELLED"].includes(order.status)) {
+        current.open += 1;
+      }
+
+      if (order.status === "IN_TRANSIT") {
+        current.inTransit += 1;
+      }
+
+      if (order.status === "ERROR") {
+        current.errors += 1;
+      }
+
+      stats.set(userName, current);
+    });
+
+    return Array.from(stats.values()).sort(
+      (first, second) =>
+        second.completed - first.completed ||
+        second.total - first.total ||
+        first.user.localeCompare(second.user)
+    );
+  }, [orders]);
+
+  const topDriver =
+    userTransportStats.find((item) => item.user !== "Nicht zugewiesen") ??
+    userTransportStats[0] ??
+    null;
 
   const latestCompletedOrder =
     orders
@@ -7111,13 +7173,17 @@ function TransportReportSection({
     "Lagerintern",
   ];
 
+  const openOrdersPreview = filteredOrders
+    .filter((order) => !["COMPLETED", "CANCELLED"].includes(order.status))
+    .slice(0, 6);
+
   return (
     <section style={sectionStyle}>
       <h2 style={sectionTitleStyle}>📊 Transport-Dashboard</h2>
 
       <p style={infoStyle}>
-        Übersicht aller WMS-Transportaufträge mit TA-/TS-Nummer, Produkt,
-        Quelle, Ziel, Status und Zeitstempel.
+        Übersicht über Transportaufträge, Status, Transportarten und wie viele
+        TA je Benutzer gefahren bzw. übernommen wurden.
       </p>
 
       <div style={dashboardGridStyle}>
@@ -7132,7 +7198,7 @@ function TransportReportSection({
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+          gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
           gap: "18px",
           marginTop: "22px",
         }}
@@ -7156,6 +7222,61 @@ function TransportReportSection({
               <span>{internalTransportCount}</span>
             </div>
           </div>
+        </div>
+
+        <div style={dashboardChartCardStyle}>
+          <h3 style={dashboardChartTitleStyle}>👤 TA je Benutzer</h3>
+
+          {userTransportStats.length === 0 ? (
+            <p style={infoStyle}>Noch keine Benutzerzuweisung vorhanden.</p>
+          ) : (
+            <div style={{ display: "grid", gap: "12px" }}>
+              {userTransportStats.slice(0, 6).map((item) => (
+                <div
+                  key={item.user}
+                  style={{
+                    border: "1px solid rgba(148, 163, 184, 0.16)",
+                    borderRadius: "14px",
+                    padding: "12px",
+                    background: "rgba(30, 41, 59, 0.58)",
+                  }}
+                >
+                  <div style={dashboardChartLabelRowStyle}>
+                    <strong>{item.user}</strong>
+                    <span>{item.total} TA</span>
+                  </div>
+
+                  <div style={{ color: "#94a3b8", lineHeight: 1.6 }}>
+                    Gefahren/abgeschlossen: <strong>{item.completed}</strong>
+                    {" · "}Offen: <strong>{item.open}</strong>
+                    {" · "}In Transport: <strong>{item.inTransit}</strong>
+                    {item.errors > 0 && (
+                      <>
+                        {" · "}Fehler: <strong>{item.errors}</strong>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div style={dashboardChartCardStyle}>
+          <h3 style={dashboardChartTitleStyle}>🏁 Aktivster Benutzer</h3>
+
+          {topDriver ? (
+            <div style={{ color: "#e2e8f0", lineHeight: 1.7 }}>
+              <div style={{ fontSize: "1.25rem", fontWeight: 800 }}>
+                {topDriver.user}
+              </div>
+              <div>TA gesamt: {topDriver.total}</div>
+              <div>Gefahren/abgeschlossen: {topDriver.completed}</div>
+              <div>Offen: {topDriver.open}</div>
+            </div>
+          ) : (
+            <p style={infoStyle}>Noch keine TA vorhanden.</p>
+          )}
         </div>
 
         <div style={dashboardChartCardStyle}>
@@ -7209,6 +7330,7 @@ function TransportReportSection({
           <option value="">Alle Status</option>
           <option value="CREATED">Erstellt</option>
           <option value="ASSIGNED">Zugewiesen</option>
+          <option value="PICKED">Ware aufgenommen</option>
           <option value="IN_TRANSIT">In Transport</option>
           <option value="COMPLETED">Abgeschlossen</option>
           <option value="CANCELLED">Storniert</option>
@@ -7235,108 +7357,64 @@ function TransportReportSection({
 
       {loading && <p style={infoStyle}>Lade Transport-Dashboard...</p>}
 
-      {!loading && filteredOrders.length === 0 && (
-        <p style={infoStyle}>Keine Transportaufträge für die aktuelle Auswahl gefunden.</p>
-      )}
+      {!loading && (
+        <div style={{ ...dashboardChartCardStyle, marginTop: "22px" }}>
+          <h3 style={dashboardChartTitleStyle}>📌 Aktuelle offene Transporte</h3>
 
-      {!loading && filteredOrders.length > 0 && (
-        <div style={{ ...tableWrapStyle, marginTop: "22px" }}>
-          <table style={dataTableStyle}>
-            <thead>
-              <tr style={tableHeaderRowStyle}>
-                <th style={tableHeadStyle}>Erstellt</th>
-                <th style={tableHeadStyle}>TA / TS</th>
-                <th style={tableHeadStyle}>Transaktion</th>
-                <th style={tableHeadStyle}>Status</th>
-                <th style={tableHeadStyle}>Produkt</th>
-                <th style={tableHeadStyle}>Menge</th>
-                <th style={tableHeadStyle}>Quelle → Ziel</th>
-                <th style={tableHeadStyle}>Referenz</th>
-                <th style={tableHeadStyle}>Benutzer</th>
-                <th style={tableHeadStyle}>Abgeschlossen</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {filteredOrders.map((order) => {
-                const transactionType = getTransactionType(order);
-                const isError = order.status === "ERROR";
-                const isCompleted = order.status === "COMPLETED";
-
-                return (
-                  <tr
-                    key={order.id}
+          {openOrdersPreview.length === 0 ? (
+            <p style={infoStyle}>Keine offenen Transporte für die aktuelle Auswahl.</p>
+          ) : (
+            <div style={{ display: "grid", gap: "12px" }}>
+              {openOrdersPreview.map((order) => (
+                <div
+                  key={order.id}
+                  style={{
+                    border: "1px solid rgba(148, 163, 184, 0.18)",
+                    borderRadius: "14px",
+                    padding: "14px",
+                    background: "rgba(30, 41, 59, 0.58)",
+                  }}
+                >
+                  <div
                     style={{
-                      borderTop: "1px solid rgba(148, 163, 184, 0.12)",
-                      background: isError
-                        ? "rgba(127, 29, 29, 0.12)"
-                        : isCompleted
-                        ? "rgba(22, 101, 52, 0.08)"
-                        : "rgba(30, 64, 175, 0.10)",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: "12px",
+                      flexWrap: "wrap",
+                      marginBottom: "8px",
                     }}
                   >
-                    <td style={tableCellStyle}>
-                      {new Date(order.created_at).toLocaleString("de-DE")}
-                    </td>
+                    <strong style={{ color: "#f8fafc" }}>
+                      {order.transport_order_number ?? `TA-${order.id}`}
+                    </strong>
 
-                    <td style={tableCellStyle}>
-                      <strong>{order.transport_order_number ?? `TA-${order.id}`}</strong>
-                      <div style={{ color: "#94a3b8" }}>
-                        {order.transport_slip_number ?? "—"}
-                      </div>
-                    </td>
+                    <span style={{ color: "#bfdbfe", fontWeight: 800 }}>
+                      {getStatusLabel(order.status)}
+                    </span>
+                  </div>
 
-                    <td style={tableCellStyle}>{transactionType}</td>
-
-                    <td style={tableCellStyle}>
-                      <strong>{getStatusLabel(order.status)}</strong>
-                      {order.last_error && (
-                        <div style={{ color: "#fecaca", marginTop: "4px" }}>
-                          {order.last_error}
-                        </div>
-                      )}
-                    </td>
-
-                    <td style={tableCellStyle}>
-                      <strong>{order.product_name}</strong>
-                      <div style={{ color: "#94a3b8" }}>{order.product_sku}</div>
-                    </td>
-
-                    <td style={tableCellStyle}>{order.quantity}</td>
-
-                    <td style={tableCellStyle}>
-                      <strong>{order.source_location_code}</strong>
+                  <div style={{ color: "#e2e8f0", lineHeight: 1.6 }}>
+                    <div>{order.product_name} · Menge {order.quantity}</div>
+                    <div>
+                      {order.source_location_code}
                       {" → "}
-                      <strong>{order.target_location_code ?? "—"}</strong>
-                      <div style={{ color: "#94a3b8" }}>
-                        {order.source_location_name}
-                        {" → "}
-                        {order.target_location_name ?? "—"}
-                      </div>
-                    </td>
-
-                    <td style={tableCellStyle}>{order.reference_number || "—"}</td>
-
-                    <td style={tableCellStyle}>
-                      {order.assigned_to_username || order.created_by_username || "—"}
-                    </td>
-
-                    <td style={tableCellStyle}>
-                      {order.completed_at
-                        ? new Date(order.completed_at).toLocaleString("de-DE")
-                        : "—"}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                      {order.target_location_code ?? "—"}
+                    </div>
+                    <div style={{ color: "#94a3b8" }}>
+                      {getTransactionType(order)}
+                      {" · Fahrer: "}
+                      {order.assigned_to_username || "Nicht zugewiesen"}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </section>
   );
 }
-
 
 function ForkliftTerminalSection({
   orders,
