@@ -6980,6 +6980,8 @@ function ReorderSection({
 
 
 
+
+
 function TransportReportSection({
   orders,
   loading,
@@ -6996,10 +6998,17 @@ function TransportReportSection({
     return `${year}-${month}-${day}`;
   };
 
-  const todayKey = formatDateKey(new Date());
+  const today = new Date();
+  const sevenDaysAgo = new Date(today);
+  sevenDaysAgo.setDate(today.getDate() - 6);
 
-  const [selectedDate, setSelectedDate] = useState(todayKey);
+  const todayKey = formatDateKey(today);
+  const sevenDaysAgoKey = formatDateKey(sevenDaysAgo);
+
+  const [startDate, setStartDate] = useState(sevenDaysAgoKey);
+  const [endDate, setEndDate] = useState(todayKey);
   const [shiftFilter, setShiftFilter] = useState("");
+  const [userFilter, setUserFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [search, setSearch] = useState("");
@@ -7025,6 +7034,9 @@ function TransportReportSection({
 
   const getReferenceDate = (order: TransportOrder) =>
     new Date(order.completed_at || order.picked_at || order.created_at);
+
+  const getAssignedUser = (order: TransportOrder) =>
+    order.assigned_to_username || "Nicht zugewiesen";
 
   const getStatusLabel = (status: TransportOrder["status"]) => {
     switch (status) {
@@ -7062,19 +7074,44 @@ function TransportReportSection({
     return "Lagerintern";
   };
 
+  const selectedStartDate = startDate ? new Date(`${startDate}T00:00:00`) : null;
+  const selectedEndDate = endDate ? new Date(`${endDate}T23:59:59.999`) : null;
+
+  const hasInvalidDateRange =
+    selectedStartDate !== null &&
+    selectedEndDate !== null &&
+    selectedStartDate > selectedEndDate;
+
+  const userOptions = useMemo(() => {
+    return Array.from(new Set(orders.map((order) => getAssignedUser(order)))).sort(
+      (first, second) => {
+        if (first === "Nicht zugewiesen") return 1;
+        if (second === "Nicht zugewiesen") return -1;
+        return first.localeCompare(second);
+      }
+    );
+  }, [orders]);
+
   const timeFilteredOrders = useMemo(() => {
+    if (hasInvalidDateRange) {
+      return [];
+    }
+
     return orders.filter((order) => {
       const referenceDate = getReferenceDate(order);
 
-      const matchesDate =
-        !selectedDate || formatDateKey(referenceDate) === selectedDate;
+      const matchesStart =
+        !selectedStartDate || referenceDate >= selectedStartDate;
+
+      const matchesEnd =
+        !selectedEndDate || referenceDate <= selectedEndDate;
 
       const matchesShift =
         !shiftFilter || getShiftKey(referenceDate) === shiftFilter;
 
-      return matchesDate && matchesShift;
+      return matchesStart && matchesEnd && matchesShift;
     });
-  }, [orders, selectedDate, shiftFilter]);
+  }, [orders, selectedStartDate, selectedEndDate, shiftFilter, hasInvalidDateRange]);
 
   const filteredOrders = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -7087,7 +7124,9 @@ function TransportReportSection({
       )
       .filter((order) => {
         const transportType = getTransportType(order);
+        const assignedUser = getAssignedUser(order);
 
+        const matchesUser = !userFilter || assignedUser === userFilter;
         const matchesStatus = !statusFilter || order.status === statusFilter;
         const matchesType = !typeFilter || transportType === typeFilter;
 
@@ -7101,7 +7140,7 @@ function TransportReportSection({
           order.target_location_code ?? "",
           order.target_location_name ?? "",
           order.reference_number,
-          order.assigned_to_username ?? "",
+          assignedUser,
           order.created_by_username ?? "",
           transportType,
           getStatusLabel(order.status),
@@ -7109,9 +7148,14 @@ function TransportReportSection({
           .join(" ")
           .toLowerCase();
 
-        return matchesStatus && matchesType && haystack.includes(query);
+        return (
+          matchesUser &&
+          matchesStatus &&
+          matchesType &&
+          haystack.includes(query)
+        );
       });
-  }, [timeFilteredOrders, search, statusFilter, typeFilter]);
+  }, [timeFilteredOrders, search, userFilter, statusFilter, typeFilter]);
 
   const completedCount = filteredOrders.filter(
     (order) => order.status === "COMPLETED"
@@ -7157,7 +7201,7 @@ function TransportReportSection({
     >();
 
     filteredOrders.forEach((order) => {
-      const userName = order.assigned_to_username || "Nicht zugewiesen";
+      const userName = getAssignedUser(order);
 
       const current =
         stats.get(userName) ??
@@ -7218,15 +7262,22 @@ function TransportReportSection({
       <h2 style={sectionTitleStyle}>📊 Transport-Dashboard</h2>
 
       <p style={infoStyle}>
-        Auswertung der Transportaufträge pro Tag und Schicht. Gezählt wird über
-        den Benutzer, der den TA übernommen hat.
+        Auswertung der Transportaufträge nach frei wählbarem Zeitraum,
+        Schicht und Benutzer.
       </p>
 
       <div style={{ ...filterGridStyle, marginTop: "22px" }}>
         <input
           type="date"
-          value={selectedDate}
-          onChange={(event) => setSelectedDate(event.target.value)}
+          value={startDate}
+          onChange={(event) => setStartDate(event.target.value)}
+          style={inputStyle}
+        />
+
+        <input
+          type="date"
+          value={endDate}
+          onChange={(event) => setEndDate(event.target.value)}
           style={inputStyle}
         />
 
@@ -7239,6 +7290,19 @@ function TransportReportSection({
           {shiftOptions.map((shift) => (
             <option key={shift.value} value={shift.value}>
               {shift.label}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={userFilter}
+          onChange={(event) => setUserFilter(event.target.value)}
+          style={inputStyle}
+        >
+          <option value="">Alle Benutzer</option>
+          {userOptions.map((userName) => (
+            <option key={userName} value={userName}>
+              {userName}
             </option>
           ))}
         </select>
@@ -7286,22 +7350,52 @@ function TransportReportSection({
         <button
           type="button"
           onClick={() => {
-            setSelectedDate("");
+            setStartDate(sevenDaysAgoKey);
+            setEndDate(todayKey);
             setShiftFilter("");
+            setUserFilter("");
             setStatusFilter("");
             setTypeFilter("");
             setSearch("");
           }}
           style={secondaryButtonStyle}
         >
-          Filter zurücksetzen
+          Letzte 7 Tage
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setStartDate("");
+            setEndDate("");
+            setShiftFilter("");
+            setUserFilter("");
+            setStatusFilter("");
+            setTypeFilter("");
+            setSearch("");
+          }}
+          style={secondaryButtonStyle}
+        >
+          Alle anzeigen
         </button>
       </div>
 
+      {hasInvalidDateRange && (
+        <p style={errorStyle}>
+          ⛔ Der Zeitraum ist ungültig: Das Von-Datum liegt nach dem Bis-Datum.
+        </p>
+      )}
+
       <p style={infoStyle}>
-        Zeitraum: <strong>{selectedDate || "Alle Tage"}</strong>
+        Zeitraum:{" "}
+        <strong>
+          {startDate || "ohne Startdatum"} bis {endDate || "ohne Enddatum"}
+        </strong>
         {" · "}
-        Schicht: <strong>{shiftFilter ? getShiftLabel(shiftFilter) : "Alle Schichten"}</strong>
+        Schicht:{" "}
+        <strong>{shiftFilter ? getShiftLabel(shiftFilter) : "Alle Schichten"}</strong>
+        {" · "}
+        Benutzer: <strong>{userFilter || "Alle Benutzer"}</strong>
       </p>
 
       {loading && <p style={infoStyle}>Lade Transport-Dashboard...</p>}
@@ -7345,7 +7439,7 @@ function TransportReportSection({
         </div>
 
         <div style={dashboardChartCardStyle}>
-          <h3 style={dashboardChartTitleStyle}>👤 TA je Benutzer / Schicht</h3>
+          <h3 style={dashboardChartTitleStyle}>👤 TA je Benutzer / Zeitraum</h3>
 
           {userTransportStats.length === 0 ? (
             <p style={infoStyle}>Keine TA für die aktuelle Auswahl.</p>
@@ -7479,7 +7573,7 @@ function TransportReportSection({
                     <div style={{ color: "#94a3b8" }}>
                       {getTransportType(order)}
                       {" · Fahrer: "}
-                      {order.assigned_to_username || "Nicht zugewiesen"}
+                      {getAssignedUser(order)}
                     </div>
                   </div>
                 </div>
