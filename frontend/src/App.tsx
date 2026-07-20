@@ -687,7 +687,7 @@ const sidebarMenus: SidebarMenu[] = [
       { id: "goods-in", label: "Wareneingang" },
       { id: "goods-out", label: "Warenausgang" },
       { id: "forklift-terminal", label: "Stapler-Terminal" },
-      { id: "transport-report", label: "Transaktionsbericht" },
+      { id: "transport-report", label: "Transportbericht" },
       { id: "history", label: "Bewegungshistorie" },
       { id: "corrections", label: "Lagerkorrekturen" },
       { id: "locations", label: "Lagerorte" },
@@ -1191,7 +1191,7 @@ if (role === "einkauf") {
       const message =
         err instanceof Error
           ? err.message
-          : "Fehler beim Laden des Transaktionsberichts.";
+          : "Fehler beim Laden des Transportbericht.";
       setError(message);
     } finally {
       setTransportOrderReportLoading(false);
@@ -7083,7 +7083,7 @@ function TransportReportSection({
 
   return (
     <section style={sectionStyle}>
-      <h2 style={sectionTitleStyle}>📑 Transaktionsbericht</h2>
+      <h2 style={sectionTitleStyle}>📑 Transportbericht</h2>
 
       <p style={infoStyle}>
         Übersicht aller WMS-Transportaufträge mit TA-/TS-Nummer, Produkt,
@@ -7125,7 +7125,7 @@ function TransportReportSection({
           onChange={(event) => setTypeFilter(event.target.value)}
           style={inputStyle}
         >
-          <option value="">Alle Transaktionen</option>
+          <option value="">Alle Transportarten</option>
           {typeOptions.map((type) => (
             <option key={type} value={type}>
               {type}
@@ -7138,7 +7138,7 @@ function TransportReportSection({
         </button>
       </div>
 
-      {loading && <p style={infoStyle}>Lade Transaktionsbericht...</p>}
+      {loading && <p style={infoStyle}>Lade Transportbericht..</p>}
 
       {!loading && filteredOrders.length === 0 && (
         <p style={infoStyle}>Keine Transportaufträge für die aktuelle Auswahl gefunden.</p>
