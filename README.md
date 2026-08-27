@@ -159,3 +159,34 @@ Damit kann der komplette Ablauf gezeigt werden:
 3. Warenausgang erzeugt Transportauftrag zur WA-Fläche
 4. Stapler bringt Ware zur Bereitstellung
 5. Versandabschluss bucht die Ware final aus
+
+### Transport-Dashboard CSV-Export
+
+Das Transport-Dashboard wurde um einen CSV-Export erweitert.
+
+Umgesetzt:
+
+- Export der aktuell gefilterten Transportdaten
+- Berücksichtigung von Zeitraum, Schicht, Benutzer, Status und Transportart
+- Export von Kennzahlen wie:
+  - TA im Zeitraum
+  - offene TA
+  - TA in Transport
+  - abgeschlossene TA
+  - Fehler
+  - Erfüllungsquote
+- Export von Transportdetails:
+  - TA-Nummer
+  - TS-Nummer
+  - Status
+  - Transportart
+  - Produkt
+  - Menge
+  - Quelle
+  - Ziel
+  - Fahrer
+  - Referenz
+  - Zeitpunkt
+  - Abschlusszeitpunkt
+
+Die CSV-Datei kann mit LibreOffice Calc oder Microsoft Excel geöffnet werden.
