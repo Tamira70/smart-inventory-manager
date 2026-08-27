@@ -3906,9 +3906,9 @@ const exportMovementsToCsv = async () => {
                 <div
                   style={{
                     display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-                    gap: "18px",
-                    marginTop: "24px",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+                    gap: "12px",
+                    marginTop: "14px",
                   }}
                 >
                   <div style={dashboardChartCardStyle}>
@@ -4012,7 +4012,7 @@ const exportMovementsToCsv = async () => {
 
                   <div style={dashboardChartCardStyle}>
                     <h3 style={dashboardChartTitleStyle}>
-                      📍 Flächenstatus · WE / WA
+                      📍 WE / WA-Flächen
                     </h3>
 
                     <div
@@ -7616,7 +7616,7 @@ function TransportReportSection({
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+          gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
           gap: "18px",
           marginTop: "22px",
         }}
@@ -7932,7 +7932,7 @@ function ForkliftTerminalSection({
 
   const areaGridStyle: CSSProperties = {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
     gap: "14px",
   };
 
@@ -10960,16 +10960,16 @@ function HistorySection({
 
 const dashboardChartCardStyle: CSSProperties = {
   background: "rgba(15, 23, 42, 0.78)",
-  border: "1px solid rgba(148, 163, 184, 0.18)",
-  borderRadius: "18px",
-  padding: "18px",
-  boxShadow: "0 18px 36px rgba(0,0,0,0.2)",
+  border: "1px solid rgba(148, 163, 184, 0.16)",
+  borderRadius: "16px",
+  padding: "12px",
+  boxShadow: "0 12px 26px rgba(0,0,0,0.18)",
 };
 
 const dashboardChartTitleStyle: CSSProperties = {
-  margin: "0 0 14px 0",
+  margin: "0 0 10px 0",
   color: "#bfdbfe",
-  fontSize: "1rem",
+  fontSize: "0.92rem",
 };
 
 const dashboardChartLabelRowStyle: CSSProperties = {
@@ -11037,9 +11037,9 @@ function Card({
           ? "1px solid rgba(248, 113, 113, 0.25)"
           : "1px solid rgba(148, 163, 184, 0.2)",
         borderRadius: "18px",
-        padding: "20px",
+        padding: "12px",
         boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
-        minHeight: "96px",
+        minHeight: "74px",
         display: "flex",
         flexDirection: "column",
         justifyContent: "center",
@@ -11050,9 +11050,9 @@ function Card({
       <div
         style={{
           color: danger ? "#fca5a5" : "#94a3b8",
-          marginBottom: "8px",
+          marginBottom: "4px",
           textAlign: "center",
-          fontSize: "0.95rem",
+          fontSize: "0.82rem",
         }}
       >
         {title}
@@ -11060,7 +11060,7 @@ function Card({
 
       <div
         style={{
-          fontSize: "2rem",
+          fontSize: "1.55rem",
           fontWeight: 700,
           color: danger ? "#fecaca" : "#f8fafc",
           textAlign: "center",
@@ -11162,8 +11162,8 @@ const headerStyle: CSSProperties = {
   display: "flex",
   justifyContent: "space-between",
   alignItems: "flex-start",
-  gap: "16px",
-  marginBottom: "28px",
+  gap: "14px",
+  marginBottom: "18px",
   width: "100%",
   flexWrap: "wrap",
   boxSizing: "border-box",
@@ -11179,24 +11179,25 @@ const eyebrowStyle: CSSProperties = {
 
 const mainTitleStyle: CSSProperties = {
   margin: 0,
-  fontSize: "2.5rem",
-  lineHeight: 1.1,
+  fontSize: "2.15rem",
+  lineHeight: 1.05,
   color: "#f5f7fa",
 };
 
 const subtitleStyle: CSSProperties = {
-  marginTop: "12px",
+  marginTop: "8px",
   color: "#cbd5e1",
   maxWidth: "760px",
+  fontSize: "0.94rem",
 };
 
 
 
 const dashboardGridStyle: CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-  gap: "16px",
-  marginTop: "20px",
+  gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+  gap: "10px",
+  marginTop: "12px",
   width: "100%",
 };
 
@@ -11325,9 +11326,9 @@ const sectionStyle: CSSProperties = {
   background: "rgba(15, 23, 42, 0.8)",
   border: "1px solid rgba(148, 163, 184, 0.2)",
   borderRadius: "18px",
-  padding: "20px",
-  boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
-  marginBottom: "28px",
+  padding: "16px",
+  boxShadow: "0 10px 30px rgba(0,0,0,0.22)",
+  marginBottom: "18px",
   width: "100%",
   boxSizing: "border-box",
 };
