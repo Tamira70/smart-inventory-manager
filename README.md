@@ -132,3 +132,30 @@ Nächste mögliche Ausbaustufen:
 - WA-Flächen im Dashboard gesondert anzeigen
 - Status „bereitgestellt“ für Ware auf WA-Fläche
 - Übergabe an Versand / Warenausgangsbuchung
+
+### Aktueller WMS-Gesamtprozess
+
+Der aktuelle Stand bildet einen vollständigen WMS-Demoablauf ab:
+
+- Wareneingang: WE-Fläche -> Lagerplatz
+- Warenausgang: Lagerplatz -> WA-Fläche
+- Versandabschluss: WA-Fläche -> Bestand raus
+
+Ergänzte Funktionen:
+
+- WA-Flächen `WA-0001` bis `WA-0005` als `SHIPPING`
+- Transportauftrag vom Lagerplatz zur WA-Fläche
+- STAPLER-TERMINAL mit Quelle-/Ziel-Scan
+- Versandabschluss direkt aus WA-Flächen
+- Transport-Dashboard mit frei wählbarem Zeitraum
+- Filter nach Schicht, Benutzer, Status und Transportart
+- Auswertung: TA je Benutzer im Zeitraum
+- Anzeige offener Transporte und letzter abgeschlossener Transport
+
+Damit kann der komplette Ablauf gezeigt werden:
+
+1. Ware kommt auf WE-Fläche an
+2. Automatischer Transportauftrag bringt Ware ins Lager
+3. Warenausgang erzeugt Transportauftrag zur WA-Fläche
+4. Stapler bringt Ware zur Bereitstellung
+5. Versandabschluss bucht die Ware final aus
