@@ -7575,85 +7575,6 @@ function TransportReportSection({
     endDate || "ohne Enddatum"
   }`;
 
-  const escapeCsvValue = (value: string | number | null | undefined) => {
-    const textValue = String(value ?? "");
-    return `"${textValue.replace(/"/g, '""')}"`;
-  };
-
-  const exportTransportDashboardCsv = () => {
-    const headerRows = [
-      ["Transport-Dashboard Export"],
-      ["Zeitraum", selectedRangeText],
-      ["Schicht", shiftFilter ? getShiftLabel(shiftFilter) : "Alle Schichten"],
-      ["Benutzer", userFilter || "Alle Benutzer"],
-      ["Status", statusFilter || "Alle Status"],
-      ["Transportart", typeFilter || "Alle Transportarten"],
-      [],
-      ["Kennzahl", "Wert"],
-      ["TA im Zeitraum", totalCount],
-      ["Offen", openCount],
-      ["In Transport", inTransitCount],
-      ["Abgeschlossen", completedCount],
-      ["Fehler", errorCount],
-      ["Erfüllungsquote", `${completionRate}%`],
-      [],
-      [
-        "TA",
-        "TS",
-        "Status",
-        "Transportart",
-        "Produkt",
-        "SKU",
-        "Menge",
-        "Quelle",
-        "Ziel",
-        "Fahrer",
-        "Referenz",
-        "Zeitpunkt",
-        "Abgeschlossen am",
-      ],
-    ];
-
-    const dataRows = filteredOrders.map((order) => [
-      order.transport_order_number ?? `TA-${order.id}`,
-      order.transport_slip_number ?? "",
-      getStatusLabel(order.status),
-      getTransportType(order),
-      order.product_name,
-      order.product_sku,
-      order.quantity,
-      order.source_location_code,
-      order.target_location_code ?? "",
-      getAssignedUser(order),
-      order.reference_number || "",
-      getReferenceDate(order).toLocaleString("de-DE"),
-      order.completed_at
-        ? new Date(order.completed_at).toLocaleString("de-DE")
-        : "",
-    ]);
-
-    const csvContent = [...headerRows, ...dataRows]
-      .map((row) => row.map((value) => escapeCsvValue(value)).join(";"))
-      .join("\n");
-
-    const blob = new Blob([`\ufeff${csvContent}`], {
-      type: "text/csv;charset=utf-8;",
-    });
-
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    const safeStartDate = startDate || "alle";
-    const safeEndDate = endDate || "alle";
-
-    link.href = url;
-    link.download = `transport-dashboard-${safeStartDate}-bis-${safeEndDate}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-
-    URL.revokeObjectURL(url);
-  };
-
   const exportTransportDashboardExcel = async () => {
     const params = new URLSearchParams();
 
@@ -7879,19 +7800,6 @@ function TransportReportSection({
 
             <button type="button" onClick={() => void onRefresh()} style={secondaryButtonStyle}>
               Aktualisieren
-            </button>
-
-            <button
-              type="button"
-              onClick={exportTransportDashboardCsv}
-              disabled={filteredOrders.length === 0}
-              style={
-                filteredOrders.length === 0
-                  ? disabledButtonStyle
-                  : secondaryButtonStyle
-              }
-            >
-              CSV exportieren
             </button>
 
             <button
