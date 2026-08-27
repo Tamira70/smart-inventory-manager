@@ -3941,233 +3941,237 @@ const exportMovementsToCsv = async () => {
 
                   <div style={dashboardChartCardStyle}>
                     <h3 style={dashboardChartTitleStyle}>
-                      📍 Lagerplatzstatus
+                      📍 Flächenstatus WE / WA
                     </h3>
 
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                        gap: "12px",
+                      }}
+                    >
                       <div
                         style={{
-                          marginBottom: "16px",
-                          padding: "12px",
-                          borderRadius: "14px",
-                          background: "rgba(15, 23, 42, 0.55)",
-                          border: "1px solid rgba(148, 163, 184, 0.18)",
+                          padding: "14px",
+                          borderRadius: "16px",
+                          background: "rgba(15, 23, 42, 0.62)",
+                          border: "1px solid rgba(34, 197, 94, 0.22)",
                         }}
                       >
-                        <div
-                          style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            gap: "12px",
-                            marginBottom: "8px",
-                          }}
-                        >
-                          <strong style={{ color: "#bbf7d0" }}>
-                            WE-Flächen frei
-                          </strong>
-                          <span style={{ color: "#e5e7eb", fontWeight: 800 }}>
-                            {receivingAreaDashboardData.freeReceivingAreas.length}
+                        <div style={dashboardChartLabelRowStyle}>
+                          <strong style={{ color: "#bbf7d0" }}>Wareneingang</strong>
+                          <span>
+                            {receivingAreaDashboardData.receivingAreas.length} Flächen
                           </span>
                         </div>
 
-                        {receivingAreaDashboardData.freeReceivingAreas.length > 0 ? (
-                          <div
-                            style={{
-                              display: "flex",
-                              flexWrap: "wrap",
-                              gap: "8px",
-                            }}
-                          >
-                            {receivingAreaDashboardData.freeReceivingAreas.map((location) => (
-                              <span
-                                key={location.id}
-                                style={{
-                                  padding: "6px 10px",
-                                  borderRadius: "999px",
-                                  background: "rgba(22, 101, 52, 0.28)",
-                                  border: "1px solid rgba(34, 197, 94, 0.38)",
-                                  color: "#dcfce7",
-                                  fontWeight: 800,
-                                }}
-                              >
-                                {location.code}
-                              </span>
-                            ))}
-                          </div>
-                        ) : (
-                          <p style={{ ...infoStyle, margin: 0 }}>
-                            Keine freie WE-Fläche.
-                          </p>
-                        )}
-
                         <div
                           style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            gap: "12px",
+                            display: "grid",
+                            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                            gap: "10px",
                             marginTop: "12px",
-                            marginBottom: "8px",
                           }}
                         >
-                          <strong style={{ color: "#fde68a" }}>
-                            WE-Flächen belegt
-                          </strong>
-                          <span style={{ color: "#e5e7eb", fontWeight: 800 }}>
-                            {receivingAreaDashboardData.occupiedReceivingAreas.length}
-                          </span>
-                        </div>
-
-                        {receivingAreaDashboardData.occupiedReceivingAreas.length > 0 && (
                           <div
                             style={{
-                              display: "flex",
-                              flexWrap: "wrap",
-                              gap: "8px",
+                              padding: "10px",
+                              borderRadius: "12px",
+                              background: "rgba(22, 101, 52, 0.22)",
+                              color: "#dcfce7",
+                              textAlign: "center",
+                              fontWeight: 800,
                             }}
                           >
-                            {receivingAreaDashboardData.occupiedReceivingAreas.map((location) => (
-                              <span
-                                key={location.id}
-                                style={{
-                                  padding: "6px 10px",
-                                  borderRadius: "999px",
-                                  background: "rgba(120, 53, 15, 0.28)",
-                                  border: "1px solid rgba(251, 191, 36, 0.38)",
-                                  color: "#fef3c7",
-                                  fontWeight: 800,
-                                }}
-                              >
-                                {location.code}
-                              </span>
-                            ))}
+                            Frei
+                            <div style={{ fontSize: "1.5rem" }}>
+                              {receivingAreaDashboardData.freeReceivingAreas.length}
+                            </div>
                           </div>
-                        )}
+
+                          <div
+                            style={{
+                              padding: "10px",
+                              borderRadius: "12px",
+                              background: "rgba(120, 53, 15, 0.22)",
+                              color: "#fef3c7",
+                              textAlign: "center",
+                              fontWeight: 800,
+                            }}
+                          >
+                            Belegt
+                            <div style={{ fontSize: "1.5rem" }}>
+                              {receivingAreaDashboardData.occupiedReceivingAreas.length}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div
+                          style={{
+                            display: "flex",
+                            flexWrap: "wrap",
+                            gap: "7px",
+                            marginTop: "12px",
+                          }}
+                        >
+                          {receivingAreaDashboardData.receivingAreas.map((location) => (
+                            <span
+                              key={location.id}
+                              style={{
+                                padding: "5px 9px",
+                                borderRadius: "999px",
+                                background: location.is_empty
+                                  ? "rgba(22, 101, 52, 0.28)"
+                                  : "rgba(120, 53, 15, 0.28)",
+                                border: location.is_empty
+                                  ? "1px solid rgba(34, 197, 94, 0.38)"
+                                  : "1px solid rgba(251, 191, 36, 0.38)",
+                                color: location.is_empty ? "#dcfce7" : "#fef3c7",
+                                fontWeight: 800,
+                                fontSize: "0.82rem",
+                              }}
+                            >
+                              {location.code}
+                            </span>
+                          ))}
+                        </div>
                       </div>
 
                       <div
                         style={{
-                          marginBottom: "16px",
-                          padding: "12px",
-                          borderRadius: "14px",
-                          background: "rgba(15, 23, 42, 0.55)",
-                          border: "1px solid rgba(148, 163, 184, 0.18)",
+                          padding: "14px",
+                          borderRadius: "16px",
+                          background: "rgba(15, 23, 42, 0.62)",
+                          border: "1px solid rgba(34, 211, 238, 0.22)",
                         }}
                       >
-                        <div
-                          style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            gap: "12px",
-                            marginBottom: "8px",
-                          }}
-                        >
-                          <strong style={{ color: "#bae6fd" }}>
-                            WA-Flächen frei
-                          </strong>
-                          <span style={{ color: "#e5e7eb", fontWeight: 800 }}>
-                            {shippingAreaDashboardData.freeShippingAreas.length}
+                        <div style={dashboardChartLabelRowStyle}>
+                          <strong style={{ color: "#bae6fd" }}>Warenausgang</strong>
+                          <span>
+                            {shippingAreaDashboardData.shippingAreas.length} Flächen
                           </span>
                         </div>
 
-                        {shippingAreaDashboardData.freeShippingAreas.length > 0 ? (
-                          <div
-                            style={{
-                              display: "flex",
-                              flexWrap: "wrap",
-                              gap: "8px",
-                            }}
-                          >
-                            {shippingAreaDashboardData.freeShippingAreas.map((location) => (
-                              <span
-                                key={location.id}
-                                style={{
-                                  padding: "6px 10px",
-                                  borderRadius: "999px",
-                                  background: "rgba(14, 116, 144, 0.28)",
-                                  border: "1px solid rgba(34, 211, 238, 0.38)",
-                                  color: "#cffafe",
-                                  fontWeight: 800,
-                                }}
-                              >
-                                {location.code}
-                              </span>
-                            ))}
-                          </div>
-                        ) : (
-                          <p style={{ ...infoStyle, margin: 0 }}>
-                            Keine freie WA-Fläche.
-                          </p>
-                        )}
-
                         <div
                           style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            gap: "12px",
+                            display: "grid",
+                            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                            gap: "10px",
                             marginTop: "12px",
-                            marginBottom: "8px",
                           }}
                         >
-                          <strong style={{ color: "#f0abfc" }}>
-                            WA-Flächen belegt
-                          </strong>
-                          <span style={{ color: "#e5e7eb", fontWeight: 800 }}>
-                            {shippingAreaDashboardData.occupiedShippingAreas.length}
-                          </span>
-                        </div>
-
-                        {shippingAreaDashboardData.occupiedShippingAreas.length > 0 && (
                           <div
                             style={{
-                              display: "flex",
-                              flexWrap: "wrap",
-                              gap: "8px",
+                              padding: "10px",
+                              borderRadius: "12px",
+                              background: "rgba(14, 116, 144, 0.22)",
+                              color: "#cffafe",
+                              textAlign: "center",
+                              fontWeight: 800,
                             }}
                           >
-                            {shippingAreaDashboardData.occupiedShippingAreas.map((location) => (
-                              <span
-                                key={location.id}
-                                style={{
-                                  padding: "6px 10px",
-                                  borderRadius: "999px",
-                                  background: "rgba(112, 26, 117, 0.28)",
-                                  border: "1px solid rgba(217, 70, 239, 0.38)",
-                                  color: "#fae8ff",
-                                  fontWeight: 800,
-                                }}
-                              >
-                                {location.code}
-                              </span>
-                            ))}
+                            Frei
+                            <div style={{ fontSize: "1.5rem" }}>
+                              {shippingAreaDashboardData.freeShippingAreas.length}
+                            </div>
                           </div>
-                        )}
+
+                          <div
+                            style={{
+                              padding: "10px",
+                              borderRadius: "12px",
+                              background: "rgba(112, 26, 117, 0.22)",
+                              color: "#fae8ff",
+                              textAlign: "center",
+                              fontWeight: 800,
+                            }}
+                          >
+                            Belegt
+                            <div style={{ fontSize: "1.5rem" }}>
+                              {shippingAreaDashboardData.occupiedShippingAreas.length}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div
+                          style={{
+                            display: "flex",
+                            flexWrap: "wrap",
+                            gap: "7px",
+                            marginTop: "12px",
+                          }}
+                        >
+                          {shippingAreaDashboardData.shippingAreas.map((location) => (
+                            <span
+                              key={location.id}
+                              style={{
+                                padding: "5px 9px",
+                                borderRadius: "999px",
+                                background: location.is_empty
+                                  ? "rgba(14, 116, 144, 0.28)"
+                                  : "rgba(112, 26, 117, 0.28)",
+                                border: location.is_empty
+                                  ? "1px solid rgba(34, 211, 238, 0.38)"
+                                  : "1px solid rgba(217, 70, 239, 0.38)",
+                                color: location.is_empty ? "#cffafe" : "#fae8ff",
+                                fontWeight: 800,
+                                fontSize: "0.82rem",
+                              }}
+                            >
+                              {location.code}
+                            </span>
+                          ))}
+                        </div>
                       </div>
+                    </div>
 
-                    <div style={{ display: "grid", gap: "14px" }}>
-                      {storageLocationStatusData.map((item) => {
-                        const percent = Math.max(
-                          item.value > 0 ? 8 : 0,
-                          Math.round(
-                            (item.value / maxStorageLocationStatusValue) * 100
-                          )
-                        );
+                    <div
+                      style={{
+                        marginTop: "14px",
+                        padding: "12px",
+                        borderRadius: "14px",
+                        background: "rgba(30, 41, 59, 0.48)",
+                        border: "1px solid rgba(148, 163, 184, 0.14)",
+                      }}
+                    >
+                      <h4
+                        style={{
+                          margin: "0 0 10px",
+                          color: "#bfdbfe",
+                          fontSize: "0.95rem",
+                        }}
+                      >
+                        Lagerorte gesamt
+                      </h4>
 
-                        return (
-                          <div key={item.label}>
-                            <div style={dashboardChartLabelRowStyle}>
-                              <strong>{item.label}</strong>
-                              <span>{item.value}</span>
+                      <div style={{ display: "grid", gap: "10px" }}>
+                        {storageLocationStatusData.map((item) => {
+                          const percent = Math.max(
+                            item.value > 0 ? 8 : 0,
+                            Math.round(
+                              (item.value / maxStorageLocationStatusValue) * 100
+                            )
+                          );
+
+                          return (
+                            <div key={item.label}>
+                              <div style={dashboardChartLabelRowStyle}>
+                                <strong>{item.label}</strong>
+                                <span>{item.value}</span>
+                              </div>
+                              <div style={dashboardBarTrackStyle}>
+                                <div
+                                  style={{
+                                    ...dashboardBarStyle,
+                                    width: `${percent}%`,
+                                  }}
+                                />
+                              </div>
                             </div>
-                            <div style={dashboardBarTrackStyle}>
-                              <div
-                                style={{
-                                  ...dashboardBarStyle,
-                                  width: `${percent}%`,
-                                }}
-                              />
-                            </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
 
