@@ -3793,13 +3793,6 @@ const exportMovementsToCsv = async () => {
                 <p style={subtitleStyle}>
                   Geschütztes ERP-ähnliches Dashboard mit JWT-Login, Lagerprozessen, Inventur und Rollenmodell.
                 </p>
-                <p style={{ marginTop: "8px", color: "#94a3b8" }}>
-                  Eingeloggt als: <strong>{user?.username}</strong> | Rolle: <strong>{role}</strong>
-                </p>
-                {role === "viewer" && <p style={infoStyle}>🔒 Zuschauer-Modus aktiv: Du kannst alle Bereiche ansehen, aber keine Daten bearbeiten, keine Buchungen durchführen und keine Scans ausführen.</p>}
-                {role === "lager" && <p style={infoStyle}>📦 Lager-Modus aktiv: Du kannst Wareneingang, Warenausgang und Inventur buchen.</p>}
-                {role === "stapler" && <p style={infoStyle}>STAPLER-TERMINAL aktiv: Du kannst Transportaufträge übernehmen und per Scan bearbeiten.</p>}
-                {role === "admin" && <p style={infoStyle}>⚙️ Admin-Modus aktiv: Du hast vollen Zugriff auf alle Funktionen.</p>}
               </div>
               <button onClick={handleLogout} style={secondaryButtonStyle}>Logout</button>
             </header>
@@ -3809,27 +3802,105 @@ const exportMovementsToCsv = async () => {
 
             {activeSection === "dashboard" && (
               <section style={sectionStyle}>
-                <h2 style={sectionTitleStyle}>📊 Dashboard Übersicht</h2>
-                <p style={infoStyle}>
-                  Zentrale Übersicht über Lagerbestände, kritische Artikel,
-                  Tagesbewegungen, Lagerplatzstatus und Inventurstatus.
-                </p>
+                <div
+                  style={{
+                    marginBottom: "22px",
+                    padding: "22px",
+                    borderRadius: "22px",
+                    background:
+                      "linear-gradient(135deg, rgba(30, 64, 175, 0.28), rgba(15, 23, 42, 0.88))",
+                    border: "1px solid rgba(96, 165, 250, 0.28)",
+                    boxShadow: "0 18px 42px rgba(0,0,0,0.22)",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: "16px",
+                      flexWrap: "wrap",
+                      alignItems: "flex-start",
+                    }}
+                  >
+                    <div>
+                      <p
+                        style={{
+                          margin: "0 0 8px",
+                          color: "#93c5fd",
+                          fontSize: "0.8rem",
+                          fontWeight: 800,
+                          letterSpacing: "0.16em",
+                          textTransform: "uppercase",
+                        }}
+                      >
+                        WMS Live Cockpit
+                      </p>
+
+                      <h2
+                        style={{
+                          margin: 0,
+                          color: "#e0f2fe",
+                          fontSize: "2.15rem",
+                          lineHeight: 1.15,
+                        }}
+                      >
+                        📊 Operatives Lager-Cockpit
+                      </h2>
+
+                      <p
+                        style={{
+                          margin: "12px 0 0",
+                          color: "#cbd5e1",
+                          maxWidth: "860px",
+                          lineHeight: 1.6,
+                        }}
+                      >
+                        Kompakte Übersicht über Bestand, Lagerflächen,
+                        Wareneingang, Warenausgang, kritische Artikel und aktuelle
+                        Prozessbewegungen.
+                      </p>
+                    </div>
+
+                    <div
+                      style={{
+                        minWidth: "220px",
+                        padding: "14px",
+                        borderRadius: "16px",
+                        background: "rgba(15, 23, 42, 0.64)",
+                        border: "1px solid rgba(148, 163, 184, 0.18)",
+                        color: "#e2e8f0",
+                        lineHeight: 1.7,
+                      }}
+                    >
+                      <div style={{ color: "#94a3b8", fontSize: "0.82rem" }}>
+                        Aktueller Status
+                      </div>
+                      <strong>System aktiv</strong>
+                      <div style={{ color: "#94a3b8", marginTop: "6px" }}>
+                        Rolle: {role}
+                      </div>
+                      <div style={{ color: "#94a3b8" }}>
+                        Benutzer: {user?.username}
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
                 <div style={dashboardGridStyle}>
-                  <Card title="Produkte gesamt" value={String(totalProducts)} />
-                  <Card title="Bestand gesamt" value={String(totalUnits)} />
+                  <Card title="Artikelstamm" value={String(totalProducts)} />
+                  <Card title="Bestandseinheiten" value={String(totalUnits)} />
                   <Card
-                    title="Niedriger Bestand"
+                    title="Kritische Bestände"
                     value={String(lowStockProducts.length)}
                     danger={lowStockProducts.length > 0}
                   />
                   <Card
-                    title="Inventur-Differenzen"
+                    title="Inventurabweichungen"
                     value={String(inventorySummary.differences)}
                     danger={inventorySummary.differences > 0}
                   />
-                  <Card title="Wareneingänge heute" value={String(goodsInToday)} />
-                  <Card title="Warenausgänge heute" value={String(goodsOutToday)} />
+                  <Card title="WE heute" value={String(goodsInToday)} />
+                  <Card title="WA heute" value={String(goodsOutToday)} />
                 </div>
 
                 <div
@@ -3842,7 +3913,7 @@ const exportMovementsToCsv = async () => {
                 >
                   <div style={dashboardChartCardStyle}>
                     <h3 style={dashboardChartTitleStyle}>
-                      📦 Bestand nach Lagerplatz
+                      📦 Top-Lagerplätze nach Bestand
                     </h3>
 
                     {locationStockChartData.length > 0 ? (
@@ -3883,7 +3954,7 @@ const exportMovementsToCsv = async () => {
 
                   <div style={dashboardChartCardStyle}>
                     <h3 style={dashboardChartTitleStyle}>
-                      🔁 Bewegungen letzte 7 Tage
+                      🔁 Bewegungsanalyse · 7 Tage
                     </h3>
 
                     <div style={{ display: "grid", gap: "12px" }}>
@@ -3941,7 +4012,7 @@ const exportMovementsToCsv = async () => {
 
                   <div style={dashboardChartCardStyle}>
                     <h3 style={dashboardChartTitleStyle}>
-                      📍 Flächenstatus WE / WA
+                      📍 Flächenstatus · WE / WA
                     </h3>
 
                     <div
@@ -4177,7 +4248,7 @@ const exportMovementsToCsv = async () => {
 
                   <div style={dashboardChartCardStyle}>
                     <h3 style={dashboardChartTitleStyle}>
-                      ⚠️ Kritische Artikel
+                      ⚠️ Bestandsrisiken
                     </h3>
 
                     {lowStockChartData.length > 0 ? (
@@ -4250,7 +4321,7 @@ const exportMovementsToCsv = async () => {
                       textAlign: "center",
                     }}
                   >
-                    Letzte Lagerbewegung
+                    Letzte Buchung
                   </h3>
                   {latestMovement ? (
                     <div style={infoStyle}>
