@@ -3671,6 +3671,30 @@ const exportMovementsToCsv = async () => {
     };
   }, [storageLocations]);
 
+  const shippingAreaDashboardData = useMemo(() => {
+    const shippingAreas = storageLocations
+      .filter(
+        (location) =>
+          location.location_type === "SHIPPING" ||
+          location.code.toUpperCase().startsWith("WA-")
+      )
+      .sort((first, second) => first.code.localeCompare(second.code));
+
+    const freeShippingAreas = shippingAreas.filter(
+      (location) => location.is_active && !location.is_blocked && location.is_empty
+    );
+
+    const occupiedShippingAreas = shippingAreas.filter(
+      (location) => location.is_active && !location.is_blocked && !location.is_empty
+    );
+
+    return {
+      shippingAreas,
+      freeShippingAreas,
+      occupiedShippingAreas,
+    };
+  }, [storageLocations]);
+
   const storageLocationStatusData = useMemo(() => {
     const occupied = storageLocations.filter(
       (location) => !location.is_empty
@@ -4009,6 +4033,105 @@ const exportMovementsToCsv = async () => {
                                   background: "rgba(120, 53, 15, 0.28)",
                                   border: "1px solid rgba(251, 191, 36, 0.38)",
                                   color: "#fef3c7",
+                                  fontWeight: 800,
+                                }}
+                              >
+                                {location.code}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <div
+                        style={{
+                          marginBottom: "16px",
+                          padding: "12px",
+                          borderRadius: "14px",
+                          background: "rgba(15, 23, 42, 0.55)",
+                          border: "1px solid rgba(148, 163, 184, 0.18)",
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            gap: "12px",
+                            marginBottom: "8px",
+                          }}
+                        >
+                          <strong style={{ color: "#bae6fd" }}>
+                            WA-Flächen frei
+                          </strong>
+                          <span style={{ color: "#e5e7eb", fontWeight: 800 }}>
+                            {shippingAreaDashboardData.freeShippingAreas.length}
+                          </span>
+                        </div>
+
+                        {shippingAreaDashboardData.freeShippingAreas.length > 0 ? (
+                          <div
+                            style={{
+                              display: "flex",
+                              flexWrap: "wrap",
+                              gap: "8px",
+                            }}
+                          >
+                            {shippingAreaDashboardData.freeShippingAreas.map((location) => (
+                              <span
+                                key={location.id}
+                                style={{
+                                  padding: "6px 10px",
+                                  borderRadius: "999px",
+                                  background: "rgba(14, 116, 144, 0.28)",
+                                  border: "1px solid rgba(34, 211, 238, 0.38)",
+                                  color: "#cffafe",
+                                  fontWeight: 800,
+                                }}
+                              >
+                                {location.code}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <p style={{ ...infoStyle, margin: 0 }}>
+                            Keine freie WA-Fläche.
+                          </p>
+                        )}
+
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            gap: "12px",
+                            marginTop: "12px",
+                            marginBottom: "8px",
+                          }}
+                        >
+                          <strong style={{ color: "#f0abfc" }}>
+                            WA-Flächen belegt
+                          </strong>
+                          <span style={{ color: "#e5e7eb", fontWeight: 800 }}>
+                            {shippingAreaDashboardData.occupiedShippingAreas.length}
+                          </span>
+                        </div>
+
+                        {shippingAreaDashboardData.occupiedShippingAreas.length > 0 && (
+                          <div
+                            style={{
+                              display: "flex",
+                              flexWrap: "wrap",
+                              gap: "8px",
+                            }}
+                          >
+                            {shippingAreaDashboardData.occupiedShippingAreas.map((location) => (
+                              <span
+                                key={location.id}
+                                style={{
+                                  padding: "6px 10px",
+                                  borderRadius: "999px",
+                                  background: "rgba(112, 26, 117, 0.28)",
+                                  border: "1px solid rgba(217, 70, 239, 0.38)",
+                                  color: "#fae8ff",
                                   fontWeight: 800,
                                 }}
                               >
