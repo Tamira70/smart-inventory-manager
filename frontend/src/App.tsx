@@ -7654,6 +7654,55 @@ function TransportReportSection({
     URL.revokeObjectURL(url);
   };
 
+  const exportTransportDashboardExcel = async () => {
+    const params = new URLSearchParams();
+
+    if (startDate) params.set("start_date", startDate);
+    if (endDate) params.set("end_date", endDate);
+    if (shiftFilter) params.set("shift", shiftFilter);
+    if (userFilter) params.set("user", userFilter);
+    if (statusFilter) params.set("status", statusFilter);
+    if (typeFilter) params.set("transport_type", typeFilter);
+    if (search.trim()) params.set("search", search.trim());
+
+    try {
+      const query = params.toString();
+      const endpoint = `/inventory-api/transport-orders/export-excel/${
+        query ? `?${query}` : ""
+      }`;
+
+      const response = await apiFetch(endpoint);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || "Fehler beim Excel-Export.");
+      }
+
+      const blob = await response.blob();
+      const contentDisposition = response.headers.get("Content-Disposition") || "";
+      const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+      const filename =
+        filenameMatch?.[1] ||
+        `transport-dashboard-${startDate || "alle"}-bis-${endDate || "alle"}.xlsx`;
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Fehler beim Excel-Export.";
+
+      window.alert(message);
+    }
+  };
+
   return (
     <section style={sectionStyle}>
       <div style={dashboardShellStyle}>
@@ -7843,6 +7892,19 @@ function TransportReportSection({
               }
             >
               CSV exportieren
+            </button>
+
+            <button
+              type="button"
+              onClick={() => void exportTransportDashboardExcel()}
+              disabled={filteredOrders.length === 0}
+              style={
+                filteredOrders.length === 0
+                  ? disabledButtonStyle
+                  : secondaryButtonStyle
+              }
+            >
+              Excel exportieren
             </button>
 
             <button
