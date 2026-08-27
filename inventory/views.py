@@ -862,6 +862,308 @@ class TransportOrderViewSet(viewsets.ModelViewSet):
             status=status.HTTP_201_CREATED,
         )
 
+    @action(detail=False, methods=["get"], url_path="export-excel")
+    def export_excel(self, request):
+        from collections import defaultdict
+        from datetime import datetime
+
+        from django.http import HttpResponse
+        from django.utils import timezone
+        from openpyxl import Workbook
+        from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+        from openpyxl.utils import get_column_letter
+
+        def parse_date(value):
+            if not value:
+                return None
+            try:
+                return datetime.strptime(value, "%Y-%m-%d").date()
+            except ValueError:
+                return None
+
+        def local_datetime(value):
+            if value and timezone.is_aware(value):
+                return timezone.localtime(value)
+            return value
+
+        def reference_datetime(order):
+            return local_datetime(order.completed_at or order.picked_at or order.created_at)
+
+        def shift_key(value):
+            hour = value.hour
+            if 6 <= hour < 14:
+                return "early"
+            if 14 <= hour < 22:
+                return "late"
+            return "night"
+
+        def shift_label(value):
+            return {
+                "early": "Frühschicht 06:00–14:00",
+                "late": "Spätschicht 14:00–22:00",
+                "night": "Nachtschicht 22:00–06:00",
+            }.get(value, "Alle Schichten")
+
+        def assigned_user(order):
+            return order.assigned_to.username if order.assigned_to else "Nicht zugewiesen"
+
+        def transport_type(order):
+            source_code = order.source_location.code.upper()
+            target_code = order.target_location.code.upper() if order.target_location else ""
+
+            if source_code.startswith("WE-"):
+                return "WE → Lager"
+            if target_code.startswith("WA-"):
+                return "Lager → WA"
+            return "Lagerintern"
+
+        start_date_value = parse_date(request.query_params.get("start_date"))
+        end_date_value = parse_date(request.query_params.get("end_date"))
+        shift_filter = request.query_params.get("shift", "")
+        user_filter = request.query_params.get("user", "")
+        status_filter = request.query_params.get("status", "")
+        transport_type_filter = request.query_params.get("transport_type", "")
+        search_value = request.query_params.get("search", "").strip().lower()
+
+        filtered_orders = []
+
+        for order in self.get_queryset().order_by("-created_at"):
+            ref_dt = reference_datetime(order)
+            ref_date = ref_dt.date()
+            current_type = transport_type(order)
+            current_user = assigned_user(order)
+
+            if start_date_value and ref_date < start_date_value:
+                continue
+            if end_date_value and ref_date > end_date_value:
+                continue
+            if shift_filter and shift_key(ref_dt) != shift_filter:
+                continue
+            if user_filter and current_user != user_filter:
+                continue
+            if status_filter and order.status != status_filter:
+                continue
+            if transport_type_filter and current_type != transport_type_filter:
+                continue
+
+            haystack = " ".join([
+                order.transport_order_number or "",
+                order.transport_slip_number or "",
+                order.product.name,
+                order.product.sku,
+                order.source_location.code,
+                order.target_location.code if order.target_location else "",
+                order.reference_number or "",
+                current_user,
+                current_type,
+                order.get_status_display(),
+            ]).lower()
+
+            if search_value and search_value not in haystack:
+                continue
+
+            filtered_orders.append(order)
+
+        total_count = len(filtered_orders)
+        completed_count = sum(1 for o in filtered_orders if o.status == TransportOrder.Status.COMPLETED)
+        open_count = sum(1 for o in filtered_orders if o.status not in [TransportOrder.Status.COMPLETED, TransportOrder.Status.CANCELLED])
+        in_transit_count = sum(1 for o in filtered_orders if o.status == TransportOrder.Status.IN_TRANSIT)
+        cancelled_count = sum(1 for o in filtered_orders if o.status == TransportOrder.Status.CANCELLED)
+        error_count = sum(1 for o in filtered_orders if o.status == TransportOrder.Status.ERROR)
+        completion_rate = round((completed_count / total_count) * 100, 1) if total_count else 0
+
+        user_stats = defaultdict(lambda: {
+            "total": 0,
+            "completed": 0,
+            "open": 0,
+            "in_transit": 0,
+            "errors": 0,
+        })
+
+        for order in filtered_orders:
+            name = assigned_user(order)
+            user_stats[name]["total"] += 1
+            if order.status == TransportOrder.Status.COMPLETED:
+                user_stats[name]["completed"] += 1
+            if order.status not in [TransportOrder.Status.COMPLETED, TransportOrder.Status.CANCELLED]:
+                user_stats[name]["open"] += 1
+            if order.status == TransportOrder.Status.IN_TRANSIT:
+                user_stats[name]["in_transit"] += 1
+            if order.status == TransportOrder.Status.ERROR:
+                user_stats[name]["errors"] += 1
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Transport-Dashboard"
+        ws.sheet_view.showGridLines = False
+
+        dark_fill = PatternFill("solid", fgColor="0F172A")
+        blue_fill = PatternFill("solid", fgColor="1D4ED8")
+        slate_fill = PatternFill("solid", fgColor="E2E8F0")
+        light_fill = PatternFill("solid", fgColor="F8FAFC")
+        green_fill = PatternFill("solid", fgColor="DCFCE7")
+        yellow_fill = PatternFill("solid", fgColor="FEF3C7")
+        red_fill = PatternFill("solid", fgColor="FEE2E2")
+
+        border = Border(
+            left=Side(style="thin", color="CBD5E1"),
+            right=Side(style="thin", color="CBD5E1"),
+            top=Side(style="thin", color="CBD5E1"),
+            bottom=Side(style="thin", color="CBD5E1"),
+        )
+
+        ws.merge_cells("A1:M1")
+        ws["A1"] = "Transport-Dashboard Export"
+        ws["A1"].font = Font(bold=True, size=18, color="FFFFFF")
+        ws["A1"].fill = dark_fill
+        ws["A1"].alignment = Alignment(horizontal="center", vertical="center")
+        ws.row_dimensions[1].height = 28
+
+        filters = [
+            ("Zeitraum", f"{request.query_params.get('start_date') or 'ohne Startdatum'} bis {request.query_params.get('end_date') or 'ohne Enddatum'}"),
+            ("Schicht", shift_label(shift_filter) if shift_filter else "Alle Schichten"),
+            ("Benutzer", user_filter or "Alle Benutzer"),
+            ("Status", status_filter or "Alle Status"),
+            ("Transportart", transport_type_filter or "Alle Transportarten"),
+        ]
+
+        row = 3
+        for label, value in filters:
+            ws.cell(row=row, column=1, value=label)
+            ws.cell(row=row, column=2, value=value)
+            ws.cell(row=row, column=1).font = Font(bold=True)
+            row += 1
+
+        row += 1
+        ws.cell(row=row, column=1, value="Kennzahl")
+        ws.cell(row=row, column=2, value="Wert")
+
+        for col in range(1, 3):
+            cell = ws.cell(row=row, column=col)
+            cell.font = Font(bold=True, color="FFFFFF")
+            cell.fill = blue_fill
+            cell.border = border
+
+        row += 1
+
+        metrics = [
+            ("TA im Zeitraum", total_count),
+            ("Offen", open_count),
+            ("In Transport", in_transit_count),
+            ("Abgeschlossen", completed_count),
+            ("Storniert", cancelled_count),
+            ("Fehler", error_count),
+            ("Erfüllungsquote", f"{completion_rate}%"),
+        ]
+
+        for label, value in metrics:
+            ws.cell(row=row, column=1, value=label)
+            ws.cell(row=row, column=2, value=value)
+            ws.cell(row=row, column=1).border = border
+            ws.cell(row=row, column=2).border = border
+            ws.cell(row=row, column=1).fill = light_fill
+            ws.cell(row=row, column=2).fill = light_fill
+            row += 1
+
+        row += 2
+        ws.cell(row=row, column=1, value="TA je Benutzer")
+        ws.cell(row=row, column=1).font = Font(bold=True, size=13, color="FFFFFF")
+        ws.cell(row=row, column=1).fill = dark_fill
+        row += 1
+
+        user_headers = ["Benutzer", "TA gesamt", "Abgeschlossen", "Offen", "In Transport", "Fehler"]
+        for col, value in enumerate(user_headers, start=1):
+            cell = ws.cell(row=row, column=col, value=value)
+            cell.font = Font(bold=True, color="FFFFFF")
+            cell.fill = blue_fill
+            cell.border = border
+
+        row += 1
+
+        for user_name, stats in sorted(user_stats.items(), key=lambda item: (-item[1]["completed"], -item[1]["total"], item[0])):
+            values = [
+                user_name,
+                stats["total"],
+                stats["completed"],
+                stats["open"],
+                stats["in_transit"],
+                stats["errors"],
+            ]
+
+            for col, value in enumerate(values, start=1):
+                cell = ws.cell(row=row, column=col, value=value)
+                cell.border = border
+                cell.fill = light_fill
+
+            row += 1
+
+        row += 2
+        table_header_row = row
+
+        headers = [
+            "TA", "TS", "Status", "Transportart", "Produkt", "SKU", "Menge",
+            "Quelle", "Ziel", "Fahrer", "Referenz", "Zeitpunkt", "Abgeschlossen am",
+        ]
+
+        for col, value in enumerate(headers, start=1):
+            cell = ws.cell(row=table_header_row, column=col, value=value)
+            cell.font = Font(bold=True, color="FFFFFF")
+            cell.fill = blue_fill
+            cell.border = border
+            cell.alignment = Alignment(horizontal="center")
+
+        row += 1
+
+        for order in filtered_orders:
+            ref_dt = reference_datetime(order)
+            values = [
+                order.transport_order_number or f"TA-{order.id}",
+                order.transport_slip_number or "",
+                order.get_status_display(),
+                transport_type(order),
+                order.product.name,
+                order.product.sku,
+                float(order.quantity),
+                order.source_location.code,
+                order.target_location.code if order.target_location else "",
+                assigned_user(order),
+                order.reference_number or "",
+                ref_dt.strftime("%d.%m.%Y, %H:%M:%S"),
+                local_datetime(order.completed_at).strftime("%d.%m.%Y, %H:%M:%S") if order.completed_at else "",
+            ]
+
+            for col, value in enumerate(values, start=1):
+                cell = ws.cell(row=row, column=col, value=value)
+                cell.border = border
+                cell.fill = light_fill
+                cell.alignment = Alignment(vertical="top", wrap_text=True)
+
+            status_cell = ws.cell(row=row, column=3)
+            if order.status == TransportOrder.Status.COMPLETED:
+                status_cell.fill = green_fill
+            elif order.status == TransportOrder.Status.ERROR:
+                status_cell.fill = red_fill
+            elif order.status in [TransportOrder.Status.CREATED, TransportOrder.Status.ASSIGNED, TransportOrder.Status.IN_TRANSIT]:
+                status_cell.fill = yellow_fill
+
+            row += 1
+
+        widths = [18, 18, 18, 16, 26, 16, 12, 14, 14, 20, 26, 22, 22]
+        for col, width in enumerate(widths, start=1):
+            ws.column_dimensions[get_column_letter(col)].width = width
+
+        if row > table_header_row + 1:
+            ws.auto_filter.ref = f"A{table_header_row}:M{row - 1}"
+
+        ws.freeze_panes = f"A{table_header_row + 1}"
+
+        response = HttpResponse(
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        response["Content-Disposition"] = 'attachment; filename="transport-dashboard.xlsx"'
+        wb.save(response)
+        return response
+
     @action(detail=False, methods=["get"], url_path="active")
     def active(self, request):
         queryset = (
