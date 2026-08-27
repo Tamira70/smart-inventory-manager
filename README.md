@@ -106,7 +106,7 @@ Besonders relevant ist das für Tätigkeiten im Bereich:
 
 ---
 
-# 📦 Smart Inventory Manager – Feature Branch `feature/lagerorte`
+## Technische Projektdokumentation
 
 Dieser Branch enthält die erweiterte Lagerplatz- und WMS-Logik des **Smart Inventory Manager**.
 
