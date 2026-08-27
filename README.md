@@ -160,9 +160,9 @@ Damit kann der komplette Ablauf gezeigt werden:
 4. Stapler bringt Ware zur Bereitstellung
 5. Versandabschluss bucht die Ware final aus
 
-### Transport-Dashboard CSV-Export
+### Transport-Dashboard Excel-Export
 
-Das Transport-Dashboard wurde um einen CSV-Export erweitert.
+Das Transport-Dashboard wurde um einen Excel-Export erweitert.
 
 Umgesetzt:
 
@@ -189,4 +189,4 @@ Umgesetzt:
   - Zeitpunkt
   - Abschlusszeitpunkt
 
-Die CSV-Datei kann mit LibreOffice Calc oder Microsoft Excel geöffnet werden.
+Die Excel-Datei (.xlsx) kann direkt mit LibreOffice Calc oder Microsoft Excel geöffnet werden.
