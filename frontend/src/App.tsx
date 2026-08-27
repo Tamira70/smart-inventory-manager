@@ -8132,9 +8132,9 @@ function ForkliftTerminalSection({
   const statusLabel = (status: TransportOrder["status"]) => {
     switch (status) {
       case "CREATED":
-        return "ERSTELLT";
+        return "OFFEN";
       case "ASSIGNED":
-        return "ZUGEWIESEN";
+        return "ÜBERNOMMEN";
       case "PICKED":
         return "WARE AUFGENOMMEN";
       case "IN_TRANSIT":
@@ -8175,6 +8175,15 @@ function ForkliftTerminalSection({
 
   const hasScanError = scanFeedback.startsWith("⛔");
   const scannedValue = scanValue || activeOrder?.last_scan_value || "—";
+
+  const stepHint = activeOrder
+    ? isWaitingForSource
+      ? "Fahre zum Quellbereich und scanne den angegebenen Lagerort."
+      : isWaitingForTarget
+      ? "Ware aufgenommen. Fahre zum Zielbereich und scanne den Ziel-Lagerort."
+      : "Für diesen Auftrag ist aktuell kein Scan erforderlich."
+    : "Es ist aktuell kein offener Transportauftrag ausgewählt.";
+
 
   const terminalShellStyle: CSSProperties = {
     maxWidth: "1080px",
@@ -8279,21 +8288,20 @@ function ForkliftTerminalSection({
   return (
     <section style={sectionStyle}>
       <h2 style={sectionTitleStyle}>STAPLER-TERMINAL</h2>
-
-      <div
-        style={{
-          margin: "12px 0 18px",
-          padding: "14px 16px",
-          borderRadius: "16px",
-          border: "1px solid rgba(251, 191, 36, 0.45)",
-          background: "rgba(120, 53, 15, 0.22)",
-          color: "#fef3c7",
-          fontWeight: 700,
-        }}
-      >
-        ⚠️ STAPLER-TERMINAL befindet sich noch in Entwicklung.
-        Bitte nur für Test- und Demo-Zwecke verwenden.
-      </div>
+        <div
+          style={{
+            margin: "12px 0 18px",
+            padding: "14px 16px",
+            borderRadius: "16px",
+            border: "1px solid rgba(34, 197, 94, 0.45)",
+            background: "rgba(20, 83, 45, 0.22)",
+            color: "#bbf7d0",
+            fontWeight: 700,
+          }}
+        >
+          ✅ Scannergeführter Transportprozess aktiv. Quelle und Ziel werden nacheinander geprüft;
+          Fehlscans bleiben sichtbar und nachvollziehbar.
+        </div>
 
       <p style={infoStyle}>
         Tablet-optimierte Stapleranzeige mit klarer Fahranweisung,
@@ -8303,7 +8311,7 @@ function ForkliftTerminalSection({
       <div style={terminalShellStyle}>
         {canCreateTransportOrder && (
           <div style={panelStyle}>
-            <h3 style={panelTitleStyle}>Transportauftrag zur WA-Fläche erstellen</h3>
+            <h3 style={panelTitleStyle}>Warenausgangs-Transport vorbereiten</h3>
 
             <p style={{ ...infoStyle, marginTop: 0 }}>
               Zielplätze sind Warenausgangs-/Bereitstellflächen wie WA-0001 bis WA-0005.
@@ -8374,7 +8382,7 @@ function ForkliftTerminalSection({
                     : primaryButtonStyle
                 }
               >
-                {createSaving ? "Erstelle..." : "TA erstellen"}
+                {createSaving ? "Erstelle..." : "Transportauftrag erstellen"}
               </button>
             </form>
           </div>
@@ -8474,13 +8482,24 @@ function ForkliftTerminalSection({
               >
                 {expectedCode}
               </div>
+
+                <div
+                  style={{
+                    color: "#cbd5e1",
+                    fontSize: "16px",
+                    fontWeight: 650,
+                    marginTop: "10px",
+                  }}
+                >
+                  {stepHint}
+                </div>
             </>
           )}
         </div>
 
         <div style={areaGridStyle}>
           <div style={areaBoxStyle}>
-            <h3 style={panelTitleStyle}>Bereich 1 · Auftrag</h3>
+            <h3 style={panelTitleStyle}>Auftrag</h3>
 
             {activeOrder ? (
               <>
@@ -8506,7 +8525,7 @@ function ForkliftTerminalSection({
           </div>
 
           <div style={areaBoxStyle}>
-            <h3 style={panelTitleStyle}>Bereich 2 · Lagerung</h3>
+            <h3 style={panelTitleStyle}>Route: Quelle → Ziel</h3>
 
             {activeOrder ? (
               <div style={{ display: "grid", gap: "14px" }}>
@@ -8537,7 +8556,7 @@ function ForkliftTerminalSection({
         </div>
 
         <div style={{ ...areaBoxStyle, marginTop: "14px" }}>
-          <h3 style={panelTitleStyle}>Bereich 3 · Ein-Scan-Feld</h3>
+          <h3 style={panelTitleStyle}>Scanner</h3>
 
           <input
             ref={scanInputRef}
@@ -8550,7 +8569,7 @@ function ForkliftTerminalSection({
                 onScan();
               }
             }}
-            placeholder="SCAN AKTIV · Lagerort / QR-Code scannen"
+            placeholder="SCAN AKTIV · erwarteten Lagerort oder QR-Code scannen"
             style={scanInputStyle}
             disabled={!canUseTerminal || !activeOrder}
           />
@@ -8569,7 +8588,7 @@ function ForkliftTerminalSection({
             }}
             disabled={!canUseTerminal || !activeOrder}
           >
-            Scan verarbeiten
+            Scan bestätigen
           </button>
 
           {scanFeedback && !hasScanError && (
@@ -8587,12 +8606,12 @@ function ForkliftTerminalSection({
               style={canUseTerminal ? secondaryButtonStyle : disabledButtonStyle}
               disabled={!canUseTerminal}
             >
-              Auftrag übernehmen
+              Auftrag übernehmen / mir zuweisen
             </button>
           </div>
         )}
 
-        {/* TA-Liste ganz unten */}
+        {/* Offene Transportaufträge ganz unten */}
         <div style={{ ...panelStyle, marginTop: "16px", marginBottom: 0 }}>
           <div
             style={{
@@ -8603,7 +8622,7 @@ function ForkliftTerminalSection({
               marginBottom: "12px",
             }}
           >
-            <h3 style={panelTitleStyle}>TA-Liste</h3>
+            <h3 style={panelTitleStyle}>Offene Transportaufträge</h3>
 
             <button type="button" onClick={onRefresh} style={secondaryButtonStyle}>
               Aktualisieren
