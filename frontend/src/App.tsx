@@ -8173,8 +8173,15 @@ function ForkliftTerminalSection({
       : "—"
     : "—";
 
-  const hasScanError = scanFeedback.startsWith("⛔");
   const scannedValue = scanValue || activeOrder?.last_scan_value || "—";
+  const scannedMatchesExpected =
+    activeOrder &&
+    expectedCode !== "—" &&
+    scannedValue !== "—" &&
+    scannedValue.trim().toUpperCase() === expectedCode.trim().toUpperCase();
+
+  const hasScanError =
+    scanFeedback.startsWith("⛔") && !scannedMatchesExpected;
 
   const stepHint = activeOrder
     ? isWaitingForSource
