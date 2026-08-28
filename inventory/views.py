@@ -2158,6 +2158,120 @@ class StorageLocationStockViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = StorageLocationStockSerializer
     permission_classes = [IsAuthenticated]
 
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="complete-shipping",
+        permission_classes=[IsLagerOrAdmin],
+    )
+    def complete_shipping(self, request, pk=None):
+        """
+        Schließt den Versand einer konkreten WA-Bestandsposition ab.
+        Bestand darf nur von Warenausgangs-/Bereitstellflächen ausgebucht werden.
+        """
+        with transaction.atomic():
+            try:
+                stock = (
+                    StorageLocationStock.objects.select_for_update()
+                    .select_related("product", "storage_location")
+                    .get(pk=pk, quantity__gt=0)
+                )
+            except StorageLocationStock.DoesNotExist:
+                return Response(
+                    {"detail": "Bestandsposition nicht gefunden oder bereits ausgebucht."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            product = stock.product
+            location = stock.storage_location
+
+            if location.location_type != StorageLocation.LocationType.SHIPPING:
+                return Response(
+                    {"detail": "Versandabschluss ist nur von WA-Flächen möglich."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if not location.is_active:
+                return Response(
+                    {"detail": "Diese WA-Fläche ist nicht aktiv."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if location.is_blocked:
+                return Response(
+                    {"detail": "Diese WA-Fläche ist gesperrt."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            requested_quantity = request.data.get("quantity") or stock.quantity
+
+            try:
+                quantity = Decimal(str(requested_quantity))
+            except Exception:
+                return Response(
+                    {"detail": "Bitte eine gültige Versandmenge angeben."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if quantity <= 0:
+                return Response(
+                    {"detail": "Die Versandmenge muss größer als 0 sein."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if quantity > stock.quantity:
+                return Response(
+                    {
+                        "detail": (
+                            f"Auf {location.code} liegen nur {stock.quantity} "
+                            f"{product.unit} von {product.name}."
+                        )
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            reference_number = str(request.data.get("reference_number") or "").strip()
+            if not reference_number:
+                reference_number = f"VERSAND-{timezone.now():%Y%m%d}-{stock.id:04d}"
+
+            note = str(request.data.get("note") or "").strip()
+            if not note:
+                note = f"Versandabschluss von WA-Fläche {location.code}."
+
+            serializer = StockMovementSerializer(
+                data={
+                    "product": product.id,
+                    "movement_type": "OUT",
+                    "quantity": str(quantity),
+                    "storage_location": location.id,
+                    "reference_number": reference_number,
+                    "note": note,
+                },
+                context={"request": request},
+            )
+            serializer.is_valid(raise_exception=True)
+            movement = serializer.save(created_by=request.user)
+
+            remaining_quantity = (
+                StorageLocationStock.objects.filter(pk=stock.pk)
+                .values_list("quantity", flat=True)
+                .first()
+                or Decimal("0")
+            )
+
+        return Response(
+            {
+                "detail": (
+                    f"Versand abgeschlossen: {product.name} wurde von "
+                    f"{location.code} ausgebucht."
+                ),
+                "movement": StockMovementSerializer(movement).data,
+                "remaining_quantity": str(remaining_quantity),
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
     @action(detail=False, methods=["get"], url_path="export-excel")
     def export_excel(self, request):
         workbook = Workbook()

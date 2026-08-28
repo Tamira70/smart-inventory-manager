@@ -2895,19 +2895,19 @@ if (role === "einkauf") {
         goodsOutReferenceNumber.trim() ||
         `VERSAND-${new Date().toISOString().slice(0, 10)}-${stock.storage_location_code}`;
 
-      const response = await apiFetch("/inventory-api/stock-movements/", {
-        method: "POST",
-        body: JSON.stringify({
-          product: stock.product,
-          movement_type: "OUT",
-          quantity: stock.quantity,
-          storage_location: stock.storage_location,
-          reference_number: reference,
-          note:
-            `Versandabschluss von WA-Fläche ${stock.storage_location_code}. ` +
-            (goodsOutNote.trim() || "Ware wurde an Versand übergeben."),
-        }),
-      });
+      const response = await apiFetch(
+        `/inventory-api/location-stocks/${stock.id}/complete-shipping/`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            quantity: stock.quantity,
+            reference_number: reference,
+            note:
+              `Versandabschluss von WA-Fläche ${stock.storage_location_code}. ` +
+              (goodsOutNote.trim() || "Ware wurde an Versand übergeben."),
+          }),
+        }
+      );
 
       if (!response.ok) {
         const errorData = await response.json();
