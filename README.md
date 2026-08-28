@@ -298,3 +298,54 @@ Umgesetzt:
   - Abschlusszeitpunkt
 
 Die Excel-Datei (.xlsx) kann direkt mit LibreOffice Calc oder Microsoft Excel geöffnet werden.
+
+## WMS-Demo-Manager
+
+Für eine saubere Vorführung des WMS-Prozesses gibt es einen eigenen Django-Management-Befehl:
+
+```bash
+python manage.py prepare_wms_demo
+```
+
+Der Befehl bereitet einen stabilen Demo-Zustand vor:
+
+### Vorabprüfung ohne Änderungen
+
+```bash
+python manage.py prepare_wms_demo --dry-run
+```
+
+### Demo-Zustand vorbereiten
+
+```bash
+python manage.py prepare_wms_demo --ensure-stock
+```
+
+Standardmäßig wird folgender Demo-Ablauf vorbereitet:
+
+```text
+Filament PAL Blau
+A-R2-F4 → WA-0001
+Menge: 1
+```
+
+Der vorbereitete Transportauftrag kann anschließend im Stapler-Terminal durchgescannt werden:
+
+```text
+1. Quelle scannen: A-R2-F4
+2. Ziel scannen: WA-0001
+3. Transportauftrag wird abgeschlossen
+4. Bestand liegt auf der WA-Fläche
+5. Versandabschluss kann im Warenausgang durchgeführt werden
+```
+
+### Nützliche Optionen
+
+```bash
+python manage.py prepare_wms_demo --product-name "Filament PAL Blau"
+python manage.py prepare_wms_demo --source-code A-R2-F4
+python manage.py prepare_wms_demo --target-code WA-0001
+python manage.py prepare_wms_demo --quantity 1
+python manage.py prepare_wms_demo --skip-cancel-open
+python manage.py prepare_wms_demo --skip-create-order
+```
