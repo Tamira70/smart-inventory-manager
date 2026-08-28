@@ -309,6 +309,12 @@ python manage.py prepare_wms_demo
 
 Der Befehl bereitet einen stabilen Demo-Zustand vor:
 
+- offene alte Demo-Transportaufträge stornieren
+- WA-Flächen sicherstellen
+- Demo-Bestand am Quelllagerplatz prüfen
+- optional fehlenden Demo-Bestand anlegen
+- frischen Transportauftrag für den Stapler-Test erzeugen
+
 ### Vorabprüfung ohne Änderungen
 
 ```bash
