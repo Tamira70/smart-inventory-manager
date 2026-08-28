@@ -143,8 +143,21 @@ Die wichtigsten Lagerplatz-, Kapazitäts- und Auslagerstrategien sind lokal und 
 Das Projekt zeigt praxisnahe Logistik-IT, ERP-/SAP-nahe Prozesslogik und digitale Lagerverwaltung in einer eigenen Full-Stack-Anwendung.
 
 ---
-<<<<<<< Updated upstream
-=======
+
+## Warenausgang und Versandabschluss
+
+Der Warenausgang unterstützt einen vollständigen WMS-Ablauf:
+
+1. Transportauftrag aus dem Lagerbestand erstellen
+2. Ware per Stapler-Terminal vom Lagerplatz zur WA-Fläche bewegen
+3. Bestand auf der WA-Fläche prüfen
+4. Versand über den Button „Versand abschließen“ final ausbuchen
+
+Der Versandabschluss läuft über einen eigenen Backend-Endpunkt:
+
+```text
+POST /inventory-api/location-stocks/<id>/complete-shipping/
+
 
 ## 📸 Screenshots – Bestellprozess
 
