@@ -44,6 +44,8 @@ from .models import (
     CustomerContact,
     DeliveryAddress,
     CustomerNote,
+    OutboundOrder,
+    OutboundOrderItem,
     AuditLog,
 )
 from .serializers import (
@@ -65,6 +67,8 @@ from .serializers import (
     CustomerContactSerializer,
     DeliveryAddressSerializer,
     CustomerNoteSerializer,
+    OutboundOrderSerializer,
+    OutboundOrderItemSerializer,
     AdminUserSerializer,
     AuditLogSerializer,
 )
@@ -402,6 +406,212 @@ class PurchaseOrderItemViewSet(viewsets.ModelViewSet):
                 "movement": StockMovementSerializer(movement).data,
                 "item": self.get_serializer(item).data,
                 "order_status": order.status,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+
+
+class OutboundOrderViewSet(viewsets.ModelViewSet):
+    queryset = (
+        OutboundOrder.objects.select_related(
+            "customer",
+            "delivery_address",
+            "created_by",
+        )
+        .prefetch_related(
+            "items",
+            "items__product",
+            "items__transport_order",
+        )
+        .order_by("-created_at", "-id")
+    )
+    serializer_class = OutboundOrderSerializer
+
+    def get_permissions(self):
+        if self.request.method in ["GET", "HEAD", "OPTIONS"]:
+            return [IsAuthenticated()]
+        return [IsAuthenticated(), IsLagerOrAdmin()]
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="release",
+        permission_classes=[IsLagerOrAdmin],
+    )
+    def release(self, request, pk=None):
+        outbound_order = self.get_object()
+
+        if outbound_order.status in [
+            OutboundOrder.Status.SHIPPED,
+            OutboundOrder.Status.CANCELLED,
+        ]:
+            return Response(
+                {"detail": "Dieser Versandauftrag kann nicht mehr freigegeben werden."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        outbound_order.status = OutboundOrder.Status.RELEASED
+        outbound_order.save(update_fields=["status", "updated_at"])
+
+        return Response(
+            {
+                "detail": f"Versandauftrag {outbound_order.order_number} wurde freigegeben.",
+                "order": self.get_serializer(outbound_order).data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class OutboundOrderItemViewSet(viewsets.ModelViewSet):
+    queryset = (
+        OutboundOrderItem.objects.select_related(
+            "outbound_order",
+            "outbound_order__customer",
+            "product",
+            "transport_order",
+        )
+        .order_by("-outbound_order__created_at", "id")
+    )
+    serializer_class = OutboundOrderItemSerializer
+
+    def get_permissions(self):
+        if self.request.method in ["GET", "HEAD", "OPTIONS"]:
+            return [IsAuthenticated()]
+        return [IsAuthenticated(), IsLagerOrAdmin()]
+
+    def _get_source_stock_for_item(self, product, quantity):
+        return (
+            StorageLocationStock.objects.select_for_update()
+            .select_related("storage_location")
+            .filter(
+                product=product,
+                quantity__gte=quantity,
+                storage_location__is_active=True,
+                storage_location__is_blocked=False,
+            )
+            .exclude(storage_location__location_type=StorageLocation.LocationType.SHIPPING)
+            .order_by("created_at", "id")
+            .first()
+        )
+
+    def _get_target_shipping_location(self, target_location_id):
+        queryset = StorageLocation.objects.filter(
+            location_type=StorageLocation.LocationType.SHIPPING,
+            is_active=True,
+            is_blocked=False,
+        )
+
+        if target_location_id:
+            return queryset.filter(pk=target_location_id).first()
+
+        return queryset.order_by("code").first()
+
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="create-transport-order",
+        permission_classes=[IsLagerOrAdmin],
+    )
+    @transaction.atomic
+    def create_transport_order(self, request, pk=None):
+        try:
+            item = (
+                self.get_queryset()
+                .select_for_update()
+                .get(pk=pk)
+            )
+        except OutboundOrderItem.DoesNotExist:
+            return Response(
+                {"detail": "Versandauftragsposition wurde nicht gefunden."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        outbound_order = item.outbound_order
+
+        if outbound_order.status in [
+            OutboundOrder.Status.SHIPPED,
+            OutboundOrder.Status.CANCELLED,
+        ]:
+            return Response(
+                {"detail": "Für diesen Versandauftrag kann kein Transportauftrag mehr erstellt werden."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if item.transport_order_id:
+            return Response(
+                {
+                    "detail": "Für diese Position existiert bereits ein Transportauftrag.",
+                    "transport_order": TransportOrderSerializer(item.transport_order).data,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        source_stock = self._get_source_stock_for_item(item.product, item.quantity)
+
+        if not source_stock:
+            return Response(
+                {
+                    "detail": "Kein geeigneter Entnahmeplatz mit ausreichendem Bestand gefunden.",
+                    "product": item.product.name,
+                    "quantity": str(item.quantity),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        target_location_id = request.data.get("target_location")
+        target_location = self._get_target_shipping_location(target_location_id)
+
+        if not target_location:
+            return Response(
+                {"detail": "Keine aktive WA-Fläche als Ziel gefunden."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            priority = int(request.data.get("priority") or 100)
+        except Exception:
+            priority = 100
+
+        reference_number = (
+            outbound_order.order_number
+            or outbound_order.reference_number
+            or f"VA-{outbound_order.pk}"
+        )
+
+        transport_order = TransportOrder.objects.create(
+            product=item.product,
+            quantity=item.quantity,
+            source_location=source_stock.storage_location,
+            target_location=target_location,
+            status=TransportOrder.Status.CREATED,
+            reference_number=reference_number,
+            priority=priority,
+            created_by=request.user,
+        )
+
+        item.transport_order = transport_order
+        item.save(update_fields=["transport_order", "updated_at"])
+
+        if outbound_order.status in [
+            OutboundOrder.Status.DRAFT,
+            OutboundOrder.Status.RELEASED,
+        ]:
+            outbound_order.status = OutboundOrder.Status.IN_PICKING
+            outbound_order.save(update_fields=["status", "updated_at"])
+
+        return Response(
+            {
+                "detail": (
+                    f"Transportauftrag {transport_order.transport_order_number} "
+                    f"für {outbound_order.order_number} wurde erstellt."
+                ),
+                "item": OutboundOrderItemSerializer(item).data,
+                "transport_order": TransportOrderSerializer(transport_order).data,
             },
             status=status.HTTP_201_CREATED,
         )

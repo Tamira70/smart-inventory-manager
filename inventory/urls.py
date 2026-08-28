@@ -17,6 +17,8 @@ from .views import (
     CustomerContactViewSet,
     DeliveryAddressViewSet,
     CustomerNoteViewSet,
+    OutboundOrderViewSet,
+    OutboundOrderItemViewSet,
     AdminUserViewSet,
     AuditLogViewSet,
     PackagingTypeViewSet
@@ -38,6 +40,8 @@ router.register(r"customers", CustomerViewSet, basename="customer")
 router.register(r"customer-contacts", CustomerContactViewSet, basename="customer-contact")
 router.register(r"delivery-addresses", DeliveryAddressViewSet, basename="delivery-address")
 router.register(r"customer-notes", CustomerNoteViewSet, basename="customer-note")
+router.register(r"outbound-orders", OutboundOrderViewSet, basename="outbound-order")
+router.register(r"outbound-order-items", OutboundOrderItemViewSet, basename="outbound-order-item")
 router.register(r"admin-users", AdminUserViewSet, basename="admin-user")
 router.register(r"audit-logs", AuditLogViewSet, basename="audit-log")
 router.register(r"packaging-types",PackagingTypeViewSet,basename="packaging-type",)

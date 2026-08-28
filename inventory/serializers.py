@@ -22,6 +22,8 @@ from .models import (
     CustomerContact,
     DeliveryAddress,
     CustomerNote,
+    OutboundOrder,
+    OutboundOrderItem,
     AuditLog,
     UserProfile,
 )
@@ -1183,6 +1185,95 @@ class InventoryCountSerializer(serializers.ModelSerializer):
         product = validated_data["product"]
         validated_data["expected_quantity"] = product.quantity
         return super().create(validated_data)
+
+
+class OutboundOrderItemSerializer(serializers.ModelSerializer):
+    product_name = serializers.CharField(source="product.name", read_only=True)
+    product_sku = serializers.CharField(source="product.sku", read_only=True)
+    transport_order_number = serializers.CharField(
+        source="transport_order.transport_order_number",
+        read_only=True,
+    )
+
+    class Meta:
+        model = OutboundOrderItem
+        fields = [
+            "id",
+            "outbound_order",
+            "product",
+            "product_name",
+            "product_sku",
+            "quantity",
+            "transport_order",
+            "transport_order_number",
+            "note",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "transport_order",
+            "transport_order_number",
+            "created_at",
+            "updated_at",
+        ]
+
+    def validate_quantity(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("Die Menge muss größer als 0 sein.")
+        return value
+
+
+class OutboundOrderSerializer(serializers.ModelSerializer):
+    customer_name = serializers.CharField(source="customer.name", read_only=True)
+    delivery_address_label = serializers.SerializerMethodField()
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+    created_by_username = serializers.CharField(source="created_by.username", read_only=True)
+    item_count = serializers.SerializerMethodField()
+    total_quantity = serializers.ReadOnlyField()
+    items = OutboundOrderItemSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = OutboundOrder
+        fields = [
+            "id",
+            "order_number",
+            "customer",
+            "customer_name",
+            "delivery_address",
+            "delivery_address_label",
+            "status",
+            "status_display",
+            "reference_number",
+            "requested_ship_date",
+            "note",
+            "item_count",
+            "total_quantity",
+            "items",
+            "created_by",
+            "created_by_username",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "order_number",
+            "status_display",
+            "item_count",
+            "total_quantity",
+            "items",
+            "created_by",
+            "created_by_username",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_delivery_address_label(self, obj):
+        if obj.delivery_address:
+            return str(obj.delivery_address)
+        return None
+
+    def get_item_count(self, obj):
+        return obj.items.count()
+
 
 
 class PackagingTypeSerializer(serializers.ModelSerializer):
