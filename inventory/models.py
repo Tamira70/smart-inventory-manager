@@ -623,6 +623,139 @@ class CustomerNote(models.Model):
 
 
 
+class OutboundOrder(models.Model):
+    class Status(models.TextChoices):
+        DRAFT = "DRAFT", "Entwurf"
+        RELEASED = "RELEASED", "Freigegeben"
+        IN_PICKING = "IN_PICKING", "In Kommissionierung"
+        READY_FOR_SHIPPING = "READY_FOR_SHIPPING", "Versandbereit"
+        SHIPPED = "SHIPPED", "Versendet"
+        CANCELLED = "CANCELLED", "Storniert"
+
+    order_number = models.CharField(
+        max_length=30,
+        unique=True,
+        null=True,
+        blank=True,
+        verbose_name="Versandauftrag",
+    )
+
+    customer = models.ForeignKey(
+        Customer,
+        on_delete=models.PROTECT,
+        related_name="outbound_orders",
+        verbose_name="Kunde",
+    )
+
+    delivery_address = models.ForeignKey(
+        DeliveryAddress,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="outbound_orders",
+        verbose_name="Lieferadresse",
+    )
+
+    status = models.CharField(
+        max_length=30,
+        choices=Status.choices,
+        default=Status.DRAFT,
+        verbose_name="Status",
+    )
+
+    reference_number = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name="Externe Referenz",
+    )
+
+    requested_ship_date = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name="Gewünschtes Versanddatum",
+    )
+
+    note = models.TextField(blank=True)
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_outbound_orders",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+
+    def save(self, *args, **kwargs):
+        needs_number = not self.order_number
+
+        if needs_number and not self.pk:
+            super().save(*args, **kwargs)
+            self.order_number = f"VA-{timezone.now():%Y}-{self.pk:05d}"
+            super().save(update_fields=["order_number"])
+            return
+
+        if needs_number:
+            self.order_number = f"VA-{timezone.now():%Y}-{self.pk:05d}"
+
+        super().save(*args, **kwargs)
+
+    @property
+    def total_quantity(self):
+        total = sum(item.quantity for item in self.items.all())
+        return total or 0
+
+    def __str__(self):
+        return self.order_number or f"Versandauftrag #{self.pk}"
+
+
+class OutboundOrderItem(models.Model):
+    outbound_order = models.ForeignKey(
+        OutboundOrder,
+        on_delete=models.CASCADE,
+        related_name="items",
+        verbose_name="Versandauftrag",
+    )
+
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.PROTECT,
+        related_name="outbound_order_items",
+        verbose_name="Produkt",
+    )
+
+    quantity = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        verbose_name="Menge",
+    )
+
+    transport_order = models.ForeignKey(
+        "TransportOrder",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="outbound_order_items",
+        verbose_name="Transportauftrag",
+    )
+
+    note = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["id"]
+
+    def __str__(self):
+        return f"{self.outbound_order} - {self.product.name} ({self.quantity})"
+
+
 class AuditLog(models.Model):
     ACTION_CHOICES = [
         ("CREATE", "Erstellt"),
