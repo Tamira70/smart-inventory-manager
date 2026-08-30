@@ -465,6 +465,10 @@ type OutboundOrderItem = {
   quantity: number | string;
   transport_order: number | null;
   transport_order_number: string | null;
+  transport_order_status: string | null;
+  transport_order_status_display: string | null;
+  transport_order_source_location_code: string | null;
+  transport_order_target_location_code: string | null;
   note: string;
   created_at: string;
   updated_at: string;
@@ -10275,6 +10279,34 @@ function OutboundOrdersSection({
       timeStyle: "short",
     });
 
+  const [selectedOutboundOrderId, setSelectedOutboundOrderId] =
+    useState<number | null>(null);
+
+  const selectedOrder = selectedOutboundOrderId
+    ? orders.find((order) => order.id === selectedOutboundOrderId) ?? null
+    : null;
+
+  const selectedOrderItems = selectedOrder
+    ? itemsByOrder[selectedOrder.id] || []
+    : [];
+
+  const selectedOrderTotalQuantity = selectedOrderItems.reduce(
+    (sum, item) => sum + Number(item.quantity || 0),
+    0
+  );
+
+  const completedTransportCount = selectedOrderItems.filter(
+    (item) => item.transport_order_status === "COMPLETED"
+  ).length;
+
+  const waTargetCodes = Array.from(
+    new Set(
+      selectedOrderItems
+        .map((item) => item.transport_order_target_location_code)
+        .filter((value): value is string => Boolean(value))
+    )
+  );
+
   return (
     <section style={sectionStyle}>
       <h2 style={sectionTitleStyle}>📦 Versandaufträge</h2>
@@ -10349,6 +10381,97 @@ function OutboundOrdersSection({
         </form>
       </div>
 
+      {selectedOrder && (
+        <div
+          style={{
+            marginTop: "24px",
+            border: "1px solid rgba(59, 130, 246, 0.32)",
+            borderRadius: "18px",
+            padding: "18px",
+            background: "rgba(15, 23, 42, 0.72)",
+          }}
+        >
+          <h3 style={{ marginTop: 0, color: "#bfdbfe" }}>
+            🔎 Versandauftrag-Detailansicht
+          </h3>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+              gap: "12px",
+              marginBottom: "18px",
+            }}
+          >
+            <Card title="Auftrag" value={selectedOrder.order_number || "—"} />
+            <Card title="Kunde" value={selectedOrder.customer_name || "—"} />
+            <Card title="Status" value={selectedOrder.status_display || selectedOrder.status} />
+            <Card title="Referenz" value={selectedOrder.reference_number || "—"} />
+            <Card title="Positionen" value={String(selectedOrderItems.length)} />
+            <Card
+              title="Gesamtmenge"
+              value={selectedOrderTotalQuantity.toLocaleString("de-DE")}
+            />
+            <Card
+              title="TA abgeschlossen"
+              value={`${completedTransportCount}/${selectedOrderItems.length}`}
+            />
+            <Card
+              title="WA-Ziele"
+              value={waTargetCodes.length ? waTargetCodes.join(", ") : "—"}
+            />
+          </div>
+
+          {selectedOrderItems.length === 0 ? (
+            <p style={infoStyle}>Für diesen Auftrag sind noch keine Positionen vorhanden.</p>
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table style={tableStyle}>
+                <thead>
+                  <tr>
+                    <th style={tableHeadStyle}>Produkt</th>
+                    <th style={tableHeadStyle}>Menge</th>
+                    <th style={tableHeadStyle}>TA</th>
+                    <th style={tableHeadStyle}>TA-Status</th>
+                    <th style={tableHeadStyle}>Quelle</th>
+                    <th style={tableHeadStyle}>Ziel</th>
+                    <th style={tableHeadStyle}>Notiz</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selectedOrderItems.map((item) => (
+                    <tr key={item.id}>
+                      <td style={tableCellStyle}>
+                        {item.product_name}
+                        {item.product_sku ? ` · ${item.product_sku}` : ""}
+                      </td>
+                      <td style={tableCellStyle}>
+                        {Number(item.quantity).toLocaleString("de-DE")}
+                      </td>
+                      <td style={tableCellStyle}>
+                        {item.transport_order_number || "Noch kein TA"}
+                      </td>
+                      <td style={tableCellStyle}>
+                        {item.transport_order_status_display ||
+                          item.transport_order_status ||
+                          "—"}
+                      </td>
+                      <td style={tableCellStyle}>
+                        {item.transport_order_source_location_code || "—"}
+                      </td>
+                      <td style={tableCellStyle}>
+                        {item.transport_order_target_location_code || "—"}
+                      </td>
+                      <td style={tableCellStyle}>{item.note || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
       <div style={{ marginTop: "24px" }}>
         <h3 style={{ color: "#e5e7eb" }}>Aktuelle Versandaufträge</h3>
 
@@ -10386,6 +10509,20 @@ function OutboundOrdersSection({
                       <td style={tableCellStyle}>{formatDateTime(order.created_at)}</td>
                       <td style={tableCellStyle}>
                         <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedOutboundOrderId(order.id)}
+                            style={
+                              selectedOutboundOrderId === order.id
+                                ? primaryButtonStyle
+                                : secondaryButtonStyle
+                            }
+                          >
+                            {selectedOutboundOrderId === order.id
+                              ? "Details offen"
+                              : "Details öffnen"}
+                          </button>
+
                           <button
                             type="button"
                             onClick={() => void onReleaseOrder(order)}
