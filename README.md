@@ -321,3 +321,50 @@ Der Bestellprozess zeigt den Ablauf von der Einkaufsbestellung bis zur automatis
 ## Status
 
 Der aktuelle Branch dient der Weiterentwicklung der Lager-IT- und WMS-Funktionen. Die wichtigsten Lagerplatz-, Transport-, Warenausgangs- und Versandabschlussprozesse sind lokal getestet und für eine Portfolio-Demonstration dokumentiert.
+
+## Versandauftrag / Kundenauftrag Workflow
+
+Der Smart Inventory Manager unterstützt zusätzlich einen Versandauftrag-Workflow.
+
+Der Ablauf bildet einen kundenauftragsnahen Warenausgang ab:
+
+```text
+Versandauftrag / Kundenauftrag
+→ Versandposition
+→ Transportauftrag zur WA-Fläche
+→ Stapler-Terminal
+→ Quelle-/Ziel-Scan
+→ Bestand auf WA-Fläche
+→ Versandabschluss
+→ finale Bestandsausbuchung
+```
+
+### Umgesetzte Funktionen
+
+- Versandauftrag mit Kunde, Referenz, Lieferadresse und gewünschtem Versanddatum
+- Versandposition mit Produkt und Menge
+- automatische Erstellung eines Transportauftrags aus einer Versandposition
+- automatische Auswahl eines geeigneten Entnahmeplatzes
+- Ziel ist eine aktive WA-Fläche
+- Schutz vor doppelten Transportaufträgen je Versandposition
+- Statuswechsel des Versandauftrags in Richtung Kommissionierung
+- Frontend-Bereich „Versandaufträge“ unter Lager
+- automatische Tests für den kompletten Outbound-Workflow
+
+### API-Auszug
+
+```text
+GET  /inventory-api/outbound-orders/
+POST /inventory-api/outbound-orders/
+GET  /inventory-api/outbound-order-items/
+POST /inventory-api/outbound-order-items/
+POST /inventory-api/outbound-order-items/<id>/create-transport-order/
+```
+
+### Tests
+
+```bash
+python manage.py test inventory.tests.OutboundOrderWorkflowApiTests -v 2
+```
+
+Damit ist der Warenausgang nicht mehr nur eine direkte Buchung, sondern ein vollständiger Prozess vom Kundenauftrag bis zum Versandabschluss.
