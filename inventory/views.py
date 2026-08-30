@@ -575,6 +575,8 @@ class OutboundOrderItemViewSet(viewsets.ModelViewSet):
             "outbound_order__customer",
             "product",
             "transport_order",
+            "transport_order__source_location",
+            "transport_order__target_location",
         )
         .order_by("-outbound_order__created_at", "id")
     )

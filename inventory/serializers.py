@@ -1194,6 +1194,22 @@ class OutboundOrderItemSerializer(serializers.ModelSerializer):
         source="transport_order.transport_order_number",
         read_only=True,
     )
+    transport_order_status = serializers.CharField(
+        source="transport_order.status",
+        read_only=True,
+    )
+    transport_order_status_display = serializers.CharField(
+        source="transport_order.get_status_display",
+        read_only=True,
+    )
+    transport_order_source_location_code = serializers.CharField(
+        source="transport_order.source_location.code",
+        read_only=True,
+    )
+    transport_order_target_location_code = serializers.CharField(
+        source="transport_order.target_location.code",
+        read_only=True,
+    )
 
     class Meta:
         model = OutboundOrderItem
@@ -1206,6 +1222,10 @@ class OutboundOrderItemSerializer(serializers.ModelSerializer):
             "quantity",
             "transport_order",
             "transport_order_number",
+            "transport_order_status",
+            "transport_order_status_display",
+            "transport_order_source_location_code",
+            "transport_order_target_location_code",
             "note",
             "created_at",
             "updated_at",
@@ -1213,6 +1233,10 @@ class OutboundOrderItemSerializer(serializers.ModelSerializer):
         read_only_fields = [
             "transport_order",
             "transport_order_number",
+            "transport_order_status",
+            "transport_order_status_display",
+            "transport_order_source_location_code",
+            "transport_order_target_location_code",
             "created_at",
             "updated_at",
         ]
