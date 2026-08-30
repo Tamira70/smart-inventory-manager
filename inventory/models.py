@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 from django.contrib.auth.models import User
 from django.db.models.signals import post_save
@@ -6,6 +7,13 @@ from django.utils import timezone
 
 
 class StorageLocation(models.Model):
+    class LocationType(models.TextChoices):
+        RECEIVING = "RECEIVING", "Wareneingangsfläche"
+        STORAGE = "STORAGE", "Lagerplatz"
+        SHIPPING = "SHIPPING", "Warenausgang / Bereitstellung"
+        QUALITY = "QUALITY", "Prüfung / Klärung"
+        BLOCKED = "BLOCKED", "Sperrfläche"
+
     code = models.CharField(max_length=50, unique=True)
     name = models.CharField(max_length=120)
 
@@ -13,6 +21,13 @@ class StorageLocation(models.Model):
     aisle = models.CharField(max_length=50, blank=True)
     rack = models.CharField(max_length=50, blank=True)
     shelf = models.CharField(max_length=50, blank=True)
+
+    location_type = models.CharField(
+        max_length=20,
+        choices=LocationType.choices,
+        default=LocationType.STORAGE,
+        verbose_name="Lagerplatztyp",
+    )
 
     description = models.TextField(blank=True)
 
@@ -135,6 +150,151 @@ class Product(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.sku})"
+
+
+class PurchaseOrder(models.Model):
+    STATUS_CHOICES = [
+        ("DRAFT", "Entwurf"),
+        ("RELEASED", "Freigegeben"),
+        ("ORDERED", "Bestellt"),
+        ("PARTIALLY_RECEIVED", "Teilgeliefert"),
+        ("RECEIVED", "Geliefert"),
+        ("CANCELLED", "Storniert"),
+    ]
+
+    order_number = models.CharField(
+        max_length=50,
+        unique=True,
+        blank=True,
+        null=True,
+    )
+
+    supplier = models.ForeignKey(
+        Supplier,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="purchase_orders",
+    )
+
+    status = models.CharField(
+        max_length=30,
+        choices=STATUS_CHOICES,
+        default="DRAFT",
+    )
+
+    title = models.CharField(max_length=255, blank=True)
+    note = models.TextField(blank=True)
+    expected_delivery_date = models.DateField(null=True, blank=True)
+
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_purchase_orders",
+    )
+
+    released_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="released_purchase_orders",
+    )
+
+    ordered_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="ordered_purchase_orders",
+    )
+
+    received_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="received_purchase_orders",
+    )
+
+    released_at = models.DateTimeField(null=True, blank=True)
+    ordered_at = models.DateTimeField(null=True, blank=True)
+    received_at = models.DateTimeField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+
+        if not self.order_number:
+            self.order_number = f"PO-{self.created_at:%Y}-{self.id:05d}"
+            super().save(update_fields=["order_number"])
+
+    @property
+    def total_quantity(self):
+        return sum(item.quantity for item in self.items.all())
+
+    @property
+    def received_quantity_total(self):
+        return sum(item.received_quantity for item in self.items.all())
+
+    def __str__(self):
+        return self.order_number or f"Bestellung #{self.pk}"
+
+
+class PurchaseOrderItem(models.Model):
+    purchase_order = models.ForeignKey(
+        PurchaseOrder,
+        on_delete=models.CASCADE,
+        related_name="items",
+    )
+
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.PROTECT,
+        related_name="purchase_order_items",
+    )
+
+    quantity = models.PositiveIntegerField()
+    received_quantity = models.PositiveIntegerField(default=0)
+
+    unit = models.CharField(max_length=50, blank=True)
+
+    unit_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+
+    note = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["product__name", "id"]
+
+    @property
+    def open_quantity(self):
+        return max(0, self.quantity - self.received_quantity)
+
+    def save(self, *args, **kwargs):
+        if self.product and not self.unit:
+            self.unit = self.product.unit
+
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.purchase_order} - {self.product.name} ({self.quantity})"
+
+
 
 class InventoryTransaction(models.Model):
     TRANSACTION_TYPE = [
@@ -463,6 +623,139 @@ class CustomerNote(models.Model):
 
 
 
+class OutboundOrder(models.Model):
+    class Status(models.TextChoices):
+        DRAFT = "DRAFT", "Entwurf"
+        RELEASED = "RELEASED", "Freigegeben"
+        IN_PICKING = "IN_PICKING", "In Kommissionierung"
+        READY_FOR_SHIPPING = "READY_FOR_SHIPPING", "Versandbereit"
+        SHIPPED = "SHIPPED", "Versendet"
+        CANCELLED = "CANCELLED", "Storniert"
+
+    order_number = models.CharField(
+        max_length=30,
+        unique=True,
+        null=True,
+        blank=True,
+        verbose_name="Versandauftrag",
+    )
+
+    customer = models.ForeignKey(
+        Customer,
+        on_delete=models.PROTECT,
+        related_name="outbound_orders",
+        verbose_name="Kunde",
+    )
+
+    delivery_address = models.ForeignKey(
+        DeliveryAddress,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="outbound_orders",
+        verbose_name="Lieferadresse",
+    )
+
+    status = models.CharField(
+        max_length=30,
+        choices=Status.choices,
+        default=Status.DRAFT,
+        verbose_name="Status",
+    )
+
+    reference_number = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name="Externe Referenz",
+    )
+
+    requested_ship_date = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name="Gewünschtes Versanddatum",
+    )
+
+    note = models.TextField(blank=True)
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_outbound_orders",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+
+    def save(self, *args, **kwargs):
+        needs_number = not self.order_number
+
+        if needs_number and not self.pk:
+            super().save(*args, **kwargs)
+            self.order_number = f"VA-{timezone.now():%Y}-{self.pk:05d}"
+            super().save(update_fields=["order_number"])
+            return
+
+        if needs_number:
+            self.order_number = f"VA-{timezone.now():%Y}-{self.pk:05d}"
+
+        super().save(*args, **kwargs)
+
+    @property
+    def total_quantity(self):
+        total = sum(item.quantity for item in self.items.all())
+        return total or 0
+
+    def __str__(self):
+        return self.order_number or f"Versandauftrag #{self.pk}"
+
+
+class OutboundOrderItem(models.Model):
+    outbound_order = models.ForeignKey(
+        OutboundOrder,
+        on_delete=models.CASCADE,
+        related_name="items",
+        verbose_name="Versandauftrag",
+    )
+
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.PROTECT,
+        related_name="outbound_order_items",
+        verbose_name="Produkt",
+    )
+
+    quantity = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        verbose_name="Menge",
+    )
+
+    transport_order = models.ForeignKey(
+        "TransportOrder",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="outbound_order_items",
+        verbose_name="Transportauftrag",
+    )
+
+    note = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["id"]
+
+    def __str__(self):
+        return f"{self.outbound_order} - {self.product.name} ({self.quantity})"
+
+
 class AuditLog(models.Model):
     ACTION_CHOICES = [
         ("CREATE", "Erstellt"),
@@ -494,6 +787,7 @@ class UserProfile(models.Model):
         ("lager", "Lager"),
         ("einkauf", "Einkauf"),
         ("dispo", "Dispo"),
+        ("stapler", "Stapler-Terminal"),
         ("viewer", "Viewer"),
     ]
 
@@ -588,3 +882,127 @@ class StorageStrategySettings(models.Model):
 
     def __str__(self):
         return f"{self.removal_strategy} / {self.putaway_strategy}"
+
+
+class TransportOrder(models.Model):
+    class Status(models.TextChoices):
+        CREATED = "CREATED", "Erstellt"
+        ASSIGNED = "ASSIGNED", "Zugewiesen"
+        PICKED = "PICKED", "Ware aufgenommen"
+        IN_TRANSIT = "IN_TRANSIT", "In Transport"
+        COMPLETED = "COMPLETED", "Abgeschlossen"
+        CANCELLED = "CANCELLED", "Storniert"
+        ERROR = "ERROR", "Fehler"
+
+    transport_order_number = models.CharField(
+        max_length=30,
+        unique=True,
+        null=True,
+        blank=True,
+        verbose_name="Transportauftrag",
+    )
+    transport_slip_number = models.CharField(
+        max_length=30,
+        unique=True,
+        null=True,
+        blank=True,
+        verbose_name="Transportschein",
+    )
+
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.PROTECT,
+        related_name="transport_orders",
+        verbose_name="Produkt",
+    )
+    quantity = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        verbose_name="Menge",
+    )
+
+    source_location = models.ForeignKey(
+        StorageLocation,
+        on_delete=models.PROTECT,
+        related_name="transport_orders_source",
+        verbose_name="Quellplatz",
+    )
+    target_location = models.ForeignKey(
+        StorageLocation,
+        on_delete=models.PROTECT,
+        related_name="transport_orders_target",
+        null=True,
+        blank=True,
+        verbose_name="Zielplatz / Bereitstellplatz",
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.CREATED,
+        verbose_name="Status",
+    )
+
+    reference_number = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name="Referenz",
+    )
+    priority = models.PositiveIntegerField(
+        default=100,
+        verbose_name="Priorität",
+    )
+
+    assigned_to = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="assigned_transport_orders",
+        verbose_name="Zugewiesen an",
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_transport_orders",
+        verbose_name="Erstellt von",
+    )
+
+    picked_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+
+    last_scan_value = models.CharField(max_length=255, blank=True)
+    last_error = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "Transportauftrag"
+        verbose_name_plural = "Transportaufträge"
+
+    def __str__(self):
+        number = self.transport_order_number or f"TA-{self.pk or 'neu'}"
+        return f"{number} - {self.product} von {self.source_location}"
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+
+        updates = {}
+
+        if not self.transport_order_number:
+            updates["transport_order_number"] = f"TA-{self.created_at:%Y}-{self.id:05d}"
+
+        if not self.transport_slip_number:
+            updates["transport_slip_number"] = f"TS-{self.created_at:%Y}-{self.id:05d}"
+
+        if updates:
+            for field, value in updates.items():
+                setattr(self, field, value)
+
+            super().save(update_fields=list(updates.keys()))
+

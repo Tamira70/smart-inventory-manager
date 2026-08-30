@@ -1,6 +1,9 @@
 from django.contrib import admin
 
 from .models import (
+    TransportOrder,
+    PackagingType,
+    StorageStrategySettings,
     Product,
     InventoryTransaction,
     StockMovement,
@@ -9,6 +12,8 @@ from .models import (
     InventoryCount,
     StorageLocation,
     Supplier,
+    PurchaseOrder,
+    PurchaseOrderItem,
     Customer,
     CustomerContact,
     DeliveryAddress,
@@ -37,6 +42,147 @@ class SupplierAdmin(admin.ModelAdmin):
     )
     list_filter = ("is_active", "country", "city")
     readonly_fields = ("created_at", "updated_at")
+
+
+@admin.register(StorageLocation)
+class StorageLocationAdmin(admin.ModelAdmin):
+    list_display = (
+        "code",
+        "name",
+        "zone",
+        "aisle",
+        "rack",
+        "shelf",
+        "is_active",
+        "is_blocked",
+        "is_empty",
+        "allow_mixed_products",
+        "max_weight_kg",
+    )
+
+    search_fields = (
+        "code",
+        "name",
+        "zone",
+        "aisle",
+        "rack",
+        "shelf",
+    )
+
+    list_filter = (
+        "is_active",
+        "is_blocked",
+        "is_empty",
+        "allow_mixed_products",
+        "zone",
+    )
+
+    readonly_fields = (
+        "created_at",
+        "updated_at",
+    )
+
+    fieldsets = (
+        (
+            "Grunddaten",
+            {
+                "fields": (
+                    "code",
+                    "name",
+                    "description",
+                )
+            },
+        ),
+        (
+            "Lagerstruktur",
+            {
+                "fields": (
+                    "zone",
+                    "aisle",
+                    "rack",
+                    "shelf",
+                )
+            },
+        ),
+        (
+            "Kapazität & Maße",
+            {
+                "fields": (
+                    ("length_cm", "width_cm", "height_cm"),
+                    "max_weight_kg",
+                )
+            },
+        ),
+        (
+            "Status",
+            {
+                "fields": (
+                    "is_active",
+                    "is_blocked",
+                    "is_empty",
+                    "allow_mixed_products",
+                )
+            },
+        ),
+        (
+            "Zeitstempel",
+            {
+                "fields": (
+                    "created_at",
+                    "updated_at",
+                )
+            },
+        ),
+    )
+
+
+class PurchaseOrderItemInline(admin.TabularInline):
+    model = PurchaseOrderItem
+    extra = 0
+    fields = (
+        "product",
+        "quantity",
+        "received_quantity",
+        "unit",
+        "unit_price",
+        "note",
+    )
+
+
+@admin.register(PurchaseOrder)
+class PurchaseOrderAdmin(admin.ModelAdmin):
+    list_display = (
+        "order_number",
+        "supplier",
+        "status",
+        "expected_delivery_date",
+        "created_by",
+        "created_at",
+        "updated_at",
+    )
+    search_fields = (
+        "order_number",
+        "supplier__name",
+        "title",
+        "note",
+    )
+    list_filter = (
+        "status",
+        "supplier",
+        "created_at",
+        "expected_delivery_date",
+    )
+    readonly_fields = (
+        "order_number",
+        "created_at",
+        "updated_at",
+        "released_at",
+        "ordered_at",
+        "received_at",
+    )
+    inlines = [PurchaseOrderItemInline]
+
+
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
@@ -196,3 +342,53 @@ class CustomerNoteAdmin(admin.ModelAdmin):
     search_fields = ("customer__name", "title", "note", "created_by__username")
     list_filter = ("created_at",)
     readonly_fields = ("created_at", "updated_at")
+
+
+
+@admin.register(PackagingType)
+class PackagingTypeAdmin(admin.ModelAdmin):
+    list_display = ("name", "length_cm", "width_cm", "height_cm", "is_active")
+    list_filter = ("is_active",)
+    search_fields = ("name",)
+
+
+@admin.register(StorageStrategySettings)
+class StorageStrategySettingsAdmin(admin.ModelAdmin):
+    list_display = ("removal_strategy", "putaway_strategy", "capacity_check_enabled")
+
+
+@admin.register(TransportOrder)
+class TransportOrderAdmin(admin.ModelAdmin):
+    list_display = (
+        "transport_order_number",
+        "transport_slip_number",
+        "product",
+        "quantity",
+        "source_location",
+        "target_location",
+        "status",
+        "assigned_to",
+        "created_at",
+    )
+    list_filter = ("status", "created_at", "assigned_to")
+    search_fields = (
+        "transport_order_number",
+        "transport_slip_number",
+        "reference_number",
+        "product__name",
+        "product__sku",
+        "source_location__code",
+        "target_location__code",
+    )
+    readonly_fields = (
+        "transport_order_number",
+        "transport_slip_number",
+        "created_at",
+        "updated_at",
+        "picked_at",
+        "completed_at",
+        "cancelled_at",
+        "last_scan_value",
+        "last_error",
+    )
+

@@ -3,6 +3,7 @@ from django.db import transaction
 from rest_framework import serializers
 
 from .models import (
+    TransportOrder,
     PackagingType,
     StorageStrategySettings,
     Product,
@@ -14,11 +15,15 @@ from .models import (
     StorageLocation,
     StorageLocationStock,
     Supplier,
+    PurchaseOrder,
+    PurchaseOrderItem,
 
     Customer,
     CustomerContact,
     DeliveryAddress,
     CustomerNote,
+    OutboundOrder,
+    OutboundOrderItem,
     AuditLog,
     UserProfile,
 )
@@ -44,6 +49,119 @@ class SupplierSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = ["created_at", "updated_at"]
+
+
+
+class PurchaseOrderItemSerializer(serializers.ModelSerializer):
+    product_name = serializers.ReadOnlyField(source="product.name")
+    product_sku = serializers.ReadOnlyField(source="product.sku")
+    product_unit = serializers.ReadOnlyField(source="product.unit")
+    open_quantity = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PurchaseOrderItem
+        fields = [
+            "id",
+            "purchase_order",
+            "product",
+            "product_name",
+            "product_sku",
+            "product_unit",
+            "quantity",
+            "received_quantity",
+            "open_quantity",
+            "unit",
+            "unit_price",
+            "note",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "created_at",
+            "updated_at",
+            "product_name",
+            "product_sku",
+            "product_unit",
+            "open_quantity",
+        ]
+
+    def get_open_quantity(self, obj):
+        return obj.open_quantity
+
+
+class PurchaseOrderSerializer(serializers.ModelSerializer):
+    supplier_name = serializers.ReadOnlyField(source="supplier.name")
+    created_by_username = serializers.ReadOnlyField(source="created_by.username")
+    released_by_username = serializers.ReadOnlyField(source="released_by.username")
+    ordered_by_username = serializers.ReadOnlyField(source="ordered_by.username")
+    received_by_username = serializers.ReadOnlyField(source="received_by.username")
+
+    items = PurchaseOrderItemSerializer(many=True, read_only=True)
+
+    item_count = serializers.SerializerMethodField()
+    total_quantity = serializers.SerializerMethodField()
+    received_quantity_total = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PurchaseOrder
+        fields = [
+            "id",
+            "order_number",
+            "supplier",
+            "supplier_name",
+            "status",
+            "title",
+            "note",
+            "expected_delivery_date",
+            "created_by",
+            "created_by_username",
+            "released_by",
+            "released_by_username",
+            "ordered_by",
+            "ordered_by_username",
+            "received_by",
+            "received_by_username",
+            "released_at",
+            "ordered_at",
+            "received_at",
+            "created_at",
+            "updated_at",
+            "items",
+            "item_count",
+            "total_quantity",
+            "received_quantity_total",
+        ]
+        read_only_fields = [
+            "id",
+            "order_number",
+            "created_by",
+            "created_by_username",
+            "released_by",
+            "released_by_username",
+            "ordered_by",
+            "ordered_by_username",
+            "received_by",
+            "received_by_username",
+            "released_at",
+            "ordered_at",
+            "received_at",
+            "created_at",
+            "updated_at",
+            "items",
+            "item_count",
+            "total_quantity",
+            "received_quantity_total",
+        ]
+
+    def get_item_count(self, obj):
+        return obj.items.count()
+
+    def get_total_quantity(self, obj):
+        return obj.total_quantity
+
+    def get_received_quantity_total(self, obj):
+        return obj.received_quantity_total
+
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
@@ -72,6 +190,7 @@ class StorageLocationSerializer(serializers.ModelSerializer):
             "aisle",
             "rack",
             "shelf",
+            "location_type",
             "description",
             "is_active",
             "is_blocked",
@@ -1068,6 +1187,95 @@ class InventoryCountSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
 
+class OutboundOrderItemSerializer(serializers.ModelSerializer):
+    product_name = serializers.CharField(source="product.name", read_only=True)
+    product_sku = serializers.CharField(source="product.sku", read_only=True)
+    transport_order_number = serializers.CharField(
+        source="transport_order.transport_order_number",
+        read_only=True,
+    )
+
+    class Meta:
+        model = OutboundOrderItem
+        fields = [
+            "id",
+            "outbound_order",
+            "product",
+            "product_name",
+            "product_sku",
+            "quantity",
+            "transport_order",
+            "transport_order_number",
+            "note",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "transport_order",
+            "transport_order_number",
+            "created_at",
+            "updated_at",
+        ]
+
+    def validate_quantity(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("Die Menge muss größer als 0 sein.")
+        return value
+
+
+class OutboundOrderSerializer(serializers.ModelSerializer):
+    customer_name = serializers.CharField(source="customer.name", read_only=True)
+    delivery_address_label = serializers.SerializerMethodField()
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+    created_by_username = serializers.CharField(source="created_by.username", read_only=True)
+    item_count = serializers.SerializerMethodField()
+    total_quantity = serializers.ReadOnlyField()
+    items = OutboundOrderItemSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = OutboundOrder
+        fields = [
+            "id",
+            "order_number",
+            "customer",
+            "customer_name",
+            "delivery_address",
+            "delivery_address_label",
+            "status",
+            "status_display",
+            "reference_number",
+            "requested_ship_date",
+            "note",
+            "item_count",
+            "total_quantity",
+            "items",
+            "created_by",
+            "created_by_username",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "order_number",
+            "status_display",
+            "item_count",
+            "total_quantity",
+            "items",
+            "created_by",
+            "created_by_username",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_delivery_address_label(self, obj):
+        if obj.delivery_address:
+            return str(obj.delivery_address)
+        return None
+
+    def get_item_count(self, obj):
+        return obj.items.count()
+
+
+
 class PackagingTypeSerializer(serializers.ModelSerializer):
     class Meta:
         model = PackagingType
@@ -1078,3 +1286,65 @@ class StorageStrategySettingsSerializer(serializers.ModelSerializer):
     class Meta:
         model = StorageStrategySettings
         fields = "__all__"
+
+
+class TransportOrderSerializer(serializers.ModelSerializer):
+    product_name = serializers.CharField(source="product.name", read_only=True)
+    product_sku = serializers.CharField(source="product.sku", read_only=True)
+
+    source_location_code = serializers.CharField(source="source_location.code", read_only=True)
+    source_location_name = serializers.CharField(source="source_location.name", read_only=True)
+
+    target_location_code = serializers.CharField(source="target_location.code", read_only=True)
+    target_location_name = serializers.CharField(source="target_location.name", read_only=True)
+
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+    assigned_to_username = serializers.CharField(source="assigned_to.username", read_only=True)
+    created_by_username = serializers.CharField(source="created_by.username", read_only=True)
+
+    class Meta:
+        model = TransportOrder
+        fields = [
+            "id",
+            "transport_order_number",
+            "transport_slip_number",
+            "product",
+            "product_name",
+            "product_sku",
+            "quantity",
+            "source_location",
+            "source_location_code",
+            "source_location_name",
+            "target_location",
+            "target_location_code",
+            "target_location_name",
+            "status",
+            "status_display",
+            "reference_number",
+            "priority",
+            "assigned_to",
+            "assigned_to_username",
+            "created_by",
+            "created_by_username",
+            "picked_at",
+            "completed_at",
+            "cancelled_at",
+            "last_scan_value",
+            "last_error",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "transport_order_number",
+            "transport_slip_number",
+            "assigned_to",
+            "created_by",
+            "picked_at",
+            "completed_at",
+            "cancelled_at",
+            "last_scan_value",
+            "last_error",
+            "created_at",
+            "updated_at",
+        ]
+

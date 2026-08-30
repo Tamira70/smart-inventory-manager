@@ -7,3 +7,6 @@ __pycache__/
 .vscode/
 inventurbericht*.xlsx
 frontend/src/*.backup*
+# Lokale Sicherungen
+.local-backups/
+README.backup-vor-portfolio.md

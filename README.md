@@ -1,840 +1,370 @@
-# 📦 Smart Inventory Manager
+# Smart Inventory Manager
 
-<!-- portfolio-summary:start -->
+**Praxisnahes WMS-/Lager-IT-Projekt mit Wareneingang, Lagerplatzverwaltung, Transportaufträgen, Warenausgangsflächen, Stapler-Terminal, Versandabschluss und Transport-Dashboard.**
 
-## Portfolio-Zusammenfassung
+<!-- PORTFOLIO-INTRO-END -->
 
-Der **Smart Inventory Manager** ist eine selbst entwickelte Full-Stack-Webanwendung zur digitalen Lagerverwaltung mit Fokus auf Lagerplatzlogik, Bestandsführung und WMS-/ERP-nahe Prozesse.
+## Projektüberblick
 
-Das Projekt bildet typische Abläufe aus Lager, Materialwirtschaft und Logistik-IT ab: Produktstammdaten, Lagerorte, Wareneingang, Warenausgang, Lagerplatzbestände, Bewegungshistorie, Verpackungen, Ladungsträger, Kapazitätsprüfung sowie rollenbasierte Zugriffsrechte.
+Der **Smart Inventory Manager** ist ein selbst entwickeltes Full-Stack-Projekt für digitale Lager- und WMS-Prozesse. Es bildet typische Abläufe aus der Logistik ab: Wareneingang, Lagerplatzsteuerung, interne Transportaufträge, scannergeführte Staplerprozesse, Warenausgangsflächen und eine nachvollziehbare Bestandsführung.
 
-Ein besonderer Schwerpunkt liegt auf praxisnahen Ein- und Auslagerstrategien:
+Das Projekt verbindet praktische Logistik-Erfahrung mit IT-naher Prozessoptimierung. Es zeigt, wie operative Lagerabläufe technisch strukturiert, digitalisiert und für Anwender übersichtlich bedienbar gemacht werden können.
 
-- **Festplatzstrategie** zur gezielten Einlagerung auf definierte Lagerplätze
-- **Freiplatz-/Leerplatzlogik** zur Auswahl geeigneter Lagerplätze
-- **Zulagerung** zu bestehenden Produktbeständen
-- **FIFO** und **LIFO** für zeitbasierte Auslagerung
-- **FEFO** mit MHD-/Ablaufdatum für chargennahe Warenflüsse
-- **HIFO** und **LOFO** auf Basis von Einstandspreisen
+## Portfolio-Kernbotschaft
 
-Zusätzlich prüft das System Lagerplatzkapazitäten anhand von Volumen, Gewicht, Verpackungsdaten und Ladungsträgern. Lagerplatzbestände werden separat geführt und nach Wareneingang sowie Warenausgang automatisch aktualisiert. Der Status eines Lagerplatzes wird automatisch zwischen **Frei** und **Belegt** synchronisiert.
+Der Smart Inventory Manager ist kein reines Übungsprojekt, sondern ein praxisnahes Beispiel für digitale Lagerprozesssteuerung. Besonders relevant ist das Projekt für Tätigkeiten in den Bereichen:
 
-Das Projekt zeigt praktische Kenntnisse in:
+- ERP-/SAP-Anwendungssupport
+- WMS-/Lager-IT
+- Application Support
+- Stammdaten- und Prozessmanagement
+- IT-nahe Logistikkoordination
+- Digitalisierung und Prozessoptimierung
 
-- Django REST Framework
-- React mit TypeScript
-- REST-API-Design
-- Datenmodellierung für Lager- und Bestandsprozesse
-- rollenbasierter Zugriffsteuerung
-- Prozesslogik für WMS-/ERP-Schnittstellen
-- Deployment auf Linux-Server mit Gunicorn und Apache
+## Fachlicher Gesamtprozess
 
-Der Smart Inventory Manager ist damit ein praxisnahes Portfolio-Projekt für Tätigkeiten im Bereich **ERP-/SAP-Support, Application Support, Lager-IT, WMS-Key-User, Digitalisierung und Prozessoptimierung in der Logistik**.
-
-<!-- portfolio-summary:end -->
-Praxisnahe Fullstack-Lagerverwaltung zur Abbildung realer Logistik-, Einkaufs-, Dispositions-, Kundenstamm- und Inventurprozesse.
-
-Der **Smart Inventory Manager** wurde mit **Django REST Framework** im Backend und **React + TypeScript** im Frontend entwickelt.  
-Das Projekt bildet typische Abläufe aus Lager, Einkauf, Dispo, Kundenstamm und Administration in einer ERP-ähnlichen Webanwendung ab.
-
----
-
-## 🚀 Aktueller Stand: Smart Inventory Manager v2
-
-Version 2 erweitert das Projekt um eine professionelle Modulstruktur mit Sidebar-Navigation, Rollenmodell, Lagerortverwaltung, Lieferantenverwaltung, Kundenstamm, Admin-Bereich, Systemprotokoll und erweitertem Inventurmodus.
-
-### Enthaltene Module
-
-- 📊 Dashboard
-- 🛒 Einkauf
-- 🚚 Lieferanten
-- 📋 Dispo
-- 🏭 Lager
-- 📍 Lagerorte
-- 🔧 Lagerkorrekturen
-- 🧾 Inventur
-- 👥 Kundenstamm
-- ☎️ Ansprechpartner
-- 📦 Lieferadressen
-- 📝 Kundennotizen
-- 👤 Benutzerverwaltung
-- 🔐 Rollen & Zugriffsrechte
-- 🧾 Systemprotokoll
-
----
-
-## 🧩 Projektübersicht
-
-Der **Smart Inventory Manager** ist eine webbasierte Lager- und Prozessanwendung zur Verwaltung von Produkten, Beständen, Lagerorten, Warenbewegungen, Inventuren, Lieferanten, Kundenstammdaten und Benutzerrollen.
-
-Die Anwendung orientiert sich an realen Abläufen aus Logistik und Lagerverwaltung:
-
-- Artikel und Bestände verwalten
-- Lagerorte zuordnen
-- Mindestbestände überwachen
-- Nachbestellvorschläge erzeugen
-- Wareneingänge buchen
-- Warenausgänge buchen
-- Lagerkorrekturen mit Begründung buchen
-- Bewegungen nachvollziehen
-- Inventuren durchführen
-- Soll-/Ist-Abweichungen erkennen
-- Korrekturbuchungen erzeugen
-- Lieferanten pflegen
-- Kundenstamm verwalten
-- Benutzer und Rollen steuern
-- Admin-Aktionen im Systemprotokoll nachvollziehen
-
----
-
-## 🔐 Demo-Zugänge
-
-> Hinweis: Die folgenden Zugänge sind für lokale Tests beziehungsweise Demo-Umgebungen gedacht.  
-> In produktiven Umgebungen sollten Passwörter individuell gesetzt werden.
-
-### 🔍 Recruiter / Viewer
+Der aktuelle Stand bildet einen vollständigen WMS-Demoablauf ab:
 
 ```text
-Benutzername: recruiter
-Passwort: demo123456
-Rolle: Viewer
-Rechte: Alles ansehen, nichts bearbeiten
+Wareneingang
+→ WE-Fläche
+→ Transportauftrag
+→ Lagerplatz
+→ Warenausgangsauftrag
+→ WA-Fläche
+→ Versandabschluss
+→ finale Bestandsausbuchung
 ```
 
-### 📦 Lager
+Damit kann ein kompletter Lagerprozess gezeigt werden:
+
+1. Ware kommt im Wareneingang an.
+2. Die Ware wird auf einer WE-Fläche erfasst.
+3. Das System erzeugt einen Transportauftrag zur Einlagerung.
+4. Das Stapler-Terminal führt den Transport per Quell-/Zielscan aus.
+5. Aus dem Lagerbestand wird ein Warenausgangs-Transportauftrag zur WA-Fläche erzeugt.
+6. Die Ware wird per Stapler-Terminal zur Bereitstellung bewegt.
+7. Der Versandabschluss bucht den Bestand final aus.
+
+## Aktueller Funktionsumfang
+
+### Wareneingang
+
+- Erfassung von Wareneingängen
+- Nutzung von WE-Flächen als Zwischenziel
+- automatische oder manuelle Weiterleitung Richtung Lagerplatz
+- nachvollziehbare Bestandsbewegungen
+- Wareneingang aus Einkaufsbestellungen
+
+### Lagerplatzverwaltung
+
+- Lagerorte mit Codes, Zonen, Gang, Regal und Fach
+- Lagerplatztypen wie WE, Lagerplatz, WA, Prüfung und Sperrfläche
+- aktive und blockierte Lagerplätze
+- Anzeige von Beständen je Lagerplatz
+- Frei-/Belegt-Synchronisierung
+- Unterstützung für feste und freie Lagerplatzlogik
+- Kapazitätsprüfung nach Volumen und Gewicht
+
+### Verpackung, Ladungsträger und Strategien
+
+- Verpackungsarten und Ladungsträger
+- Packmengen
+- Einstandspreise für HIFO/LOFO
+- MHD/Ablaufdatum für FEFO
+- Auslagerstrategien FIFO, LIFO, FEFO, HIFO und LOFO
+
+### Transportaufträge
+
+- Transportaufträge von WE-Fläche zu Lagerplatz
+- Transportaufträge von Lagerplatz zu WA-Fläche
+- automatische TA-Nummer und TS-Nummer
+- Statuslogik: erstellt, zugewiesen, in Transport, abgeschlossen, storniert, Fehler
+- Benutzerzuweisung
+- Scanner-Workflow
+- Schutz vor doppelten offenen Transportaufträgen für denselben Bestand
+
+### Stapler-Terminal
+
+- reduzierte Oberfläche für Stapler-/Lagerrolle
+- Anzeige aktiver Transportaufträge
+- Quelle scannen
+- Ziel scannen
+- automatische Bestandsumbuchung beim Abschluss
+- klare Fehlermeldungen bei falschem Scan oder ungültigem Ablauf
+
+### Warenausgang
+
+- Erstellung von Transportaufträgen zur WA-Fläche
+- Zielauswahl nur über WA-/Bereitstellflächen
+- Anzeige bereitgestellter WA-Bestände
+- Versandabschluss direkt aus der WA-Fläche
+- finale Ausbuchung aus dem Bestand
+
+### Transport-Dashboard
+
+- Übersicht über Transportaufträge
+- Filter nach Zeitraum, Schicht, Benutzer, Status und Transportart
+- Kennzahlen zu offenen, laufenden, abgeschlossenen und fehlerhaften Transporten
+- Auswertung nach Benutzer
+- Anzeige letzter abgeschlossener Transporte
+- professioneller Excel-Export als `.xlsx`
+
+### Exporte
+
+- Excel-Export für Bewegungshistorie
+- Excel-Export für Inventurberichte
+- Excel-Export für Lagerplatzbestände
+- Excel-Export für Transport-Dashboard
+
+## Warenausgang und Versandabschluss
+
+Der Warenausgang unterstützt einen vollständigen WMS-Ablauf:
+
+1. Transportauftrag aus dem Lagerbestand erstellen
+2. Ware per Stapler-Terminal vom Lagerplatz zur WA-Fläche bewegen
+3. Bestand auf der WA-Fläche prüfen
+4. Versand über den Button **„Versand abschließen“** final ausbuchen
+
+Der Versandabschluss läuft über einen eigenen Backend-Endpunkt:
 
 ```text
-Benutzername: lager-demo
-Passwort: demo123456
-Rolle: Lager
-Rechte: Wareneingang, Warenausgang, Lagerorte, Lagerkorrekturen und Bewegungshistorie
+POST /inventory-api/location-stocks/<id>/complete-shipping/
 ```
 
-### 🛒 Einkauf
+Der Endpunkt prüft:
+
+- Versand nur von WA-Flächen
+- ausreichenden Bestand auf der WA-Fläche
+- aktive und nicht gesperrte WA-Fläche
+- Berechtigung für Lager/Admin
+
+Automatischer Testlauf:
+
+```bash
+python manage.py test inventory.tests.WaShippingCompletionEndpointTests -v 2
+```
+
+Abgesicherte Testfälle:
+
+- Lager/Admin darf Versand von WA-Bestand abschließen
+- normaler Lagerplatz wird für Versandabschluss blockiert
+- zu hohe Versandmenge wird abgelehnt
+- Viewer darf den Versandabschluss nicht durchführen
+- erfolgreicher Versand erzeugt eine OUT-Bewegung
+
+## WMS-Demo-Manager
+
+Für eine saubere Vorführung des WMS-Prozesses gibt es einen eigenen Django-Management-Befehl:
+
+```bash
+python manage.py prepare_wms_demo
+```
+
+Der Befehl bereitet einen stabilen Demo-Zustand vor:
+
+- offene alte Demo-Transportaufträge stornieren
+- WA-Flächen sicherstellen
+- Demo-Bestand am Quelllagerplatz prüfen
+- optional fehlenden Demo-Bestand anlegen
+- frischen Transportauftrag für den Stapler-Test erzeugen
+
+### Vorabprüfung ohne Änderungen
+
+```bash
+python manage.py prepare_wms_demo --dry-run
+```
+
+### Demo-Zustand vorbereiten
+
+```bash
+python manage.py prepare_wms_demo --ensure-stock
+```
+
+Standardmäßig wird folgender Demo-Ablauf vorbereitet:
 
 ```text
-Benutzername: einkauf-demo
-Passwort: demo123456
-Rolle: Einkauf
-Rechte: Einkauf, Lieferanten, Kundenstamm und Lagerkorrekturen lesend
+Filament PAL Blau
+A-R2-F4 → WA-0001
+Menge: 1
 ```
 
-### 📋 Dispo
+Der vorbereitete Transportauftrag kann anschließend im Stapler-Terminal durchgescannt werden:
 
 ```text
-Benutzername: dispo-demo
-Passwort: demo123456
-Rolle: Dispo
-Rechte: Dispo, Bestände, Mindestbestände, Nachbestellvorschläge und Inventuransicht
+1. Quelle scannen: A-R2-F4
+2. Ziel scannen: WA-0001
+3. Transportauftrag wird abgeschlossen
+4. Bestand liegt auf der WA-Fläche
+5. Versandabschluss kann im Warenausgang durchgeführt werden
 ```
 
-### ⚙️ Admin
+Nützliche Optionen:
 
-```text
-Benutzername: tamira
-Passwort: lokal gesetzt
-Rolle: Admin
-Rechte: Vollzugriff
+```bash
+python manage.py prepare_wms_demo --product-name "Filament PAL Blau"
+python manage.py prepare_wms_demo --source-code A-R2-F4
+python manage.py prepare_wms_demo --target-code WA-0001
+python manage.py prepare_wms_demo --quantity 1
+python manage.py prepare_wms_demo --skip-cancel-open
+python manage.py prepare_wms_demo --skip-create-order
 ```
 
----
+## Technischer Aufbau
 
-## 🔐 Rollenmodell
-
-| Rolle | Zugriff |
+| Bereich | Technologie |
 |---|---|
-| Admin | Voller Zugriff auf alle Module, Benutzer, Rollen und Systemprotokoll |
-| Lager | Wareneingang, Warenausgang, Lagerorte, Lagerkorrekturen, Bewegungshistorie |
-| Einkauf | Einkauf, Lieferanten, Kundenstamm, Lagerkorrekturen lesend |
-| Dispo | Dispo, Bestände, Mindestbestände, Nachbestellvorschläge, Inventuransicht |
-| Viewer / Recruiter | Alle Bereiche ansehen, keine Schreib- oder Buchungsrechte |
+| Backend | Django REST Framework |
+| Frontend | React mit TypeScript |
+| Authentifizierung | JWT |
+| Datenbank | SQLite im aktuellen Projektstand |
+| Exporte | openpyxl für Excel-Dateien |
+| Serverbetrieb | Gunicorn und Apache Reverse Proxy |
+| Deployment | eigener Linux-Server |
+| Versionsverwaltung | Git und GitHub |
 
----
+## Rollen und Berechtigungen
 
-## 🚀 Features
-
-### 📊 Dashboard
-
-- Produkte gesamt
-- Bestand gesamt
-- Niedriger Bestand
-- Inventur-Differenzen
-- Wareneingänge heute
-- Warenausgänge heute
-- Letzte Lagerbewegung
-
----
-
-### 📦 Produktverwaltung / Artikelstamm
-
-- Produkte anlegen und bearbeiten
-- SKU / Artikelnummer
-- Beschreibung
-- Bestand
-- Einheit
-- Mindestbestand
-- Lagerort-Zuordnung
-- Automatische Markierung bei niedrigem Bestand
-
----
-
-### 📍 Lagerorte
-
-- Lagerorte anlegen
-- Lagerort-Code
-- Zone
-- Gang
-- Regal
-- Fach
-- Aktiv / Inaktiv
-- Produktanzahl je Lagerort
-- Lagerortauswahl im Artikelstamm
-- Leserechte für alle eingeloggten Rollen
-- Schreibrechte für Admin
-
-Beispiel:
-
-```text
-A-R2-F4
-Lager A / Zone A / Regal 2 / Fach 4
-```
-
----
-
-### 📥 Wareneingang
-
-- Produkt auswählen
-- Menge buchen
-- Referenznummer / Lieferschein erfassen
-- Notiz erfassen
-- Bestand wird automatisch erhöht
-- Benutzer wird gespeichert
-
----
-
-### 📤 Warenausgang
-
-- Produkt auswählen
-- Menge buchen
-- Referenznummer erfassen
-- Notiz erfassen
-- Bestand wird automatisch reduziert
-- Validierung gegen negativen Bestand
-- Benutzer wird gespeichert
-
----
-
-### 🔧 Lagerkorrekturen
-
-- Produkt auswählen
-- Zielbestand eintragen
-- Differenz wird automatisch berechnet
-- Korrektur wird als Wareneingang oder Warenausgang gebucht
-- Begründung wird gespeichert
-- Korrekturen bleiben in der Bewegungshistorie nachvollziehbar
-- Admin und Lager dürfen buchen
-- Einkauf darf Lagerkorrekturen lesend ansehen
-
----
-
-### 🕓 Bewegungshistorie
-
-- Vollständige Historie aller Lagerbewegungen
-- Wareneingang / Warenausgang unterscheidbar
-- Benutzer wird gespeichert
-- Datum und Uhrzeit der Buchung
-- Suche und Filter
-- CSV-Export
-- Rückgängig-Funktion für die letzte Bewegung
-
----
-
-### 🧾 Inventur-Modus
-
-- Inventur-Runde starten
-- Produkt zur Inventur auswählen
-- Soll-Bestand wird automatisch gespeichert
-- Ist-Bestand / gezählte Menge eintragen
-- Differenz wird automatisch berechnet
-- Korrekturbuchung aus Inventur-Differenz erzeugen
-- Bewegungshistorie wird automatisch ergänzt
-- Inventur abschließen
-- Excel-Bericht exportieren
-- Inventurpositionen im Django Admin sichtbar
-
----
-
-### 🛒 Einkauf & Nachbestellvorschläge
-
-- Mindestbestände auswerten
-- Nachbestellvorschläge erzeugen
-- Bestellentwürfe vorbereiten
-- Bestellungen freigeben
-- Bestellstatus anzeigen
-- Einkauf-Demo-Rolle für Einkaufsprozesse
-
----
-
-### 🚚 Lieferanten
-
-- Lieferanten anlegen
-- Lieferantennummer
-- Ansprechpartner
-- E-Mail
-- Telefon
-- Adresse
-- Aktiv / Inaktiv
-- Einkauf und Admin dürfen Lieferanten pflegen
-- Viewer darf Lieferanten nur ansehen
-
----
-
-### 👥 Kundenstamm
-
-Der Kundenstamm besteht aus vier Modulen:
-
-#### 👥 Kundenliste
-
-- Kunden anlegen
-- Kundennummer
-- E-Mail
-- Telefon
-- Adresse
-- Aktiv / Inaktiv
-- Anzahl Ansprechpartner
-- Anzahl Lieferadressen
-- Anzahl Kundennotizen
-
-#### ☎️ Ansprechpartner
-
-- Ansprechpartner je Kunde
-- Vorname / Nachname
-- Rolle / Funktion
-- E-Mail
-- Telefon
-- Mobilnummer
-- Hauptkontakt
-- Aktiv / Inaktiv
-
-#### 📦 Lieferadressen
-
-- Abweichende Lieferadressen je Kunde
-- Empfängername
-- Straße
-- PLZ
-- Ort
-- Land
-- Standardadresse
-- Aktiv / Inaktiv
-
-#### 📝 Kundennotizen
-
-- Interne Kundennotizen
-- Titel
-- Notiztext
-- Ersteller
-- Datum
-
----
-
-### 👤 Benutzerverwaltung
-
-- Benutzer über Frontend anlegen
-- Benutzername
-- Startpasswort
-- E-Mail
-- Vorname
-- Nachname
-- Rolle beim Anlegen auswählen
-- Aktiv / Inaktiv beim Anlegen setzen
-- Bestehende Benutzer aktivieren oder deaktivieren
-
----
-
-### 🔐 Rollen & Zugriffsrechte
-
-- Rollenübersicht
-- Benutzer je Rolle anzeigen
-- Rolle bestehender Benutzer ändern
-- Rechte-Struktur transparent anzeigen
-- Aktiv/Inaktiv wird separat in der Benutzerverwaltung gepflegt
-
----
-
-### 🧾 Systemprotokoll
-
-- Admin-Aktionen nachvollziehen
-- Benutzeranlage protokollieren
-- Rollenänderungen protokollieren
-- Zeitstempel
-- ausführender Benutzer
-- Objektbezug
-
----
-
-## 🛠️ Technologien
-
-### Frontend
-
-| Technologie | Einsatz |
+| Rolle | Zweck |
 |---|---|
-| React | Benutzeroberfläche |
-| TypeScript | Typisierte Frontend-Entwicklung |
-| Vite | Entwicklungs- und Build-Tool |
-| CSS-in-JS / Inline Styles | UI-Struktur und responsives Layout |
-
-### Backend
-
-| Technologie | Einsatz |
-|---|---|
-| Python | Backend-Programmiersprache |
-| Django | Webframework |
-| Django REST Framework | REST API |
-| SimpleJWT | JWT Authentifizierung |
-| SQLite | lokale Datenbank aktuell |
-| openpyxl | Excel-Export für Inventurberichte |
-
-### Infrastruktur
-
-| Technologie | Einsatz |
-|---|---|
-| Linux Server | Self-hosted Deployment |
-| Apache | Reverse Proxy und Frontend-Auslieferung |
-| Gunicorn | Django Application Server |
-| systemd | Backend-Service |
-| HTTPS | Sichere Verbindung über Domain |
-| Proxmox | Virtualisierte Infrastruktur |
-
----
-
-## 🏗️ Architektur
-
-```text
-Browser
-   ↓
-React Frontend
-   ↓
-Vite Proxy lokal / Apache Reverse Proxy produktiv
-   ↓
-Django REST API
-   ↓
-SQLite Datenbank
-```
-
-Deployment-Struktur:
-
-```text
-Frontend Build:
-    /var/www/html/inventory/
-
-Backend:
-    /opt/smart-inventory-manager/
-
-Service:
-    smart-inventory.service
-
-API Proxy:
-    /inventory-api/ → Django Backend /api/
-```
-
----
-
-## 🔗 API-Endpunkte
-
-### Authentifizierung
-
-| Methode | Endpoint | Beschreibung |
-|---|---|---|
-| POST | `/api/login/` | JWT Login |
-| POST | `/api/token/refresh/` | Access Token erneuern |
-
-### Produkte & Lager
-
-| Methode | Endpoint | Beschreibung |
-|---|---|---|
-| GET | `/api/products/` | Produkte abrufen |
-| POST | `/api/products/` | Produkt anlegen |
-| PUT/PATCH | `/api/products/<id>/` | Produkt bearbeiten |
-| GET | `/api/storage-locations/` | Lagerorte abrufen |
-| POST | `/api/storage-locations/` | Lagerort anlegen |
-| GET | `/api/stock-movements/` | Bewegungen abrufen |
-| POST | `/api/stock-movements/` | Wareneingang / Warenausgang / Korrektur buchen |
-
-### Inventur
-
-| Methode | Endpoint | Beschreibung |
-|---|---|---|
-| GET | `/api/inventory-sessions/` | Inventur-Runden abrufen |
-| POST | `/api/inventory-sessions/` | Inventur-Runde erstellen |
-| POST | `/api/inventory-sessions/<id>/complete/` | Inventur abschließen |
-| GET | `/api/inventory-sessions/<id>/export-excel/` | Inventurbericht exportieren |
-| GET | `/api/inventory-counts/` | Inventurpositionen abrufen |
-| POST | `/api/inventory-counts/` | Inventurposition speichern |
-| POST | `/api/inventory-counts/<id>/apply-correction/` | Korrekturbuchung erzeugen |
-
-### Einkauf
-
-| Methode | Endpoint | Beschreibung |
-|---|---|---|
-| GET | `/api/suppliers/` | Lieferanten abrufen |
-| POST | `/api/suppliers/` | Lieferant anlegen |
-
-### Kundenstamm
-
-| Methode | Endpoint | Beschreibung |
-|---|---|---|
-| GET | `/api/customers/` | Kunden abrufen |
-| POST | `/api/customers/` | Kunde anlegen |
-| GET | `/api/customer-contacts/` | Ansprechpartner abrufen |
-| POST | `/api/customer-contacts/` | Ansprechpartner anlegen |
-| GET | `/api/delivery-addresses/` | Lieferadressen abrufen |
-| POST | `/api/delivery-addresses/` | Lieferadresse anlegen |
-| GET | `/api/customer-notes/` | Kundennotizen abrufen |
-| POST | `/api/customer-notes/` | Kundennotiz anlegen |
-
-### Admin
-
-| Methode | Endpoint | Beschreibung |
-|---|---|---|
-| GET | `/api/admin-users/` | Benutzer abrufen |
-| POST | `/api/admin-users/` | Benutzer anlegen |
-| PATCH | `/api/admin-users/<id>/` | Benutzerrolle oder Status ändern |
-| GET | `/api/audit-logs/` | Systemprotokoll abrufen |
-
----
-
-## 📸 Screenshots
-
-Lege Screenshots im Ordner `screenshots/` ab.
-
-### 🔐 Login
-
-![Login](screenshots/login.png)
-
-## 📊 Neues Dashboard 
-![Dashboard](screenshots/neues-dashboard-uebersicht.png)
-
-### 📋 Produkte
-
-![Produkte](screenshots/products.png)
-
-### 📥 Wareneingang
-
-![Wareneingang](screenshots/goods-in-WE.png)
-
-### 📤 Warenausgang
-
-![Warenausgang](screenshots/goods-in-WA.png)
-
-### 🕓 Bewegungshistorie
-
-![Bewegungshistorie](screenshots/history.png)
-
-### 🧾 Inventur-Modus
-
-![Inventur-Modus](screenshots/inventory-mode.png)
-
-### 📍 Lagerorte
-
-![Lagerorte](screenshots/storage-locations.png)
-
-### 🚚 Lieferanten
-
-![Lieferanten](screenshots/suppliers.png)
-
-### 👥 Kundenstamm
-
-![Kundenstamm](screenshots/customers.png)
-
-### 🔐 Rollen & Rechte
-
-![Rollen und Rechte](screenshots/roles.png)
-
-
----
-
-## 💻 Installation lokal
-
-### 1. Repository klonen
-
-```bash
-git clone https://github.com/Tamira70/smart-inventory-manager.git
-cd smart-inventory-manager
-```
-
----
-
-## 🐍 Backend einrichten
-
-Virtuelle Umgebung erstellen:
-
-```bash
-python3 -m venv venv
-source venv/bin/activate
-```
-
-Abhängigkeiten installieren:
-
-```bash
-python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
-```
-
-Datenbank vorbereiten:
-
-```bash
-python manage.py migrate
-```
-
-Admin-User erstellen:
-
-```bash
-python manage.py createsuperuser
-```
+| Admin | Verwaltung, Stammdaten, Benutzer, alle Funktionen |
+| Lager | Wareneingang, Warenausgang, Lagerbewegungen, Versandabschluss |
+| Stapler | reduzierte Scanner-Oberfläche für Transportaufträge |
+| Einkauf | Einkaufs- und Bestellprozesse |
+| Dispo | dispositive Übersicht und Prozesskontrolle |
+| Viewer | Lesender Zugriff |
+
+## Lokale Entwicklung
 
 Backend starten:
 
 ```bash
+cd "$HOME/Dokumente/web app/smart-inventory-manager"
+source "/home/tamira/Dokumente/web app/smart-inventory-manager/venv/bin/activate"
 python manage.py runserver
 ```
 
-Backend läuft unter:
-
-```text
-http://127.0.0.1:8000/
-```
-
-Django Admin:
-
-```text
-http://127.0.0.1:8000/admin/
-```
-
----
-
-## ⚛️ Frontend einrichten
-
-In einem zweiten Terminal:
+Frontend starten:
 
 ```bash
-cd frontend
-npm install
+cd "$HOME/Dokumente/web app/smart-inventory-manager/frontend"
 npm run dev
 ```
 
-Frontend läuft unter:
+Lokale Anwendung öffnen:
 
 ```text
 http://localhost:5173/inventory/
 ```
 
----
+## Qualitätssicherung
 
-## ⚙️ Lokaler Vite Proxy
+Django-Systemcheck:
 
-Für die lokale Entwicklung wird `/inventory-api/` an das Django Backend weitergeleitet.
-
-Beispiel `vite.config.ts`:
-
-```ts
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
-
-export default defineConfig({
-  plugins: [react()],
-  base: "/inventory/",
-  server: {
-    proxy: {
-      "/inventory-api": {
-        target: "http://127.0.0.1:8000",
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/inventory-api/, "/api"),
-      },
-    },
-  },
-});
+```bash
+python manage.py check
 ```
 
----
+Tests für den WA-Versandabschluss:
 
-## 🚀 Deployment
+```bash
+python manage.py test inventory.tests.WaShippingCompletionEndpointTests -v 2
+```
 
-### Frontend
-
-Produktionsbuild erstellen:
+Frontend-Build:
 
 ```bash
 cd frontend
 npm run build
+cd ..
 ```
 
-Build-Dateien werden auf dem Server ausgeliefert über:
+## API-Auszug
+
+| Bereich | Endpunkt |
+|---|---|
+| Produkte | `/inventory-api/products/` |
+| Lagerorte | `/inventory-api/storage-locations/` |
+| Lagerplatzbestände | `/inventory-api/location-stocks/` |
+| Lagerbewegungen | `/inventory-api/stock-movements/` |
+| Transportaufträge | `/inventory-api/transport-orders/` |
+| Aktive Transportaufträge | `/inventory-api/transport-orders/active/` |
+| TA aus Warenausgang erzeugen | `/inventory-api/transport-orders/create-from-outbound/` |
+| Versandabschluss | `/inventory-api/location-stocks/<id>/complete-shipping/` |
+| Transport-Dashboard Excel | `/inventory-api/transport-orders/export-excel/` |
+
+## Screenshots – Bestellprozess
+
+Der Bestellprozess zeigt den Ablauf von der Einkaufsbestellung bis zur automatischen Lagerbewegung im Wareneingang.
+
+| Neue Bestellung | Status: Entwurf |
+|---|---|
+| ![Neue Bestellung](docs/screenshots/bestellprozess/01-neue-bestellung.png) | ![Bestellstatus Entwurf](docs/screenshots/bestellprozess/02-bestellstatus-entwurf.png) |
+
+| Status: Freigegeben | Status: Geliefert |
+|---|---|
+| ![Bestellstatus Freigegeben](docs/screenshots/bestellprozess/03-bestellstatus-freigegeben.png) | ![Bestellstatus Geliefert](docs/screenshots/bestellprozess/04-bestellstatus-geliefert.png) |
+
+| Wareneingang aus Bestellung | Automatische Lagerbewegung |
+|---|---|
+| ![Wareneingang aus Bestellung](docs/screenshots/bestellprozess/05-wareneingang-aus-bestellung.png) | ![Lagerbewegung WE-PO](docs/screenshots/bestellprozess/06-lagerbewegung-we-po.png) |
+
+## Geplante nächste Ausbaustufen
+
+- Status „bereitgestellt“ für Ware auf WA-Flächen
+- Kundenauftrag / Kommissionierbedarf als Auslöser für Warenausgangs-Transportaufträge
+- Erweiterung für Palette, NVE oder SSCC
+- weitere Scanner-Optimierung für mobile Geräte
+- PostgreSQL-Vorbereitung für produktionsnähere Umgebung
+- zusätzliche automatische Tests für Transportauftrag-Scanlogik
+
+## Status
+
+Der aktuelle Branch dient der Weiterentwicklung der Lager-IT- und WMS-Funktionen. Die wichtigsten Lagerplatz-, Transport-, Warenausgangs- und Versandabschlussprozesse sind lokal getestet und für eine Portfolio-Demonstration dokumentiert.
+
+## Versandauftrag / Kundenauftrag Workflow
+
+Der Smart Inventory Manager unterstützt zusätzlich einen Versandauftrag-Workflow.
+
+Der Ablauf bildet einen kundenauftragsnahen Warenausgang ab:
 
 ```text
-/var/www/html/inventory/
+Versandauftrag / Kundenauftrag
+→ Versandposition
+→ Transportauftrag zur WA-Fläche
+→ Stapler-Terminal
+→ Quelle-/Ziel-Scan
+→ Bestand auf WA-Fläche
+→ Versandabschluss
+→ finale Bestandsausbuchung
 ```
 
-### Backend
+### Umgesetzte Funktionen
 
-Backend liegt auf dem Server unter:
+- Versandauftrag mit Kunde, Referenz, Lieferadresse und gewünschtem Versanddatum
+- Versandposition mit Produkt und Menge
+- automatische Erstellung eines Transportauftrags aus einer Versandposition
+- automatische Auswahl eines geeigneten Entnahmeplatzes
+- Ziel ist eine aktive WA-Fläche
+- Schutz vor doppelten Transportaufträgen je Versandposition
+- Statuswechsel des Versandauftrags in Richtung Kommissionierung
+- Frontend-Bereich „Versandaufträge“ unter Lager
+- automatische Tests für den kompletten Outbound-Workflow
+
+### API-Auszug
 
 ```text
-/opt/smart-inventory-manager/
+GET  /inventory-api/outbound-orders/
+POST /inventory-api/outbound-orders/
+GET  /inventory-api/outbound-order-items/
+POST /inventory-api/outbound-order-items/
+POST /inventory-api/outbound-order-items/<id>/create-transport-order/
 ```
 
-Gunicorn läuft als systemd-Service:
+### Tests
 
-```text
-smart-inventory.service
+```bash
+python manage.py test inventory.tests.OutboundOrderWorkflowApiTests -v 2
 ```
 
-### Apache Reverse Proxy
-
-Apache leitet API-Anfragen weiter:
-
-```apache
-ProxyPass /inventory-api/ http://127.0.0.1:8001/api/
-ProxyPassReverse /inventory-api/ http://127.0.0.1:8001/api/
-```
-
----
-
-## 🧪 Beispielprozess: Inventur
-
-```text
-1. Inventur starten
-2. Produkt auswählen
-3. Systembestand wird als Soll-Bestand gespeichert
-4. Gezählt wird z. B. 4 kg statt 6 kg
-5. Differenz = -2 kg
-6. Korrekturbuchung erzeugt automatisch Warenausgang
-7. Produktbestand wird aktualisiert
-8. Bewegungshistorie erhält Inventur-Korrektur
-9. Inventurbericht wird als Excel-Datei exportiert
-```
-
----
-
-## 🧪 Beispielprozess: Lagerkorrektur
-
-```text
-1. Produkt auswählen
-2. Neuen Zielbestand erfassen
-3. Begründung eintragen
-4. Differenz wird berechnet
-5. System erzeugt automatisch IN- oder OUT-Bewegung
-6. Bewegung bleibt historisch nachvollziehbar
-```
-
----
-
-## 🎯 Projektziel
-
-Dieses Projekt demonstriert:
-
-- Fullstack-Webentwicklung mit Django und React
-- REST API Design
-- JWT Authentifizierung
-- Rollen- und Berechtigungskonzept
-- Digitalisierung realer Logistikprozesse
-- Wareneingang und Warenausgang
-- Bewegungshistorie
-- Inventur mit Soll-/Ist-Vergleich
-- Automatische Korrekturbuchungen
-- Lagerortverwaltung
-- Lieferantenverwaltung
-- Kundenstammverwaltung
-- Admin-Benutzerverwaltung
-- Deployment auf eigener Linux-Infrastruktur
-- Verbindung von Logistikpraxis und IT-Umsetzung
-
----
-
-## 🧠 Roadmap und Umsetzungsstand
-
-### ✅ Bereits umgesetzt
-
-- 📊 Dashboard mit erweiterten Diagrammen
-- 🛒 Bestellwesen mit Lieferantenverknüpfung
-- 📱 QR-Code- / Barcode-Funktion für Produkte und Lagerplätze
-- 📦 Verpackungsarten und Packmittel
-- 📍 Erweiterte Lagerplatz-Kapazitätsprüfung
-- 🔁 FIFO / LIFO / FEFO-Auslagerungslogik
-- 💰 HIFO / LOFO-Auslagerungslogik auf Basis von Einstandspreisen
-- 📦 Lagerplatzbestand je Lagerort
-- 🟩 Automatische Frei-/Belegt-Synchronisierung der Lagerplätze
-- 📤 Excel-Export für Inventurberichte
-- 📄 PDF-Export für Inventurberichte
-- 📤 Excel-Export für Bewegungshistorie
-- 📤 Zusätzlicher Excel-Export für aktuelle Bestände und Lagerplatzbestände
-
-### 🟨 Teilweise umgesetzt / nächster Ausbau
-
-- 📷 Barcode-/Scan-Feld für Produkte, Lagerplätze und Lagerbewegungen
-- 📦 Weitere Ausbaustufen im Bestell- und Wareneingangsprozess
-
-### 🚜 Geplantes WMS-/Lagerleitsystem: Transportauftrag, Transportschein & Stapler-Terminal
-
-Dieses Modul beschreibt den nächsten professionellen Ausbauschritt des Smart Inventory Managers. Ziel ist nicht nur ein einfaches Scan-Feld, sondern eine zentrale WMS-Logik, die Transportaufträge automatisch erzeugt und direkt an Stapler-Terminals übergibt.
-
-#### Geplanter Ablauf
-
-Sobald am Warenausgang ein Auftrag gestartet wird oder Produkte angefordert werden, erstellt das System automatisch einen Transportauftrag.
-
-1. **Automatische TA-Erstellung**  
-   Das System erstellt einen Transportauftrag und ermittelt anhand der vorhandenen Bestände, Lagerplätze und Auslagerungsstrategien den optimalen Entnahmeplatz.
-
-2. **Automatische TS-Erstellung**  
-   Aus dem Transportauftrag wird ein Transportschein erzeugt. Dieser wird dem zuständigen Stapler-Terminal angezeigt.
-
-3. **Stapler-Terminal mit Ein-Scan-Feld-Logik**  
-   Das Stapler-Terminal besitzt nur ein dauerhaft aktives Scan-Feld. Der Fahrer muss keinen Cursor manuell setzen und keine unterschiedlichen Felder auswählen.
-
-4. **Automatische Scan-Erkennung**  
-   Das System erkennt anhand von Präfixen, QR-Inhalten oder Längen automatisch, was gescannt wurde:
-
-   - Produkt
-   - Lagerort
-   - Quellplatz
-   - Zielplatz
-   - Palette / NVE / SSCC
-
-5. **Quell-Bestätigung**  
-   Der erste gültige Scan bestätigt die Aufnahme der Ware am Entnahmeplatz. Der TA wechselt in den Status „Ware aufgenommen“ oder „in Transport“.
-
-6. **Ziel-Bestätigung**  
-   Der zweite gültige Scan bestätigt die Abstellung am Ziel- oder Bereitstellungsplatz. Der TA wird automatisch abgeschlossen und der Bestand wird umgebucht.
-
-7. **Fehlerschutz**  
-   Falsche Scans werden sofort blockiert. Das Terminal zeigt eine Fehlermeldung und gibt eine akustische Warnung aus.
-
-#### Ziel des Moduls
-
-Das Modul soll zeigen, wie der Smart Inventory Manager zu einem echten Lagerleitsystem erweitert werden kann:
-
-- automatische Transportaufträge
-- automatische Quell- und Zielermittlung
-- direkte Staplerführung
-- Ein-Scan-Feld-Bedienung
-- Plausibilitätsprüfung gegen falsche Plätze
-- automatische Statusführung
-- automatische Bestandsbuchung nach erfolgreichem Transport
-
-### 🟥 Noch geplant
-
-- 🐘 Migration auf PostgreSQL
-
----
-
-## 👩‍💻 Autorin
-
-**Tamira Morgner**  
-SAP Key User | Logistik | IT | Webentwicklung
-
-GitHub: [Tamira70](https://github.com/Tamira70)
-
----
-
-## 📜 Lizenz
-
-Dieses Projekt dient als Portfolio-Projekt.
+Damit ist der Warenausgang nicht mehr nur eine direkte Buchung, sondern ein vollständiger Prozess vom Kundenauftrag bis zum Versandabschluss.

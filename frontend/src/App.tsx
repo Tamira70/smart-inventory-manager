@@ -57,6 +57,7 @@ type StorageLocation = {
   aisle: string;
   rack: string;
   shelf: string;
+  location_type?: "RECEIVING" | "STORAGE" | "SHIPPING" | "QUALITY" | "BLOCKED";
   description: string;
 
   is_active: boolean;
@@ -336,6 +337,170 @@ type ProductForm = {
   packaging_type: string;
 };
 
+type PurchaseOrderItem = {
+  id: number;
+  purchase_order: number;
+  product: number;
+  product_name: string;
+  product_sku: string;
+  product_unit: string;
+  quantity: number;
+  received_quantity: number;
+  open_quantity: number;
+  unit: string;
+  unit_price: string | null;
+  note: string;
+  created_at: string;
+  updated_at: string;
+};
+
+type PurchaseOrder = {
+  id: number;
+  order_number: string | null;
+  supplier: number | null;
+  supplier_name: string | null;
+  status:
+    | "DRAFT"
+    | "RELEASED"
+    | "ORDERED"
+    | "PARTIALLY_RECEIVED"
+    | "RECEIVED"
+    | "CANCELLED";
+  title: string;
+  note: string;
+  expected_delivery_date: string | null;
+  created_by?: number | null;
+  created_by_username?: string | null;
+  released_by_username?: string | null;
+  ordered_by_username?: string | null;
+  received_by_username?: string | null;
+  released_at: string | null;
+  ordered_at: string | null;
+  received_at: string | null;
+  created_at: string;
+  updated_at: string;
+  items: PurchaseOrderItem[];
+  item_count: number;
+  total_quantity: number;
+  received_quantity_total: number;
+};
+
+type PurchaseOrderForm = {
+  supplier: string;
+  title: string;
+  note: string;
+  expected_delivery_date: string;
+  product: string;
+  quantity: string;
+  unit_price: string;
+  item_note: string;
+};
+
+type TransportOrder = {
+  id: number;
+  transport_order_number: string | null;
+  transport_slip_number: string | null;
+  product: number;
+  product_name: string;
+  product_sku: string;
+  quantity: string;
+  source_location: number;
+  source_location_code: string;
+  source_location_name: string;
+  target_location: number | null;
+  target_location_code: string | null;
+  target_location_name: string | null;
+  status:
+    | "CREATED"
+    | "ASSIGNED"
+    | "PICKED"
+    | "IN_TRANSIT"
+    | "COMPLETED"
+    | "CANCELLED"
+    | "ERROR";
+  status_display: string;
+  reference_number: string;
+  priority: number;
+  assigned_to: number | null;
+  assigned_to_username: string | null;
+  created_by: number | null;
+  created_by_username: string | null;
+  picked_at: string | null;
+  completed_at: string | null;
+  cancelled_at: string | null;
+  last_scan_value: string;
+  last_error: string;
+  created_at: string;
+  updated_at: string;
+};
+
+
+type OutboundOrder = {
+  id: number;
+  order_number: string | null;
+  customer: number;
+  customer_name: string;
+  delivery_address: number | null;
+  delivery_address_label: string | null;
+  status: string;
+  status_display: string;
+  reference_number: string;
+  requested_ship_date: string | null;
+  note: string;
+  item_count: number;
+  total_quantity: number | string;
+  items: OutboundOrderItem[];
+  created_by: number | null;
+  created_by_username: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type OutboundOrderItem = {
+  id: number;
+  outbound_order: number;
+  product: number;
+  product_name: string;
+  product_sku: string;
+  quantity: number | string;
+  transport_order: number | null;
+  transport_order_number: string | null;
+  note: string;
+  created_at: string;
+  updated_at: string;
+};
+
+type OutboundOrderForm = {
+  customer: string;
+  delivery_address: string;
+  reference_number: string;
+  requested_ship_date: string;
+  note: string;
+};
+
+type OutboundOrderItemForm = {
+  outbound_order: string;
+  product: string;
+  quantity: string;
+  note: string;
+};
+
+const initialOutboundOrderForm: OutboundOrderForm = {
+  customer: "",
+  delivery_address: "",
+  reference_number: "",
+  requested_ship_date: "",
+  note: "",
+};
+
+const initialOutboundOrderItemForm: OutboundOrderItemForm = {
+  outbound_order: "",
+  product: "",
+  quantity: "1",
+  note: "",
+};
+
+
 type ActiveSection =
   | "dashboard"
   | "orders"
@@ -347,6 +512,9 @@ type ActiveSection =
   | "inventory"
   | "goods-in"
   | "goods-out"
+  | "outbound-orders"
+  | "forklift-terminal"
+  | "transport-report"
   | "history"
   | "corrections"
   | "locations"
@@ -369,7 +537,7 @@ type SidebarMenu = {
   }[];
 };
 
-type PermissionRole = "admin" | "lager";
+type PermissionRole = "admin" | "lager" | "forklift_terminal";
 
 type InventorySummary = {
   total: number;
@@ -526,6 +694,17 @@ const initialCustomerNoteForm: CustomerNoteForm = {
   note: "",
 };
 
+const initialPurchaseOrderForm: PurchaseOrderForm = {
+  supplier: "",
+  title: "",
+  note: "",
+  expected_delivery_date: "",
+  product: "",
+  quantity: "1",
+  unit_price: "",
+  item_note: "",
+};
+
 const initialAdminUserForm: AdminUserForm = {
   username: "",
   password: "",
@@ -575,6 +754,9 @@ const sidebarMenus: SidebarMenu[] = [
     items: [
       { id: "goods-in", label: "Wareneingang" },
       { id: "goods-out", label: "Warenausgang" },
+      { id: "outbound-orders", label: "Versandaufträge" },
+      { id: "forklift-terminal", label: "Stapler-Terminal" },
+      { id: "transport-report", label: "Transport-Dashboard" },
       { id: "history", label: "Bewegungshistorie" },
       { id: "corrections", label: "Lagerkorrekturen" },
       { id: "locations", label: "Lagerorte" },
@@ -608,14 +790,18 @@ const sidebarMenus: SidebarMenu[] = [
 function App() {
   const user = getUser();
   const role = user?.role ?? "viewer";
+  const previousRoleRef = useRef(role);
 
 
-const [activeSection, setActiveSection] = useState<ActiveSection>("dashboard");
+const [activeSection, setActiveSection] = useState<ActiveSection>(
+  role === "stapler" ? "forklift-terminal" : "dashboard"
+);
   const [expandedMenus, setExpandedMenus] = useState<string[]>([
     "dashboard",
     "einkauf",
     "dispo",
     "lager",
+    "stapler",
   ]);
   const [windowWidth, setWindowWidth] = useState<number>(window.innerWidth);
 
@@ -674,6 +860,18 @@ const [loggedIn, setLoggedIn] = useState(isLoggedIn());
   const [movementsLoading, setMovementsLoading] = useState(false);
   const [movementProductFilter, setMovementProductFilter] = useState("");
 
+  const [transportOrders, setTransportOrders] = useState<TransportOrder[]>([]);
+  const [transportOrdersLoading, setTransportOrdersLoading] = useState(false);
+  const [transportOrderReport, setTransportOrderReport] = useState<TransportOrder[]>([]);
+  const [transportOrderReportLoading, setTransportOrderReportLoading] = useState(false);
+  const [activeTransportOrderId, setActiveTransportOrderId] = useState("");
+  const [forkliftScanValue, setForkliftScanValue] = useState("");
+  const [forkliftScanFeedback, setForkliftScanFeedback] = useState("");
+  const [transportOrderProductId, setTransportOrderProductId] = useState("");
+  const [transportOrderQuantity, setTransportOrderQuantity] = useState("1");
+  const [transportOrderTargetLocationId, setTransportOrderTargetLocationId] = useState("");
+  const [transportOrderSaving, setTransportOrderSaving] = useState(false);
+
   const [storageLocations, setStorageLocations] = useState<StorageLocation[]>([]);
   const [locationStocks, setLocationStocks] = useState<StorageLocationStock[]>([]);
   const [locationStocksLoading, setLocationStocksLoading] = useState(false);
@@ -707,11 +905,30 @@ const [loggedIn, setLoggedIn] = useState(isLoggedIn());
   const [customerNoteForm, setCustomerNoteForm] =
     useState<CustomerNoteForm>(initialCustomerNoteForm);
 
+
+  const [outboundOrders, setOutboundOrders] = useState<OutboundOrder[]>([]);
+  const [outboundOrderItems, setOutboundOrderItems] = useState<OutboundOrderItem[]>([]);
+  const [outboundOrdersLoading, setOutboundOrdersLoading] = useState(false);
+  const [outboundOrderSaving, setOutboundOrderSaving] = useState(false);
+  const [outboundOrderItemSaving, setOutboundOrderItemSaving] = useState(false);
+  const [outboundTransportOrderSavingId, setOutboundTransportOrderSavingId] =
+    useState<number | null>(null);
+  const [outboundOrderForm, setOutboundOrderForm] =
+    useState<OutboundOrderForm>(initialOutboundOrderForm);
+  const [outboundOrderItemForm, setOutboundOrderItemForm] =
+    useState<OutboundOrderItemForm>(initialOutboundOrderItemForm);
+
 const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [suppliersLoading, setSuppliersLoading] = useState(false);
   const [supplierSaving, setSupplierSaving] = useState(false);
   const [supplierForm, setSupplierForm] =
     useState<SupplierForm>(initialSupplierForm);
+
+  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
+  const [purchaseOrdersLoading, setPurchaseOrdersLoading] = useState(false);
+  const [purchaseOrderSaving, setPurchaseOrderSaving] = useState(false);
+  const [purchaseOrderForm, setPurchaseOrderForm] =
+    useState<PurchaseOrderForm>(initialPurchaseOrderForm);
 
 
   const [inventorySessions, setInventorySessions] = useState<InventorySession[]>([]);
@@ -737,6 +954,7 @@ const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [showLowStockOnly, setShowLowStockOnly] = useState(false);
 
   const [movementProductId, setMovementProductId] = useState("");
+  const [selectedPurchaseOrderItemId, setSelectedPurchaseOrderItemId] = useState("");
   const [movementQuantity, setMovementQuantity] = useState("");
   const [movementStorageLocationId, setMovementStorageLocationId] = useState("");
   const [movementPackagingTypeId, setMovementPackagingTypeId] = useState("");
@@ -752,10 +970,13 @@ const [suppliers, setSuppliers] = useState<Supplier[]>([]);
 
   const [goodsOutProductId, setGoodsOutProductId] = useState("");
   const [goodsOutStorageLocationId, setGoodsOutStorageLocationId] = useState("");
+  const [goodsOutTargetLocationId, setGoodsOutTargetLocationId] = useState("");
   const [goodsOutQuantity, setGoodsOutQuantity] = useState("");
   const [goodsOutReferenceNumber, setGoodsOutReferenceNumber] = useState("");
   const [goodsOutNote, setGoodsOutNote] = useState("");
   const [goodsOutSaving, setGoodsOutSaving] = useState(false);
+  const [goodsOutTransportOrderSaving, setGoodsOutTransportOrderSaving] = useState(false);
+  const [shippingCompletionSavingId, setShippingCompletionSavingId] = useState<number | null>(null);
 
   const [correctionProductId, setCorrectionProductId] = useState("");
   const [correctionTargetQuantity, setCorrectionTargetQuantity] = useState("");
@@ -821,6 +1042,8 @@ const selectSection = (section: ActiveSection) => {
     if (!role) return false;
     if (required === "admin") return role === "admin";
     if (required === "lager") return role === "admin" || role === "lager";
+    if (required === "forklift_terminal")
+      return role === "admin" || role === "stapler";
     return false;
   };
   const isReadOnlyRole = role === "viewer";
@@ -833,11 +1056,17 @@ const canAccessSection = (section: ActiveSection) => {
   if (role === "viewer") return true;
 
   // Lager: operative Lagerbereiche.
+  if (role === "stapler") {
+    return section === "forklift-terminal";
+  }
+
   if (role === "lager") {
     return [
       "dashboard",
       "goods-in",
       "goods-out",
+      "forklift-terminal",
+      "transport-report",
       "history",
       "corrections",
       "locations",
@@ -877,8 +1106,34 @@ if (role === "einkauf") {
 };
 
 const visibleSidebarMenus = useMemo(() => {
+  if (role === "stapler") {
+    return [
+      {
+        id: "stapler-terminal",
+        title: "STAPLER-TERMINAL",
+        icon: "",
+        items: [{ id: "forklift-terminal" as ActiveSection, label: "STAPLER-TERMINAL" }],
+      },
+    ];
+  }
+
   if (role === "admin" || role === "viewer") {
     return sidebarMenus;
+  }
+
+  if (role === "viewer") {
+    return sidebarMenus
+      .filter((menu) => menu.id === "dashboard" || menu.id === "lager")
+      .map((menu) =>
+        menu.id === "lager"
+          ? {
+              ...menu,
+              items: menu.items.filter(
+                (item) => item.id === "forklift-terminal"
+              ),
+            }
+          : menu
+      );
   }
 
   if (role === "lager") {
@@ -938,6 +1193,304 @@ if (role === "einkauf") {
     const timer = window.setTimeout(() => setSuccess(""), 3000);
     return () => window.clearTimeout(timer);
   }, [success]);
+
+
+  const loadTransportOrders = async () => {
+    try {
+      setTransportOrdersLoading(true);
+
+      const response = await apiFetch("/inventory-api/transport-orders/active/");
+      const data = (await response.json()) as TransportOrder[];
+
+      setTransportOrders(data);
+
+      if (
+        activeTransportOrderId &&
+        !data.some((order) => String(order.id) === activeTransportOrderId)
+      ) {
+        setActiveTransportOrderId("");
+      }
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Fehler beim Laden der Transportaufträge.";
+      setError(message);
+    } finally {
+      setTransportOrdersLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!loggedIn) return;
+
+    if (role === "stapler") {
+      if (activeSection !== "forklift-terminal") {
+        setActiveSection("forklift-terminal");
+      }
+
+      setExpandedMenus(["stapler-terminal"]);
+      previousRoleRef.current = role;
+      return;
+    }
+
+    if (
+      previousRoleRef.current !== role &&
+      activeSection === "forklift-terminal"
+    ) {
+      setActiveSection("dashboard");
+      setExpandedMenus((current) =>
+        current.includes("dashboard") ? current : ["dashboard", ...current]
+      );
+      setActiveTransportOrderId("");
+      setForkliftScanValue("");
+      setForkliftScanFeedback("");
+    }
+
+    previousRoleRef.current = role;
+  }, [loggedIn, role, activeSection]);
+
+  useEffect(() => {
+    if (!loggedIn || role !== "stapler") return;
+
+    void loadTransportOrders();
+
+    const refreshTimer = window.setInterval(() => {
+      void loadTransportOrders();
+    }, 6 * 60 * 1000);
+
+    return () => window.clearInterval(refreshTimer);
+  }, [loggedIn, role]);
+
+  const loadTransportOrderReport = async () => {
+    try {
+      setTransportOrderReportLoading(true);
+
+      const response = await apiFetch("/inventory-api/transport-orders/");
+      const data = (await response.json()) as TransportOrder[];
+
+      setTransportOrderReport(data);
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Fehler beim Laden des Transport-Dashboards.";
+      setError(message);
+    } finally {
+      setTransportOrderReportLoading(false);
+    }
+  };
+
+  const playForkliftWarningBeep = () => {
+    try {
+      const AudioContextClass =
+        window.AudioContext ||
+        (window as unknown as {
+          webkitAudioContext?: typeof window.AudioContext;
+        }).webkitAudioContext;
+
+      if (!AudioContextClass) {
+        return;
+      }
+
+      const audioContext = new AudioContextClass();
+      const oscillator = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+
+      oscillator.type = "square";
+      oscillator.frequency.value = 520;
+      gain.gain.value = 0.12;
+
+      oscillator.connect(gain);
+      gain.connect(audioContext.destination);
+
+      oscillator.start();
+      oscillator.stop(audioContext.currentTime + 0.18);
+    } catch {
+      // Akustische Warnung ist optional.
+    }
+  };
+
+
+  const handleCreateTransportOrder = async (event: FormEvent) => {
+    event.preventDefault();
+
+    if (!hasPermission("lager")) {
+      setError("Nur Admin oder Lager dürfen Transportaufträge erstellen.");
+      return;
+    }
+
+    if (!transportOrderProductId) {
+      setError("Bitte ein Produkt für den Transportauftrag auswählen.");
+      return;
+    }
+
+    if (!transportOrderQuantity || Number(transportOrderQuantity) <= 0) {
+      setError("Bitte eine gültige Menge größer 0 eintragen.");
+      return;
+    }
+
+    if (!transportOrderTargetLocationId) {
+      setError("Bitte einen Ziel- oder Bereitstellplatz auswählen.");
+      return;
+    }
+
+    try {
+      setTransportOrderSaving(true);
+      setError("");
+      setSuccess("");
+      setForkliftScanFeedback("");
+
+      const response = await apiFetch("/inventory-api/transport-orders/create-from-outbound/", {
+        method: "POST",
+        body: JSON.stringify({
+          product: Number(transportOrderProductId),
+          quantity: transportOrderQuantity,
+          target_location: Number(transportOrderTargetLocationId),
+          reference_number: `WMS-${new Date().toISOString().slice(0, 10)}`,
+        }),
+      });
+
+      const data = (await response.json()) as {
+        detail?: string;
+        transport_order?: TransportOrder;
+        next_step?: string;
+      };
+
+      if (!response.ok) {
+        throw new Error(data.detail || "Transportauftrag konnte nicht erstellt werden.");
+      }
+
+      setTransportOrderProductId("");
+      setTransportOrderQuantity("1");
+      setTransportOrderTargetLocationId("");
+
+      if (data.transport_order?.id) {
+        setActiveTransportOrderId(String(data.transport_order.id));
+      }
+
+      setSuccess(data.detail || "Transportauftrag wurde erstellt.");
+      setForkliftScanFeedback(data.next_step || "Bitte Quellplatz scannen.");
+
+      await loadTransportOrders();
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Fehler beim Erstellen des Transportauftrags.";
+      setError(message);
+    } finally {
+      setTransportOrderSaving(false);
+    }
+  };
+
+  const handleAssignTransportOrder = async (order: TransportOrder) => {
+    try {
+      setError("");
+      setSuccess("");
+      setForkliftScanFeedback("");
+
+      const response = await apiFetch(
+        `/inventory-api/transport-orders/${order.id}/assign-to-me/`,
+        {
+          method: "POST",
+        }
+      );
+
+      const data = (await response.json()) as {
+        detail?: string;
+        transport_order?: TransportOrder;
+        next_step?: string;
+      };
+
+      if (!response.ok) {
+        throw new Error(data.detail || "Transportauftrag konnte nicht übernommen werden.");
+      }
+
+      setActiveTransportOrderId(String(order.id));
+      setSuccess(data.detail || "Transportauftrag übernommen.");
+      setForkliftScanFeedback(data.next_step || "Bitte Quellplatz scannen.");
+
+      await loadTransportOrders();
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Fehler beim Übernehmen des Transportauftrags.";
+      setError(message);
+    }
+  };
+
+  const handleForkliftScan = async () => {
+    const scanValue = forkliftScanValue.trim();
+
+    const activeOrder =
+      transportOrders.find((order) => String(order.id) === activeTransportOrderId) ??
+      transportOrders[0] ??
+      null;
+
+    if (!activeOrder) {
+      playForkliftWarningBeep();
+      setForkliftScanFeedback("⛔ Kein aktiver Transportauftrag vorhanden.");
+      return;
+    }
+
+    if (!scanValue) {
+      playForkliftWarningBeep();
+      setForkliftScanFeedback("⛔ Bitte zuerst einen Lagerort-, Produkt- oder Palettencode scannen.");
+      return;
+    }
+
+    try {
+      setError("");
+      setSuccess("");
+
+      const response = await apiFetch(
+        `/inventory-api/transport-orders/${activeOrder.id}/scan/`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            scan_value: scanValue,
+          }),
+        }
+      );
+
+      const data = (await response.json()) as {
+        detail?: string;
+        warning?: string;
+        transport_order?: TransportOrder;
+        next_step?: string;
+      };
+
+      if (!response.ok) {
+        playForkliftWarningBeep();
+        setForkliftScanFeedback(`⛔ ${data.detail || "Falscher Scan."}`);
+        return;
+      }
+
+      setForkliftScanValue("");
+      setForkliftScanFeedback(
+        `✅ ${data.detail || "Scan erfolgreich."}${
+          data.next_step ? ` ${data.next_step}` : ""
+        }`
+      );
+
+      if (data.transport_order?.status === "COMPLETED") {
+        setActiveTransportOrderId("");
+      } else if (data.transport_order?.id) {
+        setActiveTransportOrderId(String(data.transport_order.id));
+      }
+
+      await loadTransportOrders();
+    } catch (err) {
+      playForkliftWarningBeep();
+
+      const message =
+        err instanceof Error ? err.message : "Fehler beim Verarbeiten des Scans.";
+
+      setForkliftScanFeedback(`⛔ ${message}`);
+    }
+  };
 
   const loadProducts = async () => {
     try {
@@ -1012,6 +1565,63 @@ if (role === "einkauf") {
       setSuppliersLoading(false);
     }
   };
+
+  const loadPurchaseOrders = async () => {
+    try {
+      setPurchaseOrdersLoading(true);
+
+      const response = await apiFetch("/inventory-api/purchase-orders/");
+      const data = (await response.json()) as PurchaseOrder[];
+
+      setPurchaseOrders(data);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Fehler beim Laden der Bestellungen.";
+      setError(message);
+    } finally {
+      setPurchaseOrdersLoading(false);
+    }
+  };
+
+
+
+  const loadOutboundOrders = async () => {
+    try {
+      setOutboundOrdersLoading(true);
+      const response = await apiFetch("/inventory-api/outbound-orders/");
+
+      if (!response.ok) {
+        throw new Error("Versandaufträge konnten nicht geladen werden.");
+      }
+
+      const data = (await response.json()) as OutboundOrder[];
+      setOutboundOrders(data);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Fehler beim Laden der Versandaufträge.";
+      setError(message);
+    } finally {
+      setOutboundOrdersLoading(false);
+    }
+  };
+
+  const loadOutboundOrderItems = async () => {
+    try {
+      const response = await apiFetch("/inventory-api/outbound-order-items/");
+
+      if (!response.ok) {
+        throw new Error("Versandauftragspositionen konnten nicht geladen werden.");
+      }
+
+      const data = (await response.json()) as OutboundOrderItem[];
+      setOutboundOrderItems(data);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Fehler beim Laden der Versandauftragspositionen.";
+      setError(message);
+    }
+  };
+
 
   const loadCustomers = async () => {
     try {
@@ -1168,11 +1778,13 @@ if (role === "einkauf") {
   if (loggedIn) {
     void loadProducts();
     void loadMovements();
+    void loadTransportOrders();
     void loadInventorySessions();
     void loadStorageLocations();
     void loadLocationStocks();
     void loadPackagingTypes();
     void loadSuppliers();
+    void loadPurchaseOrders();
     void loadCustomers();
     void loadCustomerContacts();
     void loadDeliveryAddresses();
@@ -1192,6 +1804,24 @@ if (role === "einkauf") {
       void loadInventoryCounts(selectedInventorySessionId);
     }
   }, [loggedIn, selectedInventorySessionId]);
+
+  useEffect(() => {
+    if (loggedIn && activeSection === "transport-report") {
+      void loadTransportOrderReport();
+    }
+  }, [loggedIn, activeSection]);
+
+  useEffect(() => {
+    if (loggedIn && activeSection === "outbound-orders") {
+      void loadOutboundOrders();
+      void loadOutboundOrderItems();
+      void loadCustomers();
+      void loadDeliveryAddresses();
+      void loadProducts();
+      void loadStorageLocations();
+    }
+  }, [loggedIn, activeSection]);
+
 
   const lowStockProducts = useMemo(
     () => products.filter((product) => product.quantity <= product.min_stock),
@@ -1353,6 +1983,184 @@ if (role === "einkauf") {
     }
   };
 
+  const handlePurchaseOrderChange = (
+    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = event.target;
+
+    setPurchaseOrderForm((current) => ({
+      ...current,
+      [name]: value,
+    }));
+  };
+
+  const handleCreatePurchaseOrder = async (event: FormEvent) => {
+    event.preventDefault();
+
+    if (!canWrite) {
+      setError("Nur Einkauf oder Admin dürfen Bestellungen anlegen.");
+      return;
+    }
+
+    if (!purchaseOrderForm.supplier) {
+      setError("Bitte einen Lieferanten auswählen.");
+      return;
+    }
+
+    if (!purchaseOrderForm.product) {
+      setError("Bitte ein Produkt für die Bestellung auswählen.");
+      return;
+    }
+
+    if (
+      purchaseOrderForm.quantity === "" ||
+      Number(purchaseOrderForm.quantity) <= 0
+    ) {
+      setError("Die Bestellmenge muss größer als 0 sein.");
+      return;
+    }
+
+    try {
+      setPurchaseOrderSaving(true);
+      setError("");
+      setSuccess("");
+
+      const selectedProduct = products.find(
+        (product) => String(product.id) === purchaseOrderForm.product
+      );
+
+      const orderResponse = await apiFetch("/inventory-api/purchase-orders/", {
+        method: "POST",
+        body: JSON.stringify({
+          supplier: Number(purchaseOrderForm.supplier),
+          title:
+            purchaseOrderForm.title.trim() ||
+            `Bestellung ${selectedProduct?.name ?? ""}`.trim(),
+          note: purchaseOrderForm.note,
+          expected_delivery_date:
+            purchaseOrderForm.expected_delivery_date || null,
+        }),
+      });
+
+      if (!orderResponse.ok) {
+        const errorData = await orderResponse.json();
+        throw new Error(JSON.stringify(errorData));
+      }
+
+      const createdOrder = (await orderResponse.json()) as PurchaseOrder;
+
+      const itemResponse = await apiFetch("/inventory-api/purchase-order-items/", {
+        method: "POST",
+        body: JSON.stringify({
+          purchase_order: createdOrder.id,
+          product: Number(purchaseOrderForm.product),
+          quantity: Number(purchaseOrderForm.quantity),
+          unit_price: purchaseOrderForm.unit_price
+            ? Number(purchaseOrderForm.unit_price)
+            : null,
+          note: purchaseOrderForm.item_note,
+        }),
+      });
+
+      if (!itemResponse.ok) {
+        const errorData = await itemResponse.json();
+        throw new Error(JSON.stringify(errorData));
+      }
+
+      setPurchaseOrderForm(initialPurchaseOrderForm);
+
+      await loadPurchaseOrders();
+
+      setSuccess("🛒 Bestellung erfolgreich angelegt.");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Fehler beim Anlegen der Bestellung.";
+      setError(message);
+    } finally {
+      setPurchaseOrderSaving(false);
+    }
+  };
+
+  const handleReleasePurchaseOrder = async (orderId: number) => {
+    try {
+      setError("");
+      setSuccess("");
+
+      const response = await apiFetch(
+        `/inventory-api/purchase-orders/${orderId}/release/`,
+        { method: "POST" }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(JSON.stringify(errorData));
+      }
+
+      await loadPurchaseOrders();
+
+      setSuccess("✅ Bestellung wurde freigegeben.");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Fehler beim Freigeben der Bestellung.";
+      setError(message);
+    }
+  };
+
+  const handleMarkPurchaseOrderOrdered = async (orderId: number) => {
+    try {
+      setError("");
+      setSuccess("");
+
+      const response = await apiFetch(
+        `/inventory-api/purchase-orders/${orderId}/mark-ordered/`,
+        { method: "POST" }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(JSON.stringify(errorData));
+      }
+
+      await loadPurchaseOrders();
+
+      setSuccess("📨 Bestellung wurde auf Bestellt gesetzt.");
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Fehler beim Setzen des Bestellstatus.";
+      setError(message);
+    }
+  };
+
+  const handleCancelPurchaseOrder = async (orderId: number) => {
+    const confirmed = window.confirm("Bestellung wirklich stornieren?");
+    if (!confirmed) return;
+
+    try {
+      setError("");
+      setSuccess("");
+
+      const response = await apiFetch(
+        `/inventory-api/purchase-orders/${orderId}/cancel/`,
+        { method: "POST" }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(JSON.stringify(errorData));
+      }
+
+      await loadPurchaseOrders();
+
+      setSuccess("⛔ Bestellung wurde storniert.");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Fehler beim Stornieren der Bestellung.";
+      setError(message);
+    }
+  };
+
   const canManageCustomerMaster = role === "admin" || role === "einkauf";
 
   const handleCustomerChange = (
@@ -1361,6 +2169,202 @@ if (role === "einkauf") {
     const { name, value } = event.target;
     setCustomerForm((current) => ({ ...current, [name]: value }));
   };
+
+
+  const handleOutboundOrderFormChange = (
+    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = event.target;
+
+    setOutboundOrderForm((current) => ({
+      ...current,
+      [name]: value,
+      ...(name === "customer" ? { delivery_address: "" } : {}),
+    }));
+  };
+
+  const handleOutboundOrderItemFormChange = (
+    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = event.target;
+
+    setOutboundOrderItemForm((current) => ({
+      ...current,
+      [name]: value,
+    }));
+  };
+
+  const handleCreateOutboundOrder = async (event: FormEvent) => {
+    event.preventDefault();
+
+    if (!hasPermission("lager")) {
+      setError("Nur Lager oder Admin dürfen Versandaufträge anlegen.");
+      return;
+    }
+
+    if (!outboundOrderForm.customer) {
+      setError("Bitte einen Kunden für den Versandauftrag auswählen.");
+      return;
+    }
+
+    try {
+      setOutboundOrderSaving(true);
+      setError("");
+      setSuccess("");
+
+      const response = await apiFetch("/inventory-api/outbound-orders/", {
+        method: "POST",
+        body: JSON.stringify({
+          customer: Number(outboundOrderForm.customer),
+          delivery_address: outboundOrderForm.delivery_address
+            ? Number(outboundOrderForm.delivery_address)
+            : null,
+          reference_number: outboundOrderForm.reference_number.trim(),
+          requested_ship_date: outboundOrderForm.requested_ship_date || null,
+          note: outboundOrderForm.note.trim(),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || JSON.stringify(data));
+      }
+
+      setOutboundOrderForm(initialOutboundOrderForm);
+      setOutboundOrderItemForm((current) => ({
+        ...current,
+        outbound_order: String(data.id),
+      }));
+
+      await loadOutboundOrders();
+      await loadOutboundOrderItems();
+
+      setSuccess(`📦 Versandauftrag ${data.order_number} wurde angelegt.`);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Fehler beim Anlegen des Versandauftrags.";
+      setError(message);
+    } finally {
+      setOutboundOrderSaving(false);
+    }
+  };
+
+  const handleCreateOutboundOrderItem = async (event: FormEvent) => {
+    event.preventDefault();
+
+    if (!hasPermission("lager")) {
+      setError("Nur Lager oder Admin dürfen Versandauftragspositionen anlegen.");
+      return;
+    }
+
+    if (!outboundOrderItemForm.outbound_order || !outboundOrderItemForm.product) {
+      setError("Bitte Versandauftrag und Produkt auswählen.");
+      return;
+    }
+
+    if (!outboundOrderItemForm.quantity || Number(outboundOrderItemForm.quantity) <= 0) {
+      setError("Bitte eine gültige Menge größer 0 eintragen.");
+      return;
+    }
+
+    try {
+      setOutboundOrderItemSaving(true);
+      setError("");
+      setSuccess("");
+
+      const response = await apiFetch("/inventory-api/outbound-order-items/", {
+        method: "POST",
+        body: JSON.stringify({
+          outbound_order: Number(outboundOrderItemForm.outbound_order),
+          product: Number(outboundOrderItemForm.product),
+          quantity: outboundOrderItemForm.quantity,
+          note: outboundOrderItemForm.note.trim(),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || JSON.stringify(data));
+      }
+
+      setOutboundOrderItemForm((current) => ({
+        ...initialOutboundOrderItemForm,
+        outbound_order: current.outbound_order,
+      }));
+
+      await loadOutboundOrders();
+      await loadOutboundOrderItems();
+
+      setSuccess(`✅ Position für ${data.product_name} wurde hinzugefügt.`);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Fehler beim Anlegen der Versandauftragsposition.";
+      setError(message);
+    } finally {
+      setOutboundOrderItemSaving(false);
+    }
+  };
+
+  const handleReleaseOutboundOrder = async (order: OutboundOrder) => {
+    try {
+      setError("");
+      setSuccess("");
+
+      const response = await apiFetch(`/inventory-api/outbound-orders/${order.id}/release/`, {
+        method: "POST",
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || JSON.stringify(data));
+      }
+
+      await loadOutboundOrders();
+      setSuccess(data.detail || `Versandauftrag ${order.order_number} wurde freigegeben.`);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Fehler beim Freigeben des Versandauftrags.";
+      setError(message);
+    }
+  };
+
+  const handleCreateTransportOrderFromOutboundItem = async (item: OutboundOrderItem) => {
+    try {
+      setOutboundTransportOrderSavingId(item.id);
+      setError("");
+      setSuccess("");
+
+      const response = await apiFetch(
+        `/inventory-api/outbound-order-items/${item.id}/create-transport-order/`,
+        {
+          method: "POST",
+          body: JSON.stringify({}),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || JSON.stringify(data));
+      }
+
+      await loadOutboundOrders();
+      await loadOutboundOrderItems();
+      await loadTransportOrders();
+
+      setSuccess(data.detail || "Transportauftrag wurde aus der Versandposition erstellt.");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Fehler beim Erstellen des Transportauftrags.";
+      setError(message);
+    } finally {
+      setOutboundTransportOrderSavingId(null);
+    }
+  };
+
 
   const handleCreateCustomer = async (event: FormEvent) => {
     event.preventDefault();
@@ -1831,6 +2835,11 @@ if (role === "einkauf") {
     setForm(initialForm);
     setError("");
     setSuccess("");
+    setActiveSection("dashboard");
+    setExpandedMenus(["dashboard", "einkauf", "dispo", "lager"]);
+    setActiveTransportOrderId("");
+    setForkliftScanValue("");
+    setForkliftScanFeedback("");
   };
 
   const handleChange = (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -2005,11 +3014,7 @@ if (role === "einkauf") {
 
     try {
 
-      const response = await apiFetch("/inventory-api/stock-movements/", {
-        method: "POST",
-        body: JSON.stringify({
-        product: Number(movementProductId),
-        movement_type: "IN",
+      const goodsReceiptPayload = {
         quantity: Number(movementQuantity),
 
         storage_location: movementStorageLocationId
@@ -2034,8 +3039,24 @@ if (role === "einkauf") {
 
         reference_number: movementReferenceNumber.trim(),
         note: movementNote,
-      }),
-      });
+      };
+
+      const response = selectedPurchaseOrderItemId
+        ? await apiFetch(
+            `/inventory-api/purchase-order-items/${selectedPurchaseOrderItemId}/receive/`,
+            {
+              method: "POST",
+              body: JSON.stringify(goodsReceiptPayload),
+            }
+          )
+        : await apiFetch("/inventory-api/stock-movements/", {
+            method: "POST",
+            body: JSON.stringify({
+              product: Number(movementProductId),
+              movement_type: "IN",
+              ...goodsReceiptPayload,
+            }),
+          });
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -2070,6 +3091,7 @@ if (role === "einkauf") {
       }
 
       setMovementProductId("");
+      setSelectedPurchaseOrderItemId("");
       setMovementQuantity("");
       setMovementStorageLocationId("");
       setMovementPackagingTypeId("");
@@ -2084,8 +3106,13 @@ if (role === "einkauf") {
       await loadMovements();
       await loadStorageLocations();
       await loadLocationStocks();
+      await loadPurchaseOrders();
 
-      setSuccess("📥 Wareneingang erfolgreich gebucht!");
+      setSuccess(
+        selectedPurchaseOrderItemId
+          ? "📥 Wareneingang aus Bestellung erfolgreich gebucht!"
+          : "📥 Wareneingang erfolgreich gebucht!"
+      );
       setTimeout(() => goodsInProductRef.current?.focus(), 0);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Fehler beim Wareneingang.";
@@ -2106,6 +3133,133 @@ if (role === "einkauf") {
     if (!goodsOutStorageLocationId) return "Bitte einen Lagerplatz für den Warenausgang auswählen.";
     if (!goodsOutReferenceNumber.trim()) return "Bitte eine Referenznummer für den Warenausgang eintragen.";
     return "";
+  };
+
+  const handleCreateGoodsOutTransportOrder = async () => {
+    if (!hasPermission("lager")) {
+      setError("Nur Lager oder Admin dürfen Warenausgangs-Transportaufträge erstellen.");
+      return;
+    }
+
+    if (!goodsOutProductId) {
+      setError("Bitte ein Produkt für den Warenausgang auswählen.");
+      return;
+    }
+
+    if (goodsOutQuantity === "" || Number(goodsOutQuantity) <= 0) {
+      setError("Bitte eine gültige Warenausgangs-Menge größer 0 eintragen.");
+      return;
+    }
+
+    if (!goodsOutTargetLocationId) {
+      setError("Bitte eine WA-Fläche als Ziel auswählen.");
+      return;
+    }
+
+    try {
+      setGoodsOutTransportOrderSaving(true);
+      setError("");
+      setSuccess("");
+
+      const response = await apiFetch("/inventory-api/transport-orders/create-from-outbound/", {
+        method: "POST",
+        body: JSON.stringify({
+          product: Number(goodsOutProductId),
+          quantity: Number(goodsOutQuantity),
+          target_location: Number(goodsOutTargetLocationId),
+          reference_number:
+            goodsOutReferenceNumber.trim() ||
+            `WA-TA-${new Date().toISOString().slice(0, 10)}`,
+        }),
+      });
+
+      const data = (await response.json()) as {
+        detail?: string;
+        transport_order?: TransportOrder;
+        next_step?: string;
+      };
+
+      if (!response.ok) {
+        throw new Error(data.detail || "Warenausgangs-Transportauftrag konnte nicht erstellt werden.");
+      }
+
+      if (data.transport_order?.id) {
+        setActiveTransportOrderId(String(data.transport_order.id));
+      }
+
+      setSuccess(data.detail || "Warenausgangs-Transportauftrag wurde erstellt.");
+      setForkliftScanFeedback(data.next_step || "Bitte Quellplatz scannen.");
+      setActiveSection("forklift-terminal");
+
+      await loadTransportOrders();
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Fehler beim Erstellen des Warenausgangs-Transportauftrags.";
+      setError(message);
+    } finally {
+      setGoodsOutTransportOrderSaving(false);
+    }
+  };
+
+  const handleCompleteShippingFromWa = async (stock: StorageLocationStock) => {
+    if (!hasPermission("lager")) {
+      setError("Nur Lager oder Admin dürfen den Versand abschließen.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Versand für "${stock.product_name}" von ${stock.storage_location_code} abschließen?\n\nMenge: ${stock.quantity} ${stock.product_unit}`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setShippingCompletionSavingId(stock.id);
+      setError("");
+      setSuccess("");
+
+      const reference =
+        goodsOutReferenceNumber.trim() ||
+        `VERSAND-${new Date().toISOString().slice(0, 10)}-${stock.storage_location_code}`;
+
+      const response = await apiFetch(
+        `/inventory-api/location-stocks/${stock.id}/complete-shipping/`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            quantity: stock.quantity,
+            reference_number: reference,
+            note:
+              `Versandabschluss von WA-Fläche ${stock.storage_location_code}. ` +
+              (goodsOutNote.trim() || "Ware wurde an Versand übergeben."),
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(JSON.stringify(errorData));
+      }
+
+      await loadProducts();
+      await loadMovements();
+      await loadStorageLocations();
+      await loadLocationStocks();
+
+      setSuccess(
+        `🚚 Versand abgeschlossen: ${stock.product_name} wurde von ${stock.storage_location_code} ausgebucht.`
+      );
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Fehler beim Abschließen des Versands.";
+      setError(message);
+    } finally {
+      setShippingCompletionSavingId(null);
+    }
   };
 
   const handleGoodsIssue = async (event: FormEvent) => {
@@ -2485,6 +3639,109 @@ if (role === "einkauf") {
     }
   };
 
+
+  const sanitizeQrFilename = (value: string) =>
+    value
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/gi, "-")
+      .replace(/^-+|-+$/g, "") || "qr-code";
+
+  const openQrCode = async (endpoint: string, title: string) => {
+    const qrWindow = window.open("", "_blank");
+
+    try {
+      setError("");
+      setSuccess("");
+
+      const response = await apiFetch(endpoint);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || "QR-Code konnte nicht geladen werden.");
+      }
+
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+
+      if (qrWindow) {
+        qrWindow.location.href = objectUrl;
+      } else {
+        window.open(objectUrl, "_blank");
+      }
+
+      setSuccess(`QR-Code geöffnet: ${title}`);
+    } catch (err) {
+      if (qrWindow) {
+        qrWindow.close();
+      }
+
+      const message =
+        err instanceof Error ? err.message : "Fehler beim Öffnen des QR-Codes.";
+      setError(message);
+    }
+  };
+
+  const downloadQrCode = async (endpoint: string, fallbackFilename: string) => {
+    try {
+      setError("");
+      setSuccess("");
+
+      const response = await apiFetch(endpoint);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || "QR-Code konnte nicht heruntergeladen werden.");
+      }
+
+      const blob = await response.blob();
+      const contentDisposition = response.headers.get("Content-Disposition") || "";
+      const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+      const filename = filenameMatch?.[1] || fallbackFilename;
+
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(objectUrl);
+
+      setSuccess(`QR-Code heruntergeladen: ${filename}`);
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Fehler beim Herunterladen des QR-Codes.";
+      setError(message);
+    }
+  };
+
+  const handleShowProductQrCode = (product: Product) =>
+    openQrCode(
+      `/inventory-api/products/${product.id}/qr-code/`,
+      `Produkt ${product.name}`
+    );
+
+  const handleDownloadProductQrCode = (product: Product) =>
+    downloadQrCode(
+      `/inventory-api/products/${product.id}/qr-code/`,
+      `product-${sanitizeQrFilename(product.sku || product.name || String(product.id))}-qr.png`
+    );
+
+  const handleShowLocationQrCode = (location: StorageLocation) =>
+    openQrCode(
+      `/inventory-api/storage-locations/${location.id}/qr-code/`,
+      `Lagerplatz ${location.code}`
+    );
+
+  const handleDownloadLocationQrCode = (location: StorageLocation) =>
+    downloadQrCode(
+      `/inventory-api/storage-locations/${location.id}/qr-code/`,
+      `storage-location-${sanitizeQrFilename(location.code || String(location.id))}-qr.png`
+    );
+
+
   const handleExportInventoryExcel = async () => {
     if (!selectedInventorySessionId) {
       setError("Bitte zuerst eine Inventur auswählen.");
@@ -2513,6 +3770,91 @@ if (role === "einkauf") {
       setSuccess("📤 Inventurbericht erfolgreich exportiert!");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Fehler beim Excel-Export.";
+      setError(message);
+    }
+  };
+
+const exportLocationStocksToExcel = async () => {
+  try {
+    setError("");
+    setSuccess("");
+
+    const response = await apiFetch(
+      "/inventory-api/location-stocks/export-excel/"
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || "Fehler beim Excel-Export.");
+    }
+
+    const blob = await response.blob();
+    const contentDisposition = response.headers.get("Content-Disposition") || "";
+    const filenameMatch = contentDisposition.match(/filename="?([^\"]+)"?/);
+    const filename = filenameMatch?.[1] || "lagerplatzbestand.xlsx";
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    URL.revokeObjectURL(url);
+
+    setSuccess("📤 Lagerplatzbestand erfolgreich als Excel exportiert!");
+  } catch (err) {
+    const message =
+      err instanceof Error
+        ? err.message
+        : "Fehler beim Export des Lagerplatzbestands.";
+
+    setError(message);
+  }
+};
+
+  const handleExportInventoryPdf = async () => {
+    if (!selectedInventorySessionId) {
+      setError("Bitte zuerst eine Inventur auswählen.");
+      return;
+    }
+
+    try {
+      setError("");
+      setSuccess("");
+
+      const response = await apiFetch(
+        `/inventory-api/inventory-sessions/${selectedInventorySessionId}/export-pdf/`
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || "Fehler beim PDF-Export.");
+      }
+
+      const blob = await response.blob();
+      const contentDisposition = response.headers.get("Content-Disposition") || "";
+      const filenameMatch = contentDisposition.match(/filename="?([^\"]+)"?/);
+      const filename = filenameMatch?.[1] || `inventurbericht-${selectedInventorySessionId}.pdf`;
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      URL.revokeObjectURL(url);
+
+      setSuccess("📄 Inventurbericht erfolgreich als PDF exportiert!");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Fehler beim PDF-Export.";
+
       setError(message);
     }
   };
@@ -2552,6 +3894,179 @@ const exportMovementsToCsv = async () => {
   }
 };
 
+  const locationStockChartData = useMemo(() => {
+    const byLocation = new Map<
+      string,
+      { label: string; name: string; quantity: number }
+    >();
+
+    locationStocks.forEach((stock) => {
+      const key = stock.storage_location_code || String(stock.storage_location);
+      const current =
+        byLocation.get(key) ??
+        {
+          label: stock.storage_location_code || "Unbekannt",
+          name: stock.storage_location_name || "",
+          quantity: 0,
+        };
+
+      current.quantity += stock.quantity;
+      byLocation.set(key, current);
+    });
+
+    return Array.from(byLocation.values())
+      .sort((a, b) => b.quantity - a.quantity)
+      .slice(0, 6);
+  }, [locationStocks]);
+
+  const maxLocationStockQuantity = locationStockChartData.length
+    ? Math.max(...locationStockChartData.map((item) => item.quantity), 1)
+    : 1;
+
+  const movementTrendData = useMemo(() => {
+    const formatDateKey = (date: Date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    };
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const days = Array.from({ length: 7 }, (_, index) => {
+      const day = new Date(today);
+      day.setDate(today.getDate() - (6 - index));
+
+      return {
+        key: formatDateKey(day),
+        label: day.toLocaleDateString("de-DE", {
+          weekday: "short",
+          day: "2-digit",
+          month: "2-digit",
+        }),
+        inQty: 0,
+        outQty: 0,
+      };
+    });
+
+    const dayMap = new Map(days.map((day) => [day.key, day]));
+
+    movements.forEach((movement) => {
+      const movementDate = new Date(movement.created_at);
+      const movementKey = formatDateKey(movementDate);
+      const day = dayMap.get(movementKey);
+
+      if (!day) return;
+
+      if (movement.movement_type === "IN") {
+        day.inQty += movement.quantity;
+      } else {
+        day.outQty += movement.quantity;
+      }
+    });
+
+    return days;
+  }, [movements]);
+
+  const maxMovementTrendQuantity = movementTrendData.length
+    ? Math.max(
+        ...movementTrendData.flatMap((day) => [day.inQty, day.outQty]),
+        1
+      )
+    : 1;
+
+  const receivingAreaDashboardData = useMemo(() => {
+    const receivingAreas = storageLocations
+      .filter(
+        (location) =>
+          location.location_type === "RECEIVING" ||
+          location.code.toUpperCase().startsWith("WE-")
+      )
+      .sort((first, second) => first.code.localeCompare(second.code));
+
+    const freeReceivingAreas = receivingAreas.filter(
+      (location) => location.is_active && !location.is_blocked && location.is_empty
+    );
+
+    const occupiedReceivingAreas = receivingAreas.filter(
+      (location) => location.is_active && !location.is_blocked && !location.is_empty
+    );
+
+    return {
+      receivingAreas,
+      freeReceivingAreas,
+      occupiedReceivingAreas,
+    };
+  }, [storageLocations]);
+
+  const shippingAreaDashboardData = useMemo(() => {
+    const shippingAreas = storageLocations
+      .filter(
+        (location) =>
+          location.location_type === "SHIPPING" ||
+          location.code.toUpperCase().startsWith("WA-")
+      )
+      .sort((first, second) => first.code.localeCompare(second.code));
+
+    const freeShippingAreas = shippingAreas.filter(
+      (location) => location.is_active && !location.is_blocked && location.is_empty
+    );
+
+    const occupiedShippingAreas = shippingAreas.filter(
+      (location) => location.is_active && !location.is_blocked && !location.is_empty
+    );
+
+    return {
+      shippingAreas,
+      freeShippingAreas,
+      occupiedShippingAreas,
+    };
+  }, [storageLocations]);
+
+  const storageLocationStatusData = useMemo(() => {
+    const occupied = storageLocations.filter(
+      (location) => !location.is_empty
+    ).length;
+    const free = storageLocations.filter((location) => location.is_empty).length;
+
+    return [
+      { label: "Belegt", value: occupied },
+      { label: "Frei", value: free },
+    ];
+  }, [storageLocations]);
+
+  const maxStorageLocationStatusValue = Math.max(
+    ...storageLocationStatusData.map((item) => item.value),
+    1
+  );
+
+  const lowStockChartData = useMemo(
+    () =>
+      lowStockProducts
+        .slice()
+        .sort((a, b) => a.quantity - b.quantity)
+        .slice(0, 6)
+        .map((product) => ({
+          label: product.sku || product.name,
+          name: product.name,
+          quantity: product.quantity,
+          minStock: product.min_stock,
+          unit: product.unit,
+        })),
+    [lowStockProducts]
+  );
+
+  const maxLowStockChartValue = lowStockChartData.length
+    ? Math.max(
+        ...lowStockChartData.flatMap((item) => [
+          item.quantity,
+          item.minStock,
+        ]),
+        1
+      )
+    : 1;
+
   if (!loggedIn) {
     return (
       <div style={isMobileLayout ? pageStyleMobile : pageStyle}>
@@ -2564,6 +4079,7 @@ const exportMovementsToCsv = async () => {
     <div style={isMobileLayout ? pageStyleMobile : pageStyle}>
       <div style={pageShellStyle}>
         <div style={isCompactLayout ? appLayoutMobileStyle : appLayoutStyle}>
+          {role !== "stapler" && (
           <aside style={isCompactLayout ? sidebarMobileStyle : sidebarStyle}>
             <div style={sidebarHeaderStyle}>
               <strong>Module</strong>
@@ -2596,8 +4112,9 @@ const exportMovementsToCsv = async () => {
               );
             })}
           </aside>
+          )}
 
-          <main style={isCompactLayout ? contentAreaMobileStyle : contentAreaStyle}>
+          <main style={role === "stapler" || isCompactLayout ? contentAreaMobileStyle : contentAreaStyle}>
             <header style={headerStyle}>
               <div>
                 <p style={eyebrowStyle}>Portfolio Project</p>
@@ -2605,47 +4122,555 @@ const exportMovementsToCsv = async () => {
                 <p style={subtitleStyle}>
                   Geschütztes ERP-ähnliches Dashboard mit JWT-Login, Lagerprozessen, Inventur und Rollenmodell.
                 </p>
-                <p style={{ marginTop: "8px", color: "#94a3b8" }}>
-                  Eingeloggt als: <strong>{user?.username}</strong> | Rolle: <strong>{role}</strong>
-                </p>
-                {role === "viewer" && <p style={infoStyle}>🔒 Viewer-Modus aktiv: Bearbeiten und Buchungen sind deaktiviert.</p>}
-                {role === "lager" && <p style={infoStyle}>📦 Lager-Modus aktiv: Du kannst Wareneingang, Warenausgang und Inventur buchen.</p>}
-                {role === "admin" && <p style={infoStyle}>⚙️ Admin-Modus aktiv: Du hast vollen Zugriff auf alle Funktionen.</p>}
               </div>
               <button onClick={handleLogout} style={secondaryButtonStyle}>Logout</button>
             </header>
-
-            <section style={topStatsGridStyle}>
-              <Card title="Produkte gesamt" value={String(totalProducts)} />
-              <Card title="Verpackungsarten" value={String(packagingTypes.length)} />
-              <Card title="Bestand gesamt" value={String(totalUnits)} />
-              <Card title="Niedriger Bestand" value={String(lowStockProducts.length)} danger={lowStockProducts.length > 0} />
-              <Card title="Inventur-Differenzen" value={String(inventorySummary.differences)} danger={inventorySummary.differences > 0} />
-            </section>
 
             {error && <p style={errorStyle}>Fehler: {error}</p>}
             {success && <p style={successStyle}>{success}</p>}
 
             {activeSection === "dashboard" && (
               <section style={sectionStyle}>
-                <h2 style={sectionTitleStyle}>📊 Dashboard Übersicht</h2>
-                <p style={infoStyle}>Zentrale Übersicht über Lagerbestände, kritische Artikel, Tagesbewegungen und Inventurstatus.</p>
-                <div style={dashboardGridStyle}>
-                  <Card title="Produkte gesamt" value={String(totalProducts)} />
-                  <Card title="Bestand gesamt" value={String(totalUnits)} />
-                  <Card title="Niedriger Bestand" value={String(lowStockProducts.length)} danger={lowStockProducts.length > 0} />
-                  <Card title="Inventur-Differenzen" value={String(inventorySummary.differences)} danger={inventorySummary.differences > 0} />
-                  <Card title="Wareneingänge heute" value={String(goodsInToday)} />
-                  <Card title="Warenausgänge heute" value={String(goodsOutToday)} />
+                <div
+                  style={{
+                    marginBottom: "22px",
+                    padding: "22px",
+                    borderRadius: "22px",
+                    background:
+                      "linear-gradient(135deg, rgba(30, 64, 175, 0.28), rgba(15, 23, 42, 0.88))",
+                    border: "1px solid rgba(96, 165, 250, 0.28)",
+                    boxShadow: "0 18px 42px rgba(0,0,0,0.22)",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: "16px",
+                      flexWrap: "wrap",
+                      alignItems: "flex-start",
+                    }}
+                  >
+                    <div>
+                      <p
+                        style={{
+                          margin: "0 0 8px",
+                          color: "#93c5fd",
+                          fontSize: "0.8rem",
+                          fontWeight: 800,
+                          letterSpacing: "0.16em",
+                          textTransform: "uppercase",
+                        }}
+                      >
+                        WMS Live Cockpit
+                      </p>
+
+                      <h2
+                        style={{
+                          margin: 0,
+                          color: "#e0f2fe",
+                          fontSize: "2.15rem",
+                          lineHeight: 1.15,
+                        }}
+                      >
+                        📊 Operatives Lager-Cockpit
+                      </h2>
+
+                      <p
+                        style={{
+                          margin: "12px 0 0",
+                          color: "#cbd5e1",
+                          maxWidth: "860px",
+                          lineHeight: 1.6,
+                        }}
+                      >
+                        Kompakte Übersicht über Bestand, Lagerflächen,
+                        Wareneingang, Warenausgang, kritische Artikel und aktuelle
+                        Prozessbewegungen.
+                      </p>
+                    </div>
+
+                    <div
+                      style={{
+                        minWidth: "220px",
+                        padding: "14px",
+                        borderRadius: "16px",
+                        background: "rgba(15, 23, 42, 0.64)",
+                        border: "1px solid rgba(148, 163, 184, 0.18)",
+                        color: "#e2e8f0",
+                        lineHeight: 1.7,
+                      }}
+                    >
+                      <div style={{ color: "#94a3b8", fontSize: "0.82rem" }}>
+                        Aktueller Status
+                      </div>
+                      <strong>System aktiv</strong>
+                      <div style={{ color: "#94a3b8", marginTop: "6px" }}>
+                        Rolle: {role}
+                      </div>
+                      <div style={{ color: "#94a3b8" }}>
+                        Benutzer: {user?.username}
+                      </div>
+                    </div>
+                  </div>
                 </div>
+
+                <div style={dashboardGridStyle}>
+                  <Card title="Artikelstamm" value={String(totalProducts)} />
+                  <Card title="Bestandseinheiten" value={String(totalUnits)} />
+                  <Card
+                    title="Kritische Bestände"
+                    value={String(lowStockProducts.length)}
+                    danger={lowStockProducts.length > 0}
+                  />
+                  <Card
+                    title="Inventurabweichungen"
+                    value={String(inventorySummary.differences)}
+                    danger={inventorySummary.differences > 0}
+                  />
+                  <Card title="WE heute" value={String(goodsInToday)} />
+                  <Card title="WA heute" value={String(goodsOutToday)} />
+                </div>
+
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+                    gap: "12px",
+                    marginTop: "14px",
+                  }}
+                >
+                  <div style={dashboardChartCardStyle}>
+                    <h3 style={dashboardChartTitleStyle}>
+                      📦 Top-Lagerplätze nach Bestand
+                    </h3>
+
+                    {locationStockChartData.length > 0 ? (
+                      <div style={{ display: "grid", gap: "12px" }}>
+                        {locationStockChartData.map((item) => {
+                          const percent = Math.max(
+                            6,
+                            Math.round(
+                              (item.quantity / maxLocationStockQuantity) * 100
+                            )
+                          );
+
+                          return (
+                            <div key={item.label}>
+                              <div style={dashboardChartLabelRowStyle}>
+                                <span>
+                                  <strong>{item.label}</strong>
+                                  {item.name ? ` · ${item.name}` : ""}
+                                </span>
+                                <span>{item.quantity}</span>
+                              </div>
+                              <div style={dashboardBarTrackStyle}>
+                                <div
+                                  style={{
+                                    ...dashboardBarStyle,
+                                    width: `${percent}%`,
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p style={infoStyle}>Noch keine Lagerplatzbestände vorhanden.</p>
+                    )}
+                  </div>
+
+                  <div style={dashboardChartCardStyle}>
+                    <h3 style={dashboardChartTitleStyle}>
+                      🔁 Bewegungsanalyse · 7 Tage
+                    </h3>
+
+                    <div style={{ display: "grid", gap: "12px" }}>
+                      {movementTrendData.map((day) => {
+                        const inPercent = Math.max(
+                          day.inQty > 0 ? 6 : 0,
+                          Math.round(
+                            (day.inQty / maxMovementTrendQuantity) * 100
+                          )
+                        );
+                        const outPercent = Math.max(
+                          day.outQty > 0 ? 6 : 0,
+                          Math.round(
+                            (day.outQty / maxMovementTrendQuantity) * 100
+                          )
+                        );
+
+                        return (
+                          <div key={day.key}>
+                            <div style={dashboardChartLabelRowStyle}>
+                              <strong>{day.label}</strong>
+                              <span>
+                                WE {day.inQty} / WA {day.outQty}
+                              </span>
+                            </div>
+
+                            <div style={dashboardMiniBarRowStyle}>
+                              <span style={dashboardMiniBarLabelStyle}>WE</span>
+                              <div style={dashboardBarTrackStyle}>
+                                <div
+                                  style={{
+                                    ...dashboardBarStyle,
+                                    width: `${inPercent}%`,
+                                  }}
+                                />
+                              </div>
+                            </div>
+
+                            <div style={dashboardMiniBarRowStyle}>
+                              <span style={dashboardMiniBarLabelStyle}>WA</span>
+                              <div style={dashboardBarTrackStyle}>
+                                <div
+                                  style={{
+                                    ...dashboardDangerBarStyle,
+                                    width: `${outPercent}%`,
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div style={dashboardChartCardStyle}>
+                    <h3 style={dashboardChartTitleStyle}>
+                      📍 WE / WA-Flächen
+                    </h3>
+
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                        gap: "12px",
+                      }}
+                    >
+                      <div
+                        style={{
+                          padding: "14px",
+                          borderRadius: "16px",
+                          background: "rgba(15, 23, 42, 0.62)",
+                          border: "1px solid rgba(34, 197, 94, 0.22)",
+                        }}
+                      >
+                        <div style={dashboardChartLabelRowStyle}>
+                          <strong style={{ color: "#bbf7d0" }}>Wareneingang</strong>
+                          <span>
+                            {receivingAreaDashboardData.receivingAreas.length} Flächen
+                          </span>
+                        </div>
+
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                            gap: "10px",
+                            marginTop: "12px",
+                          }}
+                        >
+                          <div
+                            style={{
+                              padding: "10px",
+                              borderRadius: "12px",
+                              background: "rgba(22, 101, 52, 0.22)",
+                              color: "#dcfce7",
+                              textAlign: "center",
+                              fontWeight: 800,
+                            }}
+                          >
+                            Frei
+                            <div style={{ fontSize: "1.5rem" }}>
+                              {receivingAreaDashboardData.freeReceivingAreas.length}
+                            </div>
+                          </div>
+
+                          <div
+                            style={{
+                              padding: "10px",
+                              borderRadius: "12px",
+                              background: "rgba(120, 53, 15, 0.22)",
+                              color: "#fef3c7",
+                              textAlign: "center",
+                              fontWeight: 800,
+                            }}
+                          >
+                            Belegt
+                            <div style={{ fontSize: "1.5rem" }}>
+                              {receivingAreaDashboardData.occupiedReceivingAreas.length}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div
+                          style={{
+                            display: "flex",
+                            flexWrap: "wrap",
+                            gap: "7px",
+                            marginTop: "12px",
+                          }}
+                        >
+                          {receivingAreaDashboardData.receivingAreas.map((location) => (
+                            <span
+                              key={location.id}
+                              style={{
+                                padding: "5px 9px",
+                                borderRadius: "999px",
+                                background: location.is_empty
+                                  ? "rgba(22, 101, 52, 0.28)"
+                                  : "rgba(120, 53, 15, 0.28)",
+                                border: location.is_empty
+                                  ? "1px solid rgba(34, 197, 94, 0.38)"
+                                  : "1px solid rgba(251, 191, 36, 0.38)",
+                                color: location.is_empty ? "#dcfce7" : "#fef3c7",
+                                fontWeight: 800,
+                                fontSize: "0.82rem",
+                              }}
+                            >
+                              {location.code}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div
+                        style={{
+                          padding: "14px",
+                          borderRadius: "16px",
+                          background: "rgba(15, 23, 42, 0.62)",
+                          border: "1px solid rgba(34, 211, 238, 0.22)",
+                        }}
+                      >
+                        <div style={dashboardChartLabelRowStyle}>
+                          <strong style={{ color: "#bae6fd" }}>Warenausgang</strong>
+                          <span>
+                            {shippingAreaDashboardData.shippingAreas.length} Flächen
+                          </span>
+                        </div>
+
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+                            gap: "10px",
+                            marginTop: "12px",
+                          }}
+                        >
+                          <div
+                            style={{
+                              padding: "10px",
+                              borderRadius: "12px",
+                              background: "rgba(14, 116, 144, 0.22)",
+                              color: "#cffafe",
+                              textAlign: "center",
+                              fontWeight: 800,
+                            }}
+                          >
+                            Frei
+                            <div style={{ fontSize: "1.5rem" }}>
+                              {shippingAreaDashboardData.freeShippingAreas.length}
+                            </div>
+                          </div>
+
+                          <div
+                            style={{
+                              padding: "10px",
+                              borderRadius: "12px",
+                              background: "rgba(112, 26, 117, 0.22)",
+                              color: "#fae8ff",
+                              textAlign: "center",
+                              fontWeight: 800,
+                            }}
+                          >
+                            Belegt
+                            <div style={{ fontSize: "1.5rem" }}>
+                              {shippingAreaDashboardData.occupiedShippingAreas.length}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div
+                          style={{
+                            display: "flex",
+                            flexWrap: "wrap",
+                            gap: "7px",
+                            marginTop: "12px",
+                          }}
+                        >
+                          {shippingAreaDashboardData.shippingAreas.map((location) => (
+                            <span
+                              key={location.id}
+                              style={{
+                                padding: "5px 9px",
+                                borderRadius: "999px",
+                                background: location.is_empty
+                                  ? "rgba(14, 116, 144, 0.28)"
+                                  : "rgba(112, 26, 117, 0.28)",
+                                border: location.is_empty
+                                  ? "1px solid rgba(34, 211, 238, 0.38)"
+                                  : "1px solid rgba(217, 70, 239, 0.38)",
+                                color: location.is_empty ? "#cffafe" : "#fae8ff",
+                                fontWeight: 800,
+                                fontSize: "0.82rem",
+                              }}
+                            >
+                              {location.code}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        marginTop: "14px",
+                        padding: "12px",
+                        borderRadius: "14px",
+                        background: "rgba(30, 41, 59, 0.48)",
+                        border: "1px solid rgba(148, 163, 184, 0.14)",
+                      }}
+                    >
+                      <h4
+                        style={{
+                          margin: "0 0 10px",
+                          color: "#bfdbfe",
+                          fontSize: "0.95rem",
+                        }}
+                      >
+                        Lagerorte gesamt
+                      </h4>
+
+                      <div style={{ display: "grid", gap: "10px" }}>
+                        {storageLocationStatusData.map((item) => {
+                          const percent = Math.max(
+                            item.value > 0 ? 8 : 0,
+                            Math.round(
+                              (item.value / maxStorageLocationStatusValue) * 100
+                            )
+                          );
+
+                          return (
+                            <div key={item.label}>
+                              <div style={dashboardChartLabelRowStyle}>
+                                <strong>{item.label}</strong>
+                                <span>{item.value}</span>
+                              </div>
+                              <div style={dashboardBarTrackStyle}>
+                                <div
+                                  style={{
+                                    ...dashboardBarStyle,
+                                    width: `${percent}%`,
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={dashboardChartCardStyle}>
+                    <h3 style={dashboardChartTitleStyle}>
+                      ⚠️ Bestandsrisiken
+                    </h3>
+
+                    {lowStockChartData.length > 0 ? (
+                      <div style={{ display: "grid", gap: "12px" }}>
+                        {lowStockChartData.map((item) => {
+                          const stockPercent = Math.max(
+                            item.quantity > 0 ? 6 : 0,
+                            Math.round(
+                              (item.quantity / maxLowStockChartValue) * 100
+                            )
+                          );
+                          const minPercent = Math.max(
+                            item.minStock > 0 ? 6 : 0,
+                            Math.round(
+                              (item.minStock / maxLowStockChartValue) * 100
+                            )
+                          );
+
+                          return (
+                            <div key={item.label}>
+                              <div style={dashboardChartLabelRowStyle}>
+                                <span title={item.name}>
+                                  <strong>{item.label}</strong>
+                                </span>
+                                <span>
+                                  {item.quantity}/{item.minStock} {item.unit}
+                                </span>
+                              </div>
+
+                              <div style={dashboardMiniBarRowStyle}>
+                                <span style={dashboardMiniBarLabelStyle}>Ist</span>
+                                <div style={dashboardBarTrackStyle}>
+                                  <div
+                                    style={{
+                                      ...dashboardDangerBarStyle,
+                                      width: `${stockPercent}%`,
+                                    }}
+                                  />
+                                </div>
+                              </div>
+
+                              <div style={dashboardMiniBarRowStyle}>
+                                <span style={dashboardMiniBarLabelStyle}>Min</span>
+                                <div style={dashboardBarTrackStyle}>
+                                  <div
+                                    style={{
+                                      ...dashboardWarningBarStyle,
+                                      width: `${minPercent}%`,
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p style={infoStyle}>
+                        Keine kritischen Artikel unter Mindestbestand.
+                      </p>
+                    )}
+                  </div>
+                </div>
+
                 <div style={{ marginTop: "22px" }}>
-                  <h3 style={{ color: "#bfdbfe", marginBottom: "10px", textAlign: "center" }}>Letzte Lagerbewegung</h3>
+                  <h3
+                    style={{
+                      color: "#bfdbfe",
+                      marginBottom: "10px",
+                      textAlign: "center",
+                    }}
+                  >
+                    Letzte Buchung
+                  </h3>
                   {latestMovement ? (
                     <div style={infoStyle}>
-                      <strong>{latestMovement.product_name}</strong><br />
-                      Typ: <strong>{latestMovement.movement_type === "IN" ? "Wareneingang" : "Warenausgang"}</strong><br />
-                      Menge: <strong>{latestMovement.quantity}</strong><br />
-                      Datum: <strong>{new Date(latestMovement.created_at).toLocaleString("de-DE")}</strong>
+                      <strong>{latestMovement.product_name}</strong>
+                      <br />
+                      Typ:{" "}
+                      <strong>
+                        {latestMovement.movement_type === "IN"
+                          ? "Wareneingang"
+                          : "Warenausgang"}
+                      </strong>
+                      <br />
+                      Menge: <strong>{latestMovement.quantity}</strong>
+                      <br />
+                      Datum:{" "}
+                      <strong>
+                        {new Date(latestMovement.created_at).toLocaleString(
+                          "de-DE"
+                        )}
+                      </strong>
                     </div>
                   ) : (
                     <p style={infoStyle}>Noch keine Lagerbewegungen vorhanden.</p>
@@ -2656,8 +4681,19 @@ const exportMovementsToCsv = async () => {
 
             {activeSection === "orders" && (
             <OrdersSection
-              drafts={purchaseOrderDrafts}
+              purchaseOrders={purchaseOrders}
+              loading={purchaseOrdersLoading}
+              form={purchaseOrderForm}
+              suppliers={suppliers}
+              products={products}
+              saving={purchaseOrderSaving}
               canWrite={canWrite}
+              onChange={handlePurchaseOrderChange}
+              onCreateOrder={handleCreatePurchaseOrder}
+              onReleaseOrder={handleReleasePurchaseOrder}
+              onMarkOrdered={handleMarkPurchaseOrderOrdered}
+              onCancelOrder={handleCancelPurchaseOrder}
+              drafts={purchaseOrderDrafts}
               onRemoveDraft={handleRemovePurchaseOrderDraft}
               onApproveDraft={handleApprovePurchaseOrderDraft}
             />
@@ -2722,7 +4758,9 @@ const exportMovementsToCsv = async () => {
             }))
           }
           onSubmit={handleCreateStorageLocation}
-        />
+        
+        onShowLocationQrCode={handleShowLocationQrCode}
+        onDownloadLocationQrCode={handleDownloadLocationQrCode}/>
       )}
 
 
@@ -2840,7 +4878,9 @@ const exportMovementsToCsv = async () => {
                   }))
                 }
                 onSubmit={handleCreateStorageLocation}
-              />
+              
+              onShowLocationQrCode={handleShowLocationQrCode}
+              onDownloadLocationQrCode={handleDownloadLocationQrCode}/>
             )}
 
 
@@ -2876,6 +4916,9 @@ const exportMovementsToCsv = async () => {
             {activeSection === "goods-in" && (
               <GoodsInSection
                 products={products}
+                purchaseOrders={purchaseOrders}
+                selectedPurchaseOrderItemId={selectedPurchaseOrderItemId}
+                setSelectedPurchaseOrderItemId={setSelectedPurchaseOrderItemId}
                 storageLocations={storageLocations}
                 movementProductId={movementProductId}
                 setMovementProductId={setMovementProductId}
@@ -2911,11 +4954,14 @@ const exportMovementsToCsv = async () => {
               <GoodsOutSection
                 products={products}
                 storageLocations={storageLocations}
+                locationStocks={locationStocks}
                 movements={movements}
                 packagingTypes={packagingTypes}
                 goodsOutProductId={goodsOutProductId}
                 goodsOutStorageLocationId={goodsOutStorageLocationId}
                 setGoodsOutStorageLocationId={setGoodsOutStorageLocationId}
+                goodsOutTargetLocationId={goodsOutTargetLocationId}
+                setGoodsOutTargetLocationId={setGoodsOutTargetLocationId}
                 setGoodsOutProductId={setGoodsOutProductId}
                 goodsOutQuantity={goodsOutQuantity}
                 setGoodsOutQuantity={setGoodsOutQuantity}
@@ -2924,12 +4970,75 @@ const exportMovementsToCsv = async () => {
                 goodsOutNote={goodsOutNote}
                 setGoodsOutNote={setGoodsOutNote}
                 goodsOutSaving={goodsOutSaving}
+                goodsOutTransportOrderSaving={goodsOutTransportOrderSaving}
+                shippingCompletionSavingId={shippingCompletionSavingId}
                 hasPermission={hasPermission}
                 handleGoodsIssue={handleGoodsIssue}
+                handleCreateGoodsOutTransportOrder={handleCreateGoodsOutTransportOrder}
+                handleCompleteShippingFromWa={handleCompleteShippingFromWa}
                 goodsOutProductRef={goodsOutProductRef}
                 goodsOutQuantityRef={goodsOutQuantityRef}
                 focusNextOnEnter={focusNextOnEnter}
               />
+            )}
+
+            {activeSection === "outbound-orders" && (
+              <OutboundOrdersSection
+                customers={customers}
+                deliveryAddresses={deliveryAddresses}
+                products={products}
+                orders={outboundOrders}
+                items={outboundOrderItems}
+                loading={outboundOrdersLoading}
+                orderForm={outboundOrderForm}
+                itemForm={outboundOrderItemForm}
+                orderSaving={outboundOrderSaving}
+                itemSaving={outboundOrderItemSaving}
+                transportOrderSavingId={outboundTransportOrderSavingId}
+                hasPermission={hasPermission}
+                onOrderFormChange={handleOutboundOrderFormChange}
+                onItemFormChange={handleOutboundOrderItemFormChange}
+                onCreateOrder={handleCreateOutboundOrder}
+                onCreateItem={handleCreateOutboundOrderItem}
+                onReleaseOrder={handleReleaseOutboundOrder}
+                onCreateTransportOrder={handleCreateTransportOrderFromOutboundItem}
+              />
+            )}
+
+
+            {activeSection === "transport-report" && (
+              <TransportReportSection
+                orders={transportOrderReport}
+                loading={transportOrderReportLoading}
+                onRefresh={loadTransportOrderReport}
+              />
+            )}
+
+            {activeSection === "forklift-terminal" && canAccessSection("forklift-terminal") && (
+              <ForkliftTerminalSection
+                orders={transportOrders}
+                loading={transportOrdersLoading}
+                selectedOrderId={activeTransportOrderId}
+                setSelectedOrderId={setActiveTransportOrderId}
+                scanValue={forkliftScanValue}
+                setScanValue={setForkliftScanValue}
+                scanFeedback={forkliftScanFeedback}
+                onScan={handleForkliftScan}
+                onAssign={handleAssignTransportOrder}
+                onRefresh={loadTransportOrders}
+                canUseTerminal={hasPermission("forklift_terminal")}
+              
+                products={products}
+                storageLocations={storageLocations}
+                createProductId={transportOrderProductId}
+                setCreateProductId={setTransportOrderProductId}
+                createQuantity={transportOrderQuantity}
+                setCreateQuantity={setTransportOrderQuantity}
+                createTargetLocationId={transportOrderTargetLocationId}
+                setCreateTargetLocationId={setTransportOrderTargetLocationId}
+                createSaving={transportOrderSaving}
+                onCreateTransportOrder={handleCreateTransportOrder}
+                canCreateTransportOrder={hasPermission("lager")}/>
             )}
 
             {activeSection === "inventory" && (
@@ -2949,6 +5058,7 @@ const exportMovementsToCsv = async () => {
                 selectedInventorySession={selectedInventorySession}
                 handleCompleteInventorySession={handleCompleteInventorySession}
                 handleExportInventoryExcel={handleExportInventoryExcel}
+                handleExportInventoryPdf={handleExportInventoryPdf}
                 inventoryProductId={inventoryProductId}
                 setInventoryProductId={setInventoryProductId}
                 inventoryProductRef={inventoryProductRef}
@@ -2998,13 +5108,16 @@ const exportMovementsToCsv = async () => {
                     locationStocks={locationStocks}
                     loading={locationStocksLoading}
                     search={search}
-                  />
+                  exportLocationStocksToExcel={exportLocationStocksToExcel}
+                />
                 )}
 
                 {activeSection !== "stock-overview" && loading && <p>Lade Produkte...</p>}
                 {activeSection !== "stock-overview" && !loading && !error && visibleProducts.length === 0 && <p>Keine Produkte passen zur aktuellen Suche oder zum Filter.</p>}
                 {activeSection !== "stock-overview" && !loading && !error && visibleProducts.length > 0 && (
-                  <ProductGrid products={visibleProducts} hasPermission={hasPermission} handleEdit={handleEdit} />
+                  <ProductGrid products={visibleProducts} hasPermission={hasPermission} handleEdit={handleEdit} 
+              onShowProductQrCode={handleShowProductQrCode}
+              onDownloadProductQrCode={handleDownloadProductQrCode}/>
                 )}
               </>
             )}
@@ -3033,114 +5146,619 @@ const exportMovementsToCsv = async () => {
 }
 
 function OrdersSection({
-  drafts,
+  purchaseOrders,
+  loading,
+  form,
+  suppliers,
+  products,
+  saving,
   canWrite,
+  onChange,
+  onCreateOrder,
+  onReleaseOrder,
+  onMarkOrdered,
+  onCancelOrder,
+  drafts,
   onRemoveDraft,
   onApproveDraft,
 }: {
-  drafts: PurchaseOrderDraft[];
+  purchaseOrders: PurchaseOrder[];
+  loading: boolean;
+  form: PurchaseOrderForm;
+  suppliers: Supplier[];
+  products: Product[];
+  saving: boolean;
   canWrite: boolean;
+  onChange: (
+    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => void;
+  onCreateOrder: (event: FormEvent) => void;
+  onReleaseOrder: (orderId: number) => void;
+  onMarkOrdered: (orderId: number) => void;
+  onCancelOrder: (orderId: number) => void;
+  drafts: PurchaseOrderDraft[];
   onRemoveDraft: (draftId: number) => void;
   onApproveDraft: (draftId: number) => void;
 }) {
-  const totalQuantity = drafts.reduce((sum, draft) => sum + draft.quantity, 0);
-  const approvedCount = drafts.filter((draft) => draft.status === "APPROVED").length;
+  const totalBackendQuantity = purchaseOrders.reduce(
+    (sum, order) => sum + order.total_quantity,
+    0
+  );
+
+  const openOrders = purchaseOrders.filter(
+    (order) => !["RECEIVED", "CANCELLED"].includes(order.status)
+  );
+
+  const orderedCount = purchaseOrders.filter(
+    (order) => order.status === "ORDERED"
+  ).length;
+
+  const selectedProduct = products.find(
+    (product) => String(product.id) === form.product
+  );
+
+  const totalDraftQuantity = drafts.reduce(
+    (sum, draft) => sum + draft.quantity,
+    0
+  );
+
+  const approvedDraftCount = drafts.filter(
+    (draft) => draft.status === "APPROVED"
+  ).length;
+
+  const orderPanelStyle: CSSProperties = {
+    background: "rgba(15, 23, 42, 0.78)",
+    border: "1px solid rgba(148, 163, 184, 0.18)",
+    borderRadius: "18px",
+    padding: "18px",
+    boxShadow: "0 18px 36px rgba(0,0,0,0.18)",
+  };
+
+  const orderPanelTitleStyle: CSSProperties = {
+    margin: "0 0 14px 0",
+    color: "#bfdbfe",
+    fontSize: "1rem",
+  };
+
+  const orderTopGridStyle: CSSProperties = {
+    display: "grid",
+    gridTemplateColumns: "minmax(340px, 1.35fr) minmax(300px, 0.85fr)",
+    gap: "18px",
+    marginTop: "22px",
+  };
+
+  const orderFormGridStyle: CSSProperties = {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
+    gap: "10px",
+  };
+
+  const orderMetricGridStyle: CSSProperties = {
+    display: "grid",
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    gap: "10px",
+  };
+
+  const orderMetricCardStyle: CSSProperties = {
+    background: "rgba(30, 41, 59, 0.58)",
+    border: "1px solid rgba(148, 163, 184, 0.14)",
+    borderRadius: "14px",
+    padding: "14px",
+    textAlign: "center",
+  };
+
+  const orderMetricLabelStyle: CSSProperties = {
+    color: "#94a3b8",
+    fontSize: "0.82rem",
+    marginBottom: "6px",
+  };
+
+  const orderMetricValueStyle: CSSProperties = {
+    color: "#f8fafc",
+    fontSize: "1.55rem",
+    fontWeight: 800,
+  };
+
+  const orderListStyle: CSSProperties = {
+    display: "grid",
+    gap: "14px",
+    marginTop: "16px",
+  };
+
+  const orderCardStyle: CSSProperties = {
+    background: "rgba(15, 23, 42, 0.78)",
+    border: "1px solid rgba(148, 163, 184, 0.18)",
+    borderRadius: "18px",
+    padding: "16px",
+  };
+
+  const orderCardHeaderStyle: CSSProperties = {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: "12px",
+    flexWrap: "wrap",
+    alignItems: "flex-start",
+    marginBottom: "14px",
+  };
+
+  const orderBadgeStyle: CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "6px",
+    borderRadius: "999px",
+    padding: "6px 10px",
+    fontSize: "0.82rem",
+    fontWeight: 700,
+    border: "1px solid rgba(148, 163, 184, 0.18)",
+  };
+
+  const orderDetailGridStyle: CSSProperties = {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
+    gap: "12px",
+    marginTop: "12px",
+  };
+
+  const orderDetailLabelStyle: CSSProperties = {
+    color: "#94a3b8",
+    fontSize: "0.78rem",
+    marginBottom: "4px",
+  };
+
+  const orderDetailValueStyle: CSSProperties = {
+    color: "#e2e8f0",
+    fontWeight: 700,
+  };
+
+  const orderActionRowStyle: CSSProperties = {
+    display: "flex",
+    gap: "8px",
+    flexWrap: "wrap",
+    justifyContent: "flex-end",
+    marginTop: "14px",
+  };
+
+  const getStatusMeta = (status: PurchaseOrder["status"]) => {
+    const map: Record<
+      PurchaseOrder["status"],
+      { label: string; background: string; color: string }
+    > = {
+      DRAFT: {
+        label: "📝 Entwurf",
+        background: "rgba(59, 130, 246, 0.16)",
+        color: "#bfdbfe",
+      },
+      RELEASED: {
+        label: "✅ Freigegeben",
+        background: "rgba(22, 101, 52, 0.2)",
+        color: "#bbf7d0",
+      },
+      ORDERED: {
+        label: "📨 Bestellt",
+        background: "rgba(37, 99, 235, 0.22)",
+        color: "#bfdbfe",
+      },
+      PARTIALLY_RECEIVED: {
+        label: "📦 Teilgeliefert",
+        background: "rgba(234, 179, 8, 0.18)",
+        color: "#fef3c7",
+      },
+      RECEIVED: {
+        label: "📦 Geliefert",
+        background: "rgba(22, 101, 52, 0.2)",
+        color: "#bbf7d0",
+      },
+      CANCELLED: {
+        label: "⛔ Storniert",
+        background: "rgba(127, 29, 29, 0.22)",
+        color: "#fecaca",
+      },
+    };
+
+    return map[status];
+  };
+
+  const formatDate = (value?: string | null) =>
+    value ? new Date(value).toLocaleDateString("de-DE") : "—";
+
+  const formatDateTime = (value?: string | null) =>
+    value ? new Date(value).toLocaleString("de-DE") : "—";
+
+  const formatMoney = (value?: string | null) =>
+    value
+      ? `${Number(value).toLocaleString("de-DE", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })} €`
+      : "—";
 
   return (
     <section style={sectionStyle}>
       <h2 style={sectionTitleStyle}>🛒 Bestellungen</h2>
 
       <p style={infoStyle}>
-        Vorbereitete Bestellentwürfe aus den Nachbestellvorschlägen. Entwürfe
-        können im Einkauf freigegeben werden und erhalten anschließend eine
-        automatische Bestellnummer.
+        Einkaufsbestellungen mit Lieferantenverknüpfung, Bestellpositionen und
+        Statussteuerung. Entwürfe können freigegeben, als bestellt markiert oder
+        storniert werden.
       </p>
 
-      <div style={dashboardGridStyle}>
-        <Card title="Bestellungen gesamt" value={String(drafts.length)} />
-        <Card title="Freigegeben" value={String(approvedCount)} />
-        <Card title="Gesamtmenge" value={String(totalQuantity)} />
+      <div style={orderTopGridStyle}>
+        <div style={orderPanelStyle}>
+          <h3 style={orderPanelTitleStyle}>➕ Neue Bestellung</h3>
+
+          {canWrite ? (
+            <form onSubmit={onCreateOrder} style={orderFormGridStyle}>
+              <select
+                name="supplier"
+                value={form.supplier}
+                onChange={onChange}
+                style={inputStyle}
+              >
+                <option value="">Lieferant auswählen</option>
+                {suppliers
+                  .filter((supplier) => supplier.is_active)
+                  .map((supplier) => (
+                    <option key={supplier.id} value={supplier.id}>
+                      {supplier.name}
+                      {supplier.supplier_number
+                        ? ` (${supplier.supplier_number})`
+                        : ""}
+                    </option>
+                  ))}
+              </select>
+
+              <select
+                name="product"
+                value={form.product}
+                onChange={onChange}
+                style={inputStyle}
+              >
+                <option value="">Produkt auswählen</option>
+                {products.map((product) => (
+                  <option key={product.id} value={product.id}>
+                    {product.name} ({product.sku})
+                  </option>
+                ))}
+              </select>
+
+              <input
+                name="quantity"
+                type="number"
+                min="1"
+                placeholder="Bestellmenge"
+                value={form.quantity}
+                onChange={onChange}
+                style={inputStyle}
+              />
+
+              <input
+                name="unit_price"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="Einstandspreis / Stück"
+                value={form.unit_price}
+                onChange={onChange}
+                style={inputStyle}
+              />
+
+              <input
+                name="expected_delivery_date"
+                type="date"
+                value={form.expected_delivery_date}
+                onChange={onChange}
+                style={inputStyle}
+              />
+
+              <input
+                name="title"
+                type="text"
+                placeholder={
+                  selectedProduct
+                    ? `Titel z. B. Bestellung ${selectedProduct.name}`
+                    : "Titel der Bestellung"
+                }
+                value={form.title}
+                onChange={onChange}
+                style={inputStyle}
+              />
+
+              <textarea
+                name="note"
+                placeholder="Notiz zur Bestellung"
+                value={form.note}
+                onChange={onChange}
+                style={{ ...inputStyle, minHeight: "70px" }}
+              />
+
+              <textarea
+                name="item_note"
+                placeholder="Notiz zur Position"
+                value={form.item_note}
+                onChange={onChange}
+                style={{ ...inputStyle, minHeight: "70px" }}
+              />
+
+              <button
+                type="submit"
+                disabled={saving}
+                style={saving ? disabledButtonStyle : primaryButtonStyle}
+              >
+                {saving ? "Speichere..." : "Bestellung anlegen"}
+              </button>
+            </form>
+          ) : (
+            <p style={infoStyle}>
+              Nur Einkauf oder Admin dürfen Bestellungen anlegen.
+            </p>
+          )}
+        </div>
+
+        <div style={orderPanelStyle}>
+          <h3 style={orderPanelTitleStyle}>📊 Bestellstatus</h3>
+
+          <div style={orderMetricGridStyle}>
+            <div style={orderMetricCardStyle}>
+              <div style={orderMetricLabelStyle}>Gesamt</div>
+              <div style={orderMetricValueStyle}>{purchaseOrders.length}</div>
+            </div>
+
+            <div style={orderMetricCardStyle}>
+              <div style={orderMetricLabelStyle}>Offen</div>
+              <div style={orderMetricValueStyle}>{openOrders.length}</div>
+            </div>
+
+            <div style={orderMetricCardStyle}>
+              <div style={orderMetricLabelStyle}>Bestellt</div>
+              <div style={orderMetricValueStyle}>{orderedCount}</div>
+            </div>
+
+            <div style={orderMetricCardStyle}>
+              <div style={orderMetricLabelStyle}>Gesamtmenge</div>
+              <div style={orderMetricValueStyle}>{totalBackendQuantity}</div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {drafts.length === 0 ? (
-        <p style={successStyle}>
-          ✅ Aktuell sind keine Bestellentwürfe vorhanden. Über Dispo →
-          Nachbestellvorschläge kannst du neue Entwürfe vorbereiten.
-        </p>
-      ) : (
-        <div style={{ ...tableWrapStyle, marginTop: "22px" }}>
-          <table style={dataTableStyle}>
-            <thead>
-              <tr style={tableHeaderRowStyle}>
-                <th style={tableHeadStyle}>Bestellnummer</th>
-                <th style={tableHeadStyle}>Produkt</th>
-                <th style={tableHeadStyle}>SKU</th>
-                <th style={tableHeadStyle}>Menge</th>
-                <th style={tableHeadStyle}>Einheit</th>
-                <th style={tableHeadStyle}>Status</th>
-                <th style={tableHeadStyle}>Erstellt am</th>
-                <th style={tableHeadStyle}>Freigegeben am</th>
-                <th style={tableHeadStyle}>Aktion</th>
-              </tr>
-            </thead>
+      <div style={{ marginTop: "24px" }}>
+        <h3 style={{ ...orderPanelTitleStyle, marginBottom: "12px" }}>
+          📋 Bestellübersicht
+        </h3>
 
-            <tbody>
-              {drafts.map((draft) => {
-                const isApproved = draft.status === "APPROVED";
+        {loading && <p>Lade Bestellungen...</p>}
 
-                return (
-                  <tr
-                    key={draft.id}
+        {!loading && purchaseOrders.length === 0 && (
+          <p style={successStyle}>✅ Noch keine Backend-Bestellungen vorhanden.</p>
+        )}
+
+        {!loading && purchaseOrders.length > 0 && (
+          <div style={orderListStyle}>
+            {purchaseOrders.map((order) => {
+              const statusMeta = getStatusMeta(order.status);
+              const canRelease = order.status === "DRAFT";
+              const canMarkOrdered = ["DRAFT", "RELEASED"].includes(order.status);
+              const canCancel = !["RECEIVED", "CANCELLED"].includes(order.status);
+
+              return (
+                <article key={order.id} style={orderCardStyle}>
+                  <div style={orderCardHeaderStyle}>
+                    <div>
+                      <div style={{ color: "#94a3b8", fontSize: "0.82rem" }}>
+                        Bestellnummer
+                      </div>
+
+                      <h3 style={{ margin: "4px 0", color: "#f8fafc" }}>
+                        {order.order_number ?? `#${order.id}`}
+                      </h3>
+
+                      {order.title && (
+                        <div style={{ color: "#94a3b8" }}>{order.title}</div>
+                      )}
+                    </div>
+
+                    <span
+                      style={{
+                        ...orderBadgeStyle,
+                        background: statusMeta.background,
+                        color: statusMeta.color,
+                      }}
+                    >
+                      {statusMeta.label}
+                    </span>
+                  </div>
+
+                  <div style={orderDetailGridStyle}>
+                    <div>
+                      <div style={orderDetailLabelStyle}>Lieferant</div>
+                      <div style={orderDetailValueStyle}>
+                        {order.supplier_name || "—"}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style={orderDetailLabelStyle}>Menge</div>
+                      <div style={orderDetailValueStyle}>
+                        {order.received_quantity_total}/{order.total_quantity}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style={orderDetailLabelStyle}>Lieferdatum</div>
+                      <div style={orderDetailValueStyle}>
+                        {formatDate(order.expected_delivery_date)}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style={orderDetailLabelStyle}>Erstellt</div>
+                      <div style={orderDetailValueStyle}>
+                        {formatDateTime(order.created_at)}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div
                     style={{
-                      borderTop: "1px solid rgba(148, 163, 184, 0.12)",
-                      background: isApproved
-                        ? "rgba(22,101,52,0.08)"
-                        : "rgba(30, 41, 59, 0.35)",
+                      marginTop: "14px",
+                      padding: "12px",
+                      borderRadius: "14px",
+                      background: "rgba(30, 41, 59, 0.45)",
+                      border: "1px solid rgba(148, 163, 184, 0.12)",
                     }}
                   >
-                    <td style={tableCellStyle}>{draft.orderNumber ?? "—"}</td>
-                    <td style={tableCellStyle}>{draft.productName}</td>
-                    <td style={tableCellStyle}>{draft.sku}</td>
-                    <td style={tableCellStyle}>{draft.quantity}</td>
-                    <td style={tableCellStyle}>{draft.unit}</td>
-                    <td style={tableCellStyle}>
-                      {isApproved ? "✅ Freigegeben" : "📝 Entwurf"}
-                    </td>
-                    <td style={tableCellStyle}>
-                      {new Date(draft.createdAt).toLocaleString("de-DE")}
-                    </td>
-                    <td style={tableCellStyle}>
-                      {draft.approvedAt
-                        ? new Date(draft.approvedAt).toLocaleString("de-DE")
-                        : "—"}
-                    </td>
-                    <td style={tableCellStyle}>
-                      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                        <button
-                          type="button"
-                          onClick={() => onApproveDraft(draft.id)}
-                          disabled={!canWrite || isApproved}
-                          style={!canWrite || isApproved ? disabledButtonStyle : primaryButtonStyle}
-                        >
-                          {isApproved ? "Freigegeben" : canWrite ? "Freigeben" : "Nur ansehen"}
-                        </button>
+                    <div style={orderDetailLabelStyle}>Positionen</div>
 
-                        <button
-                          type="button"
-                          onClick={() => onRemoveDraft(draft.id)}
-                          disabled={!canWrite}
-                          style={canWrite ? secondaryButtonStyle : disabledButtonStyle}
-                        >
-                          {canWrite ? "Entfernen" : "Nur ansehen"}
-                        </button>
+                    {order.items.length === 0 ? (
+                      <div style={orderDetailValueStyle}>Keine Positionen</div>
+                    ) : (
+                      <div style={{ display: "grid", gap: "8px" }}>
+                        {order.items.map((item) => (
+                          <div key={item.id}>
+                            <strong>{item.product_name}</strong>
+                            <div style={{ color: "#94a3b8" }}>
+                              {item.quantity} {item.unit || item.product_unit}
+                              {" · offen "}
+                              {item.open_quantity}
+                              {" · "}
+                              {formatMoney(item.unit_price)}
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                    )}
+                  </div>
+
+                  {order.note && (
+                    <p style={{ ...infoStyle, marginTop: "14px" }}>
+                      📝 {order.note}
+                    </p>
+                  )}
+
+                  <div style={orderActionRowStyle}>
+                    <button
+                      type="button"
+                      onClick={() => onReleaseOrder(order.id)}
+                      disabled={!canWrite || !canRelease}
+                      style={
+                        !canWrite || !canRelease
+                          ? disabledButtonStyle
+                          : primaryButtonStyle
+                      }
+                    >
+                      Freigeben
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => onMarkOrdered(order.id)}
+                      disabled={!canWrite || !canMarkOrdered}
+                      style={
+                        !canWrite || !canMarkOrdered
+                          ? disabledButtonStyle
+                          : secondaryButtonStyle
+                      }
+                    >
+                      Bestellt
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => onCancelOrder(order.id)}
+                      disabled={!canWrite || !canCancel}
+                      style={
+                        !canWrite || !canCancel
+                          ? disabledButtonStyle
+                          : secondaryButtonStyle
+                      }
+                    >
+                      Stornieren
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {drafts.length > 0 && (
+        <details style={{ marginTop: "24px" }}>
+          <summary style={{ cursor: "pointer", color: "#bfdbfe" }}>
+            Alte lokale Bestellentwürfe anzeigen ({drafts.length})
+          </summary>
+
+          <div style={dashboardGridStyle}>
+            <Card title="Lokale Entwürfe" value={String(drafts.length)} />
+            <Card title="Freigegeben" value={String(approvedDraftCount)} />
+            <Card title="Gesamtmenge" value={String(totalDraftQuantity)} />
+          </div>
+
+          <div style={{ ...tableWrapStyle, marginTop: "18px" }}>
+            <table style={dataTableStyle}>
+              <thead>
+                <tr style={tableHeaderRowStyle}>
+                  <th style={tableHeadStyle}>Bestellnummer</th>
+                  <th style={tableHeadStyle}>Produkt</th>
+                  <th style={tableHeadStyle}>SKU</th>
+                  <th style={tableHeadStyle}>Menge</th>
+                  <th style={tableHeadStyle}>Status</th>
+                  <th style={tableHeadStyle}>Aktion</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {drafts.map((draft) => {
+                  const isApproved = draft.status === "APPROVED";
+
+                  return (
+                    <tr
+                      key={draft.id}
+                      style={{
+                        borderTop: "1px solid rgba(148, 163, 184, 0.12)",
+                      }}
+                    >
+                      <td style={tableCellStyle}>{draft.orderNumber ?? "—"}</td>
+                      <td style={tableCellStyle}>{draft.productName}</td>
+                      <td style={tableCellStyle}>{draft.sku}</td>
+                      <td style={tableCellStyle}>
+                        {draft.quantity} {draft.unit}
+                      </td>
+                      <td style={tableCellStyle}>
+                        {isApproved ? "✅ Freigegeben" : "📝 Entwurf"}
+                      </td>
+                      <td style={tableCellStyle}>
+                        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                          <button
+                            type="button"
+                            onClick={() => onApproveDraft(draft.id)}
+                            disabled={!canWrite || isApproved}
+                            style={
+                              !canWrite || isApproved
+                                ? disabledButtonStyle
+                                : primaryButtonStyle
+                            }
+                          >
+                            Freigeben
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => onRemoveDraft(draft.id)}
+                            disabled={!canWrite}
+                            style={canWrite ? secondaryButtonStyle : disabledButtonStyle}
+                          >
+                            Entfernen
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </details>
       )}
     </section>
   );
@@ -3178,6 +5796,7 @@ function AdminUsersSection({
     { value: "lager", label: "Lager" },
     { value: "einkauf", label: "Einkauf" },
     { value: "dispo", label: "Dispo" },
+    { value: "stapler", label: "Stapler-Terminal" },
     { value: "admin", label: "Admin" },
   ];
 
@@ -3365,6 +5984,7 @@ function RoleRightsSection({
     { value: "lager", label: "Lager" },
     { value: "einkauf", label: "Einkauf" },
     { value: "dispo", label: "Dispo" },
+    { value: "stapler", label: "Stapler-Terminal" },
     { value: "viewer", label: "Viewer / Recruiter" },
   ];
 
@@ -4419,6 +7039,8 @@ function StorageLocationsSection({
   onChange,
   onToggleActive,
   onSubmit,
+  onShowLocationQrCode,
+  onDownloadLocationQrCode,
 }: {
   title: string;
   locations: StorageLocation[];
@@ -4431,6 +7053,8 @@ function StorageLocationsSection({
   ) => void;
   onToggleActive: (checked: boolean) => void;
   onSubmit: (event: FormEvent) => void;
+  onShowLocationQrCode: (location: StorageLocation) => void;
+  onDownloadLocationQrCode: (location: StorageLocation) => void;
 }) {
   const activeLocations = locations.filter((location) => location.is_active);
   const emptyLocations = locations.filter((location) => location.is_empty);
@@ -4610,6 +7234,8 @@ function StorageLocationsSection({
                 <th style={tableHeadStyle}>Max. kg</th>
                 <th style={tableHeadStyle}>Produkte</th>
                 <th style={tableHeadStyle}>Status</th>
+                <th style={tableHeadStyle}>Lagerort-QR</th>
+                <th style={tableHeadStyle}>QR-Code</th>
               </tr>
             </thead>
 
@@ -4647,6 +7273,31 @@ function StorageLocationsSection({
                         ? "✅ Frei"
                         : "📦 Belegt"
                       : "⚪ Inaktiv"}
+                  </td>
+                  <td style={tableCellStyle}>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: "8px",
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => onShowLocationQrCode(location)}
+                        style={secondaryButtonStyle}
+                      >
+                        Lagerort-QR anzeigen
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => onDownloadLocationQrCode(location)}
+                        style={secondaryButtonStyle}
+                      >
+                        Lagerort-QR herunterladen
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -4939,10 +7590,1491 @@ function ReorderSection({
   );
 }
 
+
+
+
+
+
+
+
+
+function TransportReportSection({
+  orders,
+  loading,
+  onRefresh,
+}: {
+  orders: TransportOrder[];
+  loading: boolean;
+  onRefresh: () => Promise<void>;
+}) {
+  const formatDateKey = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const today = new Date();
+  const sevenDaysAgo = new Date(today);
+  sevenDaysAgo.setDate(today.getDate() - 6);
+
+  const todayKey = formatDateKey(today);
+  const sevenDaysAgoKey = formatDateKey(sevenDaysAgo);
+
+  const [startDate, setStartDate] = useState(sevenDaysAgoKey);
+  const [endDate, setEndDate] = useState(todayKey);
+  const [shiftFilter, setShiftFilter] = useState("");
+  const [userFilter, setUserFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [typeFilter, setTypeFilter] = useState("");
+  const [search, setSearch] = useState("");
+
+  const shiftOptions = [
+    { value: "early", label: "Frühschicht 06:00–14:00" },
+    { value: "late", label: "Spätschicht 14:00–22:00" },
+    { value: "night", label: "Nachtschicht 22:00–06:00" },
+  ];
+
+  const getShiftKey = (date: Date) => {
+    const hour = date.getHours();
+
+    if (hour >= 6 && hour < 14) return "early";
+    if (hour >= 14 && hour < 22) return "late";
+
+    return "night";
+  };
+
+  const getShiftLabel = (shiftKey: string) =>
+    shiftOptions.find((option) => option.value === shiftKey)?.label ??
+    "Alle Schichten";
+
+  const getReferenceDate = (order: TransportOrder) =>
+    new Date(order.completed_at || order.picked_at || order.created_at);
+
+  const getAssignedUser = (order: TransportOrder) =>
+    order.assigned_to_username || "Nicht zugewiesen";
+
+  const getStatusLabel = (status: TransportOrder["status"]) => {
+    switch (status) {
+      case "CREATED":
+        return "Erstellt";
+      case "ASSIGNED":
+        return "Zugewiesen";
+      case "PICKED":
+        return "Ware aufgenommen";
+      case "IN_TRANSIT":
+        return "In Transport";
+      case "COMPLETED":
+        return "Abgeschlossen";
+      case "CANCELLED":
+        return "Storniert";
+      case "ERROR":
+        return "Fehler";
+      default:
+        return status;
+    }
+  };
+
+  const getTransportType = (order: TransportOrder) => {
+    const sourceCode = order.source_location_code.toUpperCase();
+    const targetCode = (order.target_location_code ?? "").toUpperCase();
+
+    if (sourceCode.startsWith("WE-")) {
+      return "WE → Lager";
+    }
+
+    if (targetCode.startsWith("WA-")) {
+      return "Lager → WA";
+    }
+
+    return "Lagerintern";
+  };
+
+  const typeOptions = ["WE → Lager", "Lager → WA", "Lagerintern"];
+
+  const selectedStartDate = startDate ? new Date(`${startDate}T00:00:00`) : null;
+  const selectedEndDate = endDate ? new Date(`${endDate}T23:59:59.999`) : null;
+
+  const hasInvalidDateRange =
+    selectedStartDate !== null &&
+    selectedEndDate !== null &&
+    selectedStartDate > selectedEndDate;
+
+  const userOptions = useMemo(() => {
+    return Array.from(new Set(orders.map((order) => getAssignedUser(order)))).sort(
+      (first, second) => {
+        if (first === "Nicht zugewiesen") return 1;
+        if (second === "Nicht zugewiesen") return -1;
+        return first.localeCompare(second);
+      }
+    );
+  }, [orders]);
+
+  const filteredOrders = useMemo(() => {
+    if (hasInvalidDateRange) return [];
+
+    const query = search.trim().toLowerCase();
+
+    return orders
+      .slice()
+      .sort(
+        (first, second) =>
+          getReferenceDate(second).getTime() - getReferenceDate(first).getTime()
+      )
+      .filter((order) => {
+        const referenceDate = getReferenceDate(order);
+        const assignedUser = getAssignedUser(order);
+        const transportType = getTransportType(order);
+
+        const matchesStart =
+          !selectedStartDate || referenceDate >= selectedStartDate;
+        const matchesEnd = !selectedEndDate || referenceDate <= selectedEndDate;
+        const matchesShift =
+          !shiftFilter || getShiftKey(referenceDate) === shiftFilter;
+        const matchesUser = !userFilter || assignedUser === userFilter;
+        const matchesStatus = !statusFilter || order.status === statusFilter;
+        const matchesType = !typeFilter || transportType === typeFilter;
+
+        const haystack = [
+          order.transport_order_number ?? "",
+          order.transport_slip_number ?? "",
+          order.product_name,
+          order.product_sku,
+          order.source_location_code,
+          order.target_location_code ?? "",
+          order.reference_number,
+          assignedUser,
+          transportType,
+          getStatusLabel(order.status),
+        ]
+          .join(" ")
+          .toLowerCase();
+
+        return (
+          matchesStart &&
+          matchesEnd &&
+          matchesShift &&
+          matchesUser &&
+          matchesStatus &&
+          matchesType &&
+          haystack.includes(query)
+        );
+      });
+  }, [
+    orders,
+    selectedStartDate,
+    selectedEndDate,
+    shiftFilter,
+    userFilter,
+    statusFilter,
+    typeFilter,
+    search,
+    hasInvalidDateRange,
+  ]);
+
+  const totalCount = filteredOrders.length;
+  const completedCount = filteredOrders.filter(
+    (order) => order.status === "COMPLETED"
+  ).length;
+  const openCount = filteredOrders.filter(
+    (order) => !["COMPLETED", "CANCELLED"].includes(order.status)
+  ).length;
+  const inTransitCount = filteredOrders.filter(
+    (order) => order.status === "IN_TRANSIT"
+  ).length;
+  const errorCount = filteredOrders.filter((order) => order.status === "ERROR").length;
+
+  const completionRate =
+    totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+
+  const receivingTransportCount = filteredOrders.filter(
+    (order) => getTransportType(order) === "WE → Lager"
+  ).length;
+
+  const shippingTransportCount = filteredOrders.filter(
+    (order) => getTransportType(order) === "Lager → WA"
+  ).length;
+
+  const internalTransportCount = filteredOrders.filter(
+    (order) => getTransportType(order) === "Lagerintern"
+  ).length;
+
+  const userTransportStats = useMemo(() => {
+    const stats = new Map<
+      string,
+      {
+        user: string;
+        total: number;
+        completed: number;
+        open: number;
+        inTransit: number;
+        errors: number;
+      }
+    >();
+
+    filteredOrders.forEach((order) => {
+      const userName = getAssignedUser(order);
+
+      const current =
+        stats.get(userName) ??
+        {
+          user: userName,
+          total: 0,
+          completed: 0,
+          open: 0,
+          inTransit: 0,
+          errors: 0,
+        };
+
+      current.total += 1;
+
+      if (order.status === "COMPLETED") current.completed += 1;
+      if (!["COMPLETED", "CANCELLED"].includes(order.status)) current.open += 1;
+      if (order.status === "IN_TRANSIT") current.inTransit += 1;
+      if (order.status === "ERROR") current.errors += 1;
+
+      stats.set(userName, current);
+    });
+
+    return Array.from(stats.values()).sort(
+      (first, second) =>
+        second.completed - first.completed ||
+        second.total - first.total ||
+        first.user.localeCompare(second.user)
+    );
+  }, [filteredOrders]);
+
+  const topDriver =
+    userTransportStats.find((item) => item.user !== "Nicht zugewiesen") ??
+    userTransportStats[0] ??
+    null;
+
+  const latestCompletedOrder =
+    filteredOrders
+      .filter((order) => order.status === "COMPLETED")
+      .slice()
+      .sort(
+        (first, second) =>
+          new Date(second.completed_at ?? second.updated_at).getTime() -
+          new Date(first.completed_at ?? first.updated_at).getTime()
+      )[0] ?? null;
+
+  const openOrdersPreview = filteredOrders
+    .filter((order) => !["COMPLETED", "CANCELLED"].includes(order.status))
+    .slice(0, 5);
+
+  const dashboardShellStyle: CSSProperties = {
+    display: "grid",
+    gap: "14px",
+  };
+
+  const panelStyle: CSSProperties = {
+    background: "rgba(15, 23, 42, 0.78)",
+    border: "1px solid rgba(148, 163, 184, 0.16)",
+    borderRadius: "16px",
+    padding: "14px",
+    boxShadow: "0 12px 28px rgba(0,0,0,0.18)",
+  };
+
+  const panelTitleStyle: CSSProperties = {
+    margin: "0 0 10px",
+    color: "#bfdbfe",
+    fontSize: "0.95rem",
+    fontWeight: 800,
+  };
+
+  const metricGridStyle: CSSProperties = {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(145px, 1fr))",
+    gap: "10px",
+  };
+
+  const metricCardStyle: CSSProperties = {
+    background: "rgba(30, 41, 59, 0.68)",
+    border: "1px solid rgba(148, 163, 184, 0.14)",
+    borderRadius: "14px",
+    padding: "12px",
+    minHeight: "72px",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+  };
+
+  const metricLabelStyle: CSSProperties = {
+    color: "#94a3b8",
+    fontSize: "0.78rem",
+    fontWeight: 700,
+    marginBottom: "4px",
+  };
+
+  const metricValueStyle: CSSProperties = {
+    color: "#f8fafc",
+    fontSize: "1.55rem",
+    fontWeight: 850,
+    lineHeight: 1,
+  };
+
+  const miniRowStyle: CSSProperties = {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: "10px",
+    alignItems: "center",
+    padding: "8px 0",
+    borderBottom: "1px solid rgba(148, 163, 184, 0.10)",
+    color: "#e2e8f0",
+  };
+
+  const selectedRangeText = `${startDate || "ohne Startdatum"} bis ${
+    endDate || "ohne Enddatum"
+  }`;
+
+  const exportTransportDashboardExcel = async () => {
+    const params = new URLSearchParams();
+
+    if (startDate) params.set("start_date", startDate);
+    if (endDate) params.set("end_date", endDate);
+    if (shiftFilter) params.set("shift", shiftFilter);
+    if (userFilter) params.set("user", userFilter);
+    if (statusFilter) params.set("status", statusFilter);
+    if (typeFilter) params.set("transport_type", typeFilter);
+    if (search.trim()) params.set("search", search.trim());
+
+    try {
+      const query = params.toString();
+      const endpoint = `/inventory-api/transport-orders/export-excel/${
+        query ? `?${query}` : ""
+      }`;
+
+      const response = await apiFetch(endpoint);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || "Fehler beim Excel-Export.");
+      }
+
+      const blob = await response.blob();
+      const contentDisposition = response.headers.get("Content-Disposition") || "";
+      const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+      const filename =
+        filenameMatch?.[1] ||
+        `transport-dashboard-${startDate || "alle"}-bis-${endDate || "alle"}.xlsx`;
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Fehler beim Excel-Export.";
+
+      window.alert(message);
+    }
+  };
+
+  return (
+    <section style={sectionStyle}>
+      <div style={dashboardShellStyle}>
+        <div
+          style={{
+            ...panelStyle,
+            background:
+              "linear-gradient(135deg, rgba(14, 116, 144, 0.26), rgba(15, 23, 42, 0.92))",
+            border: "1px solid rgba(34, 211, 238, 0.24)",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: "16px",
+              flexWrap: "wrap",
+              alignItems: "center",
+            }}
+          >
+            <div>
+              <p
+                style={{
+                  margin: "0 0 6px",
+                  color: "#67e8f9",
+                  fontSize: "0.72rem",
+                  fontWeight: 900,
+                  letterSpacing: "0.16em",
+                  textTransform: "uppercase",
+                }}
+              >
+                WMS Transportsteuerung
+              </p>
+
+              <h2
+                style={{
+                  margin: 0,
+                  color: "#e0f2fe",
+                  fontSize: "1.75rem",
+                  lineHeight: 1.1,
+                }}
+              >
+                📊 Transport-Dashboard
+              </h2>
+
+              <p
+                style={{
+                  margin: "8px 0 0",
+                  color: "#cbd5e1",
+                  fontSize: "0.92rem",
+                  lineHeight: 1.45,
+                }}
+              >
+                Kennzahlen zu Transportaufträgen nach Zeitraum, Schicht,
+                Benutzer, Status und Transportart.
+              </p>
+            </div>
+
+            <div
+              style={{
+                minWidth: "220px",
+                padding: "12px",
+                borderRadius: "14px",
+                background: "rgba(15, 23, 42, 0.62)",
+                border: "1px solid rgba(148, 163, 184, 0.16)",
+              }}
+            >
+              <div style={{ color: "#94a3b8", fontSize: "0.78rem" }}>
+                Erfüllungsquote
+              </div>
+
+              <div
+                style={{
+                  color: "#f8fafc",
+                  fontSize: "1.85rem",
+                  fontWeight: 900,
+                  lineHeight: 1.1,
+                }}
+              >
+                {completionRate}%
+              </div>
+
+              <div style={{ color: "#94a3b8", fontSize: "0.84rem" }}>
+                {completedCount} von {totalCount} TA abgeschlossen
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style={panelStyle}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+              gap: "10px",
+              alignItems: "center",
+            }}
+          >
+            <input
+              type="date"
+              value={startDate}
+              onChange={(event) => setStartDate(event.target.value)}
+              style={inputStyle}
+            />
+
+            <input
+              type="date"
+              value={endDate}
+              onChange={(event) => setEndDate(event.target.value)}
+              style={inputStyle}
+            />
+
+            <select
+              value={shiftFilter}
+              onChange={(event) => setShiftFilter(event.target.value)}
+              style={inputStyle}
+            >
+              <option value="">Alle Schichten</option>
+              {shiftOptions.map((shift) => (
+                <option key={shift.value} value={shift.value}>
+                  {shift.label}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={userFilter}
+              onChange={(event) => setUserFilter(event.target.value)}
+              style={inputStyle}
+            >
+              <option value="">Alle Benutzer</option>
+              {userOptions.map((userName) => (
+                <option key={userName} value={userName}>
+                  {userName}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={statusFilter}
+              onChange={(event) => setStatusFilter(event.target.value)}
+              style={inputStyle}
+            >
+              <option value="">Alle Status</option>
+              <option value="CREATED">Erstellt</option>
+              <option value="ASSIGNED">Zugewiesen</option>
+              <option value="PICKED">Ware aufgenommen</option>
+              <option value="IN_TRANSIT">In Transport</option>
+              <option value="COMPLETED">Abgeschlossen</option>
+              <option value="CANCELLED">Storniert</option>
+              <option value="ERROR">Fehler</option>
+            </select>
+
+            <select
+              value={typeFilter}
+              onChange={(event) => setTypeFilter(event.target.value)}
+              style={inputStyle}
+            >
+              <option value="">Alle Transportarten</option>
+              {typeOptions.map((type) => (
+                <option key={type} value={type}>
+                  {type}
+                </option>
+              ))}
+            </select>
+
+            <input
+              type="text"
+              placeholder="Suche TA, Produkt, Quelle, Ziel"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              style={inputStyle}
+            />
+
+            <button type="button" onClick={() => void onRefresh()} style={secondaryButtonStyle}>
+              Aktualisieren
+            </button>
+
+            <button
+              type="button"
+              onClick={() => void exportTransportDashboardExcel()}
+              disabled={filteredOrders.length === 0}
+              style={
+                filteredOrders.length === 0
+                  ? disabledButtonStyle
+                  : secondaryButtonStyle
+              }
+            >
+              Excel exportieren
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setStartDate(sevenDaysAgoKey);
+                setEndDate(todayKey);
+                setShiftFilter("");
+                setUserFilter("");
+                setStatusFilter("");
+                setTypeFilter("");
+                setSearch("");
+              }}
+              style={secondaryButtonStyle}
+            >
+              7 Tage
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setStartDate("");
+                setEndDate("");
+                setShiftFilter("");
+                setUserFilter("");
+                setStatusFilter("");
+                setTypeFilter("");
+                setSearch("");
+              }}
+              style={secondaryButtonStyle}
+            >
+              Alle
+            </button>
+          </div>
+
+          {hasInvalidDateRange && (
+            <p style={{ ...errorStyle, marginBottom: 0 }}>
+              ⛔ Der Zeitraum ist ungültig: Das Von-Datum liegt nach dem Bis-Datum.
+            </p>
+          )}
+
+          <p style={{ ...infoStyle, marginBottom: 0 }}>
+            Zeitraum: <strong>{selectedRangeText}</strong>
+            {" · "}Schicht:{" "}
+            <strong>{shiftFilter ? getShiftLabel(shiftFilter) : "Alle Schichten"}</strong>
+            {" · "}Benutzer: <strong>{userFilter || "Alle Benutzer"}</strong>
+          </p>
+        </div>
+
+        {loading && <p style={infoStyle}>Lade Transport-Dashboard...</p>}
+
+        <div style={metricGridStyle}>
+          <div style={metricCardStyle}>
+            <span style={metricLabelStyle}>TA im Zeitraum</span>
+            <strong style={metricValueStyle}>{totalCount}</strong>
+          </div>
+
+          <div style={metricCardStyle}>
+            <span style={metricLabelStyle}>Offen</span>
+            <strong style={{ ...metricValueStyle, color: openCount > 0 ? "#fde68a" : "#f8fafc" }}>
+              {openCount}
+            </strong>
+          </div>
+
+          <div style={metricCardStyle}>
+            <span style={metricLabelStyle}>In Transport</span>
+            <strong style={{ ...metricValueStyle, color: inTransitCount > 0 ? "#bfdbfe" : "#f8fafc" }}>
+              {inTransitCount}
+            </strong>
+          </div>
+
+          <div style={metricCardStyle}>
+            <span style={metricLabelStyle}>Abgeschlossen</span>
+            <strong style={{ ...metricValueStyle, color: "#86efac" }}>
+              {completedCount}
+            </strong>
+          </div>
+
+          <div style={metricCardStyle}>
+            <span style={metricLabelStyle}>Fehler</span>
+            <strong style={{ ...metricValueStyle, color: errorCount > 0 ? "#fecaca" : "#f8fafc" }}>
+              {errorCount}
+            </strong>
+          </div>
+        </div>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+            gap: "14px",
+          }}
+        >
+          <div style={panelStyle}>
+            <h3 style={panelTitleStyle}>🚚 Transportarten</h3>
+
+            <div style={miniRowStyle}>
+              <strong>WE → Lager</strong>
+              <span>{receivingTransportCount}</span>
+            </div>
+
+            <div style={miniRowStyle}>
+              <strong>Lager → WA</strong>
+              <span>{shippingTransportCount}</span>
+            </div>
+
+            <div style={{ ...miniRowStyle, borderBottom: "none" }}>
+              <strong>Lagerintern</strong>
+              <span>{internalTransportCount}</span>
+            </div>
+          </div>
+
+          <div style={panelStyle}>
+            <h3 style={panelTitleStyle}>👤 TA je Benutzer</h3>
+
+            {userTransportStats.length === 0 ? (
+              <p style={infoStyle}>Keine TA für die aktuelle Auswahl.</p>
+            ) : (
+              <div style={{ display: "grid", gap: "10px" }}>
+                {userTransportStats.slice(0, 6).map((item) => (
+                  <div
+                    key={item.user}
+                    style={{
+                      border: "1px solid rgba(148, 163, 184, 0.14)",
+                      borderRadius: "12px",
+                      padding: "10px",
+                      background: "rgba(30, 41, 59, 0.52)",
+                    }}
+                  >
+                    <div style={dashboardChartLabelRowStyle}>
+                      <strong>{item.user}</strong>
+                      <span>{item.total} TA</span>
+                    </div>
+
+                    <div style={{ color: "#94a3b8", fontSize: "0.86rem", lineHeight: 1.55 }}>
+                      Abgeschlossen: <strong>{item.completed}</strong>
+                      {" · "}Offen: <strong>{item.open}</strong>
+                      {" · "}In Transport: <strong>{item.inTransit}</strong>
+                      {item.errors > 0 && <>{" · "}Fehler: <strong>{item.errors}</strong></>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div style={panelStyle}>
+            <h3 style={panelTitleStyle}>🏁 Aktivster Benutzer</h3>
+
+            {topDriver ? (
+              <div style={{ color: "#e2e8f0", lineHeight: 1.7 }}>
+                <div style={{ fontSize: "1.2rem", fontWeight: 850 }}>
+                  {topDriver.user}
+                </div>
+                <div>TA gesamt: {topDriver.total}</div>
+                <div>Abgeschlossen: {topDriver.completed}</div>
+                <div>Offen: {topDriver.open}</div>
+              </div>
+            ) : (
+              <p style={infoStyle}>Keine TA für die aktuelle Auswahl.</p>
+            )}
+          </div>
+
+          <div style={panelStyle}>
+            <h3 style={panelTitleStyle}>✅ Letzter Abschluss</h3>
+
+            {latestCompletedOrder ? (
+              <div style={{ color: "#e2e8f0", lineHeight: 1.7 }}>
+                <strong>
+                  {latestCompletedOrder.transport_order_number ??
+                    `TA-${latestCompletedOrder.id}`}
+                </strong>
+                <div>
+                  {latestCompletedOrder.source_location_code} →{" "}
+                  {latestCompletedOrder.target_location_code ?? "—"}
+                </div>
+                <div>{latestCompletedOrder.product_name}</div>
+                <div style={{ color: "#94a3b8" }}>
+                  {latestCompletedOrder.completed_at
+                    ? new Date(latestCompletedOrder.completed_at).toLocaleString("de-DE")
+                    : "—"}
+                </div>
+              </div>
+            ) : (
+              <p style={infoStyle}>Noch kein abgeschlossener Transport.</p>
+            )}
+          </div>
+        </div>
+
+        <div style={panelStyle}>
+          <h3 style={panelTitleStyle}>📌 Aktuelle offene Transporte</h3>
+
+          {openOrdersPreview.length === 0 ? (
+            <p style={infoStyle}>Keine offenen Transporte für die aktuelle Auswahl.</p>
+          ) : (
+            <div style={{ display: "grid", gap: "10px" }}>
+              {openOrdersPreview.map((order) => (
+                <div
+                  key={order.id}
+                  style={{
+                    border: "1px solid rgba(148, 163, 184, 0.14)",
+                    borderRadius: "12px",
+                    padding: "10px",
+                    background: "rgba(30, 41, 59, 0.52)",
+                  }}
+                >
+                  <div style={dashboardChartLabelRowStyle}>
+                    <strong>{order.transport_order_number ?? `TA-${order.id}`}</strong>
+                    <span>{getStatusLabel(order.status)}</span>
+                  </div>
+
+                  <div style={{ color: "#e2e8f0", lineHeight: 1.55 }}>
+                    {order.product_name} · Menge {order.quantity}
+                    <br />
+                    {order.source_location_code} → {order.target_location_code ?? "—"}
+                    <br />
+                    <span style={{ color: "#94a3b8" }}>
+                      {getTransportType(order)} · Fahrer: {getAssignedUser(order)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ForkliftTerminalSection({
+  orders,
+  products,
+  storageLocations,
+  loading,
+  selectedOrderId,
+  setSelectedOrderId,
+  scanValue,
+  setScanValue,
+  scanFeedback,
+  onScan,
+  onAssign,
+  onRefresh,
+  canUseTerminal,
+  createProductId,
+  setCreateProductId,
+  createQuantity,
+  setCreateQuantity,
+  createTargetLocationId,
+  setCreateTargetLocationId,
+  createSaving,
+  onCreateTransportOrder,
+  canCreateTransportOrder,
+}: {
+  orders: TransportOrder[];
+  products: Product[];
+  storageLocations: StorageLocation[];
+  loading: boolean;
+  selectedOrderId: string;
+  setSelectedOrderId: (value: string) => void;
+  scanValue: string;
+  setScanValue: (value: string) => void;
+  scanFeedback: string;
+  onScan: () => void;
+  onAssign: (order: TransportOrder) => void;
+  onRefresh: () => void;
+  canUseTerminal: boolean;
+  createProductId: string;
+  setCreateProductId: (value: string) => void;
+  createQuantity: string;
+  setCreateQuantity: (value: string) => void;
+  createTargetLocationId: string;
+  setCreateTargetLocationId: (value: string) => void;
+  createSaving: boolean;
+  onCreateTransportOrder: (event: FormEvent) => void;
+  canCreateTransportOrder: boolean;
+}) {
+  const scanInputRef = useRef<HTMLInputElement | null>(null);
+
+  const shippingLocations = useMemo(
+    () =>
+      storageLocations
+        .filter(
+          (location) =>
+            location.is_active &&
+            !location.is_blocked &&
+            (location.location_type === "SHIPPING" ||
+              location.code.toUpperCase().startsWith("WA-"))
+        )
+        .sort((first, second) => first.code.localeCompare(second.code)),
+    [storageLocations]
+  );
+
+  useEffect(() => {
+    if (!createTargetLocationId) return;
+
+    const selectedTargetStillValid = shippingLocations.some(
+      (location) => String(location.id) === createTargetLocationId
+    );
+
+    if (!selectedTargetStillValid) {
+      setCreateTargetLocationId("");
+    }
+  }, [createTargetLocationId, shippingLocations, setCreateTargetLocationId]);
+
+  const activeOrder =
+    orders.find((order) => String(order.id) === selectedOrderId) ??
+    orders[0] ??
+    null;
+
+  useEffect(() => {
+    if (activeOrder && canUseTerminal) {
+      scanInputRef.current?.focus();
+    }
+  }, [activeOrder, canUseTerminal, scanFeedback]);
+
+  const statusLabel = (status: TransportOrder["status"]) => {
+    switch (status) {
+      case "CREATED":
+        return "OFFEN";
+      case "ASSIGNED":
+        return "ÜBERNOMMEN";
+      case "PICKED":
+        return "WARE AUFGENOMMEN";
+      case "IN_TRANSIT":
+        return "IN TRANSPORT";
+      case "COMPLETED":
+        return "ABGESCHLOSSEN";
+      case "CANCELLED":
+        return "STORNIERT";
+      case "ERROR":
+        return "FEHLER";
+      default:
+        return status;
+    }
+  };
+
+  const isWaitingForSource =
+    activeOrder?.status === "CREATED" ||
+    activeOrder?.status === "ASSIGNED" ||
+    activeOrder?.status === "ERROR";
+
+  const isWaitingForTarget = activeOrder?.status === "IN_TRANSIT";
+
+  const expectedScanLabel = activeOrder
+    ? isWaitingForSource
+      ? "QUELLPLATZ SCANNEN"
+      : isWaitingForTarget
+      ? "ZIELPLATZ SCANNEN"
+      : "KEIN SCAN OFFEN"
+    : "KEIN AUFTRAG";
+
+  const expectedCode = activeOrder
+    ? isWaitingForSource
+      ? activeOrder.source_location_code
+      : isWaitingForTarget
+      ? activeOrder.target_location_code ?? "KEIN ZIEL"
+      : "—"
+    : "—";
+
+  const scannedValue = scanValue || activeOrder?.last_scan_value || "—";
+  const scannedMatchesExpected =
+    activeOrder &&
+    expectedCode !== "—" &&
+    scannedValue !== "—" &&
+    scannedValue.trim().toUpperCase() === expectedCode.trim().toUpperCase();
+
+  const hasScanError =
+    scanFeedback.startsWith("⛔") && !scannedMatchesExpected;
+
+  const stepHint = activeOrder
+    ? isWaitingForSource
+      ? "Fahre zum Quellbereich und scanne den angegebenen Lagerort."
+      : isWaitingForTarget
+      ? "Ware aufgenommen. Fahre zum Zielbereich und scanne den Ziel-Lagerort."
+      : "Für diesen Auftrag ist aktuell kein Scan erforderlich."
+    : "Es ist aktuell kein offener Transportauftrag ausgewählt.";
+
+
+  const terminalShellStyle: CSSProperties = {
+    maxWidth: "1080px",
+    margin: "0 auto",
+    borderRadius: "24px",
+    border: "2px solid rgba(51, 65, 85, 0.95)",
+    background:
+      "linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(2, 6, 23, 0.98))",
+    boxShadow: "0 24px 70px rgba(0,0,0,0.45)",
+    padding: "18px",
+  };
+
+  const panelStyle: CSSProperties = {
+    borderRadius: "20px",
+    border: "1px solid rgba(148, 163, 184, 0.22)",
+    background: "rgba(15, 23, 42, 0.74)",
+    padding: "16px",
+    marginBottom: "16px",
+  };
+
+  const panelTitleStyle: CSSProperties = {
+    margin: "0 0 12px",
+    color: "#e5e7eb",
+    fontSize: "13px",
+    fontWeight: 800,
+    letterSpacing: "0.14em",
+    textTransform: "uppercase",
+  };
+
+  const labelStyle: CSSProperties = {
+    display: "block",
+    color: "#94a3b8",
+    fontSize: "11px",
+    fontWeight: 800,
+    letterSpacing: "0.12em",
+    textTransform: "uppercase",
+    marginBottom: "6px",
+  };
+
+  const valueStyle: CSSProperties = {
+    color: "#f8fafc",
+    fontSize: "18px",
+    fontWeight: 800,
+    lineHeight: 1.2,
+  };
+
+  const topGridStyle: CSSProperties = {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
+    gap: "12px",
+  };
+
+  const topBoxStyle: CSSProperties = {
+    borderRadius: "18px",
+    border: "1px solid rgba(148, 163, 184, 0.2)",
+    background: "rgba(30, 41, 59, 0.86)",
+    padding: "14px",
+    minHeight: "76px",
+  };
+
+  const nextStepStyle: CSSProperties = {
+    borderRadius: "24px",
+    border: hasScanError
+      ? "3px solid rgba(248, 113, 113, 0.9)"
+      : "3px solid rgba(34, 197, 94, 0.75)",
+    background: hasScanError
+      ? "rgba(127, 29, 29, 0.45)"
+      : "rgba(20, 83, 45, 0.34)",
+    padding: "26px",
+    textAlign: "center",
+    marginBottom: "16px",
+  };
+
+  const areaGridStyle: CSSProperties = {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+    gap: "14px",
+  };
+
+  const areaBoxStyle: CSSProperties = {
+    borderRadius: "20px",
+    border: "1px solid rgba(148, 163, 184, 0.24)",
+    background: "rgba(2, 6, 23, 0.62)",
+    padding: "16px",
+    minHeight: "135px",
+  };
+
+  const scanInputStyle: CSSProperties = {
+    ...inputStyle,
+    width: "100%",
+    fontSize: "20px",
+    padding: "18px",
+    borderRadius: "20px",
+    border: hasScanError
+      ? "3px solid rgba(248, 113, 113, 0.9)"
+      : "3px solid rgba(34, 197, 94, 0.75)",
+    background: "rgba(2, 6, 23, 0.96)",
+    color: "#f8fafc",
+    fontWeight: 800,
+  };
+
+  return (
+    <section style={sectionStyle}>
+      <h2 style={sectionTitleStyle}>STAPLER-TERMINAL</h2>
+        <div
+          style={{
+            margin: "12px 0 18px",
+            padding: "14px 16px",
+            borderRadius: "16px",
+            border: "1px solid rgba(34, 197, 94, 0.45)",
+            background: "rgba(20, 83, 45, 0.22)",
+            color: "#bbf7d0",
+            fontWeight: 700,
+          }}
+        >
+          ✅ Scannergeführter Transportprozess aktiv. Quelle und Ziel werden nacheinander geprüft;
+          Fehlscans bleiben sichtbar und nachvollziehbar.
+        </div>
+
+      <p style={infoStyle}>
+        Tablet-optimierte Stapleranzeige mit klarer Fahranweisung,
+        Lagerbereichen und einem einzigen Scan-Feld.
+      </p>
+
+      <div style={terminalShellStyle}>
+        {canCreateTransportOrder && (
+          <div style={panelStyle}>
+            <h3 style={panelTitleStyle}>Warenausgangs-Transport vorbereiten</h3>
+
+            <p style={{ ...infoStyle, marginTop: 0 }}>
+              Zielplätze sind Warenausgangs-/Bereitstellflächen wie WA-0001 bis WA-0005.
+            </p>
+
+            {shippingLocations.length === 0 && (
+              <p style={errorStyle}>
+                ⛔ Keine aktiven WA-Flächen vorhanden. Bitte zuerst WA-0001 bis WA-0005 anlegen.
+              </p>
+            )}
+
+            <form
+              onSubmit={onCreateTransportOrder}
+              style={{
+                display: "grid",
+                gridTemplateColumns:
+                  "minmax(220px, 1.4fr) 120px minmax(220px, 1.2fr) auto",
+                gap: "10px",
+                alignItems: "center",
+              }}
+            >
+              <select
+                value={createProductId}
+                onChange={(event) => setCreateProductId(event.target.value)}
+                style={inputStyle}
+                required
+              >
+                <option value="">Produkt auswählen</option>
+                {products.map((product) => (
+                  <option key={product.id} value={product.id}>
+                    {product.name} · {product.sku}
+                  </option>
+                ))}
+              </select>
+
+              <input
+                type="number"
+                min="1"
+                value={createQuantity}
+                onChange={(event) => setCreateQuantity(event.target.value)}
+                placeholder="Menge"
+                style={inputStyle}
+                required
+              />
+
+              <select
+                value={createTargetLocationId}
+                onChange={(event) =>
+                  setCreateTargetLocationId(event.target.value)
+                }
+                style={inputStyle}
+                required
+              >
+                <option value="">WA-Fläche auswählen</option>
+                {shippingLocations.map((location) => (
+                  <option key={location.id} value={location.id}>
+                    {location.code} · {location.name}
+                  </option>
+                ))}
+              </select>
+
+              <button
+                type="submit"
+                disabled={createSaving || shippingLocations.length === 0}
+                style={
+                  createSaving || shippingLocations.length === 0
+                    ? disabledButtonStyle
+                    : primaryButtonStyle
+                }
+              >
+                {createSaving ? "Erstelle..." : "Transportauftrag erstellen"}
+              </button>
+            </form>
+          </div>
+        )}
+
+        <div style={panelStyle}>
+          <div style={topGridStyle}>
+            <div style={topBoxStyle}>
+              <span style={labelStyle}>TA-Nummer</span>
+              <strong style={valueStyle}>
+                {activeOrder?.transport_order_number ?? "—"}
+              </strong>
+            </div>
+
+            <div style={topBoxStyle}>
+              <span style={labelStyle}>TS-Nummer</span>
+              <strong style={valueStyle}>
+                {activeOrder?.transport_slip_number ?? "—"}
+              </strong>
+            </div>
+
+            <div style={topBoxStyle}>
+              <span style={labelStyle}>Status</span>
+              <strong
+                style={{
+                  ...valueStyle,
+                  color: hasScanError
+                    ? "#fecaca"
+                    : activeOrder?.status === "IN_TRANSIT"
+                    ? "#fde68a"
+                    : "#bbf7d0",
+                }}
+              >
+                {activeOrder ? statusLabel(activeOrder.status) : "WARTEN"}
+              </strong>
+            </div>
+          </div>
+        </div>
+
+        <div style={nextStepStyle}>
+          {hasScanError ? (
+            <>
+              <div
+                style={{
+                  color: "#fecaca",
+                  fontSize: "28px",
+                  fontWeight: 850,
+                  letterSpacing: "0.05em",
+                  marginBottom: "12px",
+                }}
+              >
+                ⛔ FALSCHER SCAN
+              </div>
+
+              <div style={{ color: "#fee2e2", fontSize: "20px", lineHeight: 1.7 }}>
+                <div>
+                  Erwartet: <strong>{expectedCode}</strong>
+                </div>
+                <div>
+                  Gescannt: <strong>{scannedValue}</strong>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div
+                style={{
+                  color: "#bbf7d0",
+                  fontSize: "15px",
+                  fontWeight: 800,
+                  letterSpacing: "0.16em",
+                  marginBottom: "12px",
+                }}
+              >
+                NÄCHSTER SCHRITT
+              </div>
+
+              <div
+                style={{
+                  color: "#f8fafc",
+                  fontSize: "30px",
+                  fontWeight: 850,
+                  lineHeight: 1.15,
+                  letterSpacing: "0.03em",
+                }}
+              >
+                {expectedScanLabel}
+              </div>
+
+              <div
+                style={{
+                  color: "#e0f2fe",
+                  fontSize: "30px",
+                  fontWeight: 850,
+                  marginTop: "10px",
+                }}
+              >
+                {expectedCode}
+              </div>
+
+                <div
+                  style={{
+                    color: "#cbd5e1",
+                    fontSize: "16px",
+                    fontWeight: 650,
+                    marginTop: "10px",
+                  }}
+                >
+                  {stepHint}
+                </div>
+            </>
+          )}
+        </div>
+
+        <div style={areaGridStyle}>
+          <div style={areaBoxStyle}>
+            <h3 style={panelTitleStyle}>Auftrag</h3>
+
+            {activeOrder ? (
+              <>
+                <span style={labelStyle}>Produkt</span>
+                <strong style={{ ...valueStyle, fontSize: "20px" }}>
+                  {activeOrder.product_name}
+                </strong>
+
+                <div style={{ color: "#94a3b8", marginTop: "8px" }}>
+                  SKU: {activeOrder.product_sku}
+                </div>
+
+                <div style={{ marginTop: "18px" }}>
+                  <span style={labelStyle}>Menge</span>
+                  <strong style={{ color: "#f8fafc", fontSize: "26px" }}>
+                    {activeOrder.quantity}
+                  </strong>
+                </div>
+              </>
+            ) : (
+              <p style={infoStyle}>Kein Auftrag ausgewählt.</p>
+            )}
+          </div>
+
+          <div style={areaBoxStyle}>
+            <h3 style={panelTitleStyle}>Route: Quelle → Ziel</h3>
+
+            {activeOrder ? (
+              <div style={{ display: "grid", gap: "14px" }}>
+                <div>
+                  <span style={labelStyle}>Quellbereich</span>
+                  <strong style={{ color: "#f8fafc", fontSize: "24px" }}>
+                    {activeOrder.source_location_code}
+                  </strong>
+                  <div style={{ color: "#94a3b8", marginTop: "4px" }}>
+                    {activeOrder.source_location_name}
+                  </div>
+                </div>
+
+                <div>
+                  <span style={labelStyle}>Zielbereich</span>
+                  <strong style={{ color: "#f8fafc", fontSize: "24px" }}>
+                    {activeOrder.target_location_code ?? "—"}
+                  </strong>
+                  <div style={{ color: "#94a3b8", marginTop: "4px" }}>
+                    {activeOrder.target_location_name ?? ""}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p style={infoStyle}>Keine Lagerbereiche vorhanden.</p>
+            )}
+          </div>
+        </div>
+
+        <div style={{ ...areaBoxStyle, marginTop: "14px" }}>
+          <h3 style={panelTitleStyle}>Scanner</h3>
+
+          <input
+            ref={scanInputRef}
+            autoFocus
+            value={scanValue}
+            onChange={(event) => setScanValue(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                onScan();
+              }
+            }}
+            placeholder="SCAN AKTIV · erwarteten Lagerort oder QR-Code scannen"
+            style={scanInputStyle}
+            disabled={!canUseTerminal || !activeOrder}
+          />
+
+          <button
+            type="button"
+            onClick={onScan}
+            style={{
+              ...(canUseTerminal && activeOrder
+                ? primaryButtonStyle
+                : disabledButtonStyle),
+              width: "100%",
+              marginTop: "14px",
+              fontSize: "16px",
+              padding: "16px",
+            }}
+            disabled={!canUseTerminal || !activeOrder}
+          >
+            Scan bestätigen
+          </button>
+
+          {scanFeedback && !hasScanError && (
+            <p style={{ ...successStyle, marginTop: "14px" }}>
+              {scanFeedback}
+            </p>
+          )}
+        </div>
+
+        {activeOrder && (
+          <div style={{ marginTop: "14px" }}>
+            <button
+              type="button"
+              onClick={() => onAssign(activeOrder)}
+              style={canUseTerminal ? secondaryButtonStyle : disabledButtonStyle}
+              disabled={!canUseTerminal}
+            >
+              Auftrag übernehmen / mir zuweisen
+            </button>
+          </div>
+        )}
+
+        {/* Offene Transportaufträge ganz unten */}
+        <div style={{ ...panelStyle, marginTop: "16px", marginBottom: 0 }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: "10px",
+              alignItems: "center",
+              marginBottom: "12px",
+            }}
+          >
+            <h3 style={panelTitleStyle}>Offene Transportaufträge</h3>
+
+            <button type="button" onClick={onRefresh} style={secondaryButtonStyle}>
+              Aktualisieren
+            </button>
+          </div>
+
+          {loading && <p style={infoStyle}>Lade Transportaufträge...</p>}
+
+          {!loading && orders.length === 0 && (
+            <p style={successStyle}>✅ Keine offenen Transportaufträge.</p>
+          )}
+
+          {!loading && orders.length > 0 && (
+            <div style={{ overflowX: "auto" }}>
+              <table
+                style={{
+                  width: "100%",
+                  borderCollapse: "separate",
+                  borderSpacing: "0 8px",
+                  minWidth: "760px",
+                }}
+              >
+                <thead>
+                  <tr>
+                    <th style={tableHeadStyle}>TA</th>
+                    <th style={tableHeadStyle}>TS</th>
+                    <th style={tableHeadStyle}>Status</th>
+                    <th style={tableHeadStyle}>Produkt</th>
+                    <th style={tableHeadStyle}>Menge</th>
+                    <th style={tableHeadStyle}>Route</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {orders.map((order) => {
+                    const isActive =
+                      String(order.id) === String(activeOrder?.id);
+
+                    return (
+                      <tr
+                        key={order.id}
+                        onClick={() => {
+                          setSelectedOrderId(String(order.id));
+                          setTimeout(() => scanInputRef.current?.focus(), 0);
+                        }}
+                        style={{
+                          cursor: "pointer",
+                          background: isActive
+                            ? "rgba(34, 197, 94, 0.18)"
+                            : "rgba(30, 41, 59, 0.62)",
+                          outline: isActive
+                            ? "2px solid rgba(34, 197, 94, 0.55)"
+                            : "1px solid rgba(148, 163, 184, 0.15)",
+                        }}
+                      >
+                        <td style={tableCellStyle}>
+                          <strong>
+                            {order.transport_order_number ?? `TA-${order.id}`}
+                          </strong>
+                        </td>
+                        <td style={tableCellStyle}>
+                          {order.transport_slip_number ?? "—"}
+                        </td>
+                        <td style={tableCellStyle}>
+                          {statusLabel(order.status)}
+                        </td>
+                        <td style={tableCellStyle}>{order.product_name}</td>
+                        <td style={tableCellStyle}>{order.quantity}</td>
+                        <td style={tableCellStyle}>
+                          {order.source_location_code} →{" "}
+                          {order.target_location_code ?? "?"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function GoodsInSection({
   movementStorageLocationId,
   setMovementStorageLocationId,
   products,
+  purchaseOrders,
+  selectedPurchaseOrderItemId,
+  setSelectedPurchaseOrderItemId,
   storageLocations,
   packagingTypes,
   movementProductId,
@@ -4971,6 +9103,9 @@ function GoodsInSection({
   focusNextOnEnter,
 }: {
   products: Product[];
+  purchaseOrders: PurchaseOrder[];
+  selectedPurchaseOrderItemId: string;
+  setSelectedPurchaseOrderItemId: (value: string) => void;
   movementStorageLocationId: string;
   setMovementStorageLocationId: (value: string) => void;
   storageLocations: StorageLocation[];
@@ -5004,8 +9139,111 @@ function GoodsInSection({
   ) => void;
 }) {
 
+  const openPurchaseOrderItems = purchaseOrders
+    .filter((order) =>
+      ["RELEASED", "ORDERED", "PARTIALLY_RECEIVED"].includes(order.status)
+    )
+    .flatMap((order) =>
+      order.items
+        .filter((item) => item.open_quantity > 0)
+        .map((item) => ({
+          order,
+          item,
+        }))
+    );
+
+  const selectedPurchaseOrderPosition =
+    openPurchaseOrderItems.find(
+      ({ item }) => String(item.id) === selectedPurchaseOrderItemId
+    ) ?? null;
+
+  const receivingStorageLocations = storageLocations.filter(
+    (location) =>
+      location.is_active &&
+      !location.is_blocked &&
+      location.code.toUpperCase().startsWith("WE-")
+  );
+
   const selectedProduct =
     products.find((product) => String(product.id) === movementProductId) ?? null;
+
+  const [goodsInScanValue, setGoodsInScanValue] = useState("");
+  const [goodsInScanFeedback, setGoodsInScanFeedback] = useState("");
+
+  const applyGoodsInScanValue = () => {
+    const rawValue = goodsInScanValue.trim();
+
+    if (!rawValue) {
+      setGoodsInScanFeedback("Bitte zuerst einen Produkt- oder Lagerort-Code scannen.");
+      return;
+    }
+
+    const scanParts: Record<string, string> = {};
+
+    rawValue.split("|").forEach((part) => {
+      const separatorIndex = part.indexOf(":");
+
+      if (separatorIndex === -1) {
+        return;
+      }
+
+      const key = part.slice(0, separatorIndex).trim().toUpperCase();
+      const value = part.slice(separatorIndex + 1).trim();
+
+      if (key && value) {
+        scanParts[key] = value;
+      }
+    });
+
+    const isStructuredScan = rawValue.includes("|") || rawValue.includes(":");
+
+    const productId = scanParts.PRODUCT;
+    const sku = scanParts.SKU || (!isStructuredScan ? rawValue : "");
+
+    const locationId = scanParts.LOCATION;
+    const locationCode = scanParts.CODE || (!isStructuredScan ? rawValue : "");
+
+    const scannedProduct = products.find((product) => {
+      const productSku = String(product.sku ?? "").toLowerCase();
+
+      return (
+        (!!productId && String(product.id) === productId) ||
+        (!!sku && productSku === sku.toLowerCase())
+      );
+    });
+
+    const scannedLocation = receivingStorageLocations.find((location) => {
+      const code = String(location.code ?? "").toLowerCase();
+
+      return (
+        (!!locationId && String(location.id) === locationId) ||
+        (!!locationCode && code === locationCode.toLowerCase())
+      );
+    });
+
+    const feedbackParts: string[] = [];
+
+    if (scannedProduct) {
+      setSelectedPurchaseOrderItemId("");
+      setMovementProductId(String(scannedProduct.id));
+      feedbackParts.push(`Produkt gesetzt: ${scannedProduct.name}`);
+    }
+
+    if (scannedLocation) {
+      setMovementStorageLocationId(String(scannedLocation.id));
+      feedbackParts.push(`Lagerort gesetzt: ${scannedLocation.code}`);
+    }
+
+    if (feedbackParts.length === 0) {
+      setGoodsInScanFeedback(
+        `Kein Produkt oder Lagerort für "${rawValue}" gefunden.`
+      );
+      return;
+    }
+
+    setGoodsInScanValue("");
+    setGoodsInScanFeedback(`✅ ${feedbackParts.join(" · ")}`);
+  };
 
   const selectedPackagingType =
     packagingTypes.find(
@@ -5076,7 +9314,7 @@ function GoodsInSection({
       location.allow_mixed_products ||
       product?.storage_location === location.id);
 
-  const freeLocations = storageLocations.filter((location) =>
+  const freeLocations = receivingStorageLocations.filter((location) =>
     isLocationAvailableForProduct(location, selectedProduct)
   );
 
@@ -5125,12 +9363,12 @@ function GoodsInSection({
   const getCapacitySuitableLocationsForProduct = (
     product?: Product | null
   ) =>
-    storageLocations
+    receivingStorageLocations
       .filter((location) => isLocationAvailableForProduct(location, product))
       .filter((location) => getLocationCapacity(location).fits);
 
   const getPreferredLocationForProduct = (product?: Product | null) => {
-    const availableLocationsForProduct = storageLocations.filter((location) =>
+    const availableLocationsForProduct = receivingStorageLocations.filter((location) =>
       isLocationAvailableForProduct(location, product)
     );
 
@@ -5138,13 +9376,13 @@ function GoodsInSection({
       getCapacitySuitableLocationsForProduct(product);
 
     const fixedLocation = product?.fixed_storage_location
-      ? storageLocations.find(
+      ? receivingStorageLocations.find(
           (location) => location.id === product.fixed_storage_location
         ) ?? null
       : null;
 
     const currentProductLocation = product?.storage_location
-      ? storageLocations.find(
+      ? receivingStorageLocations.find(
           (location) => location.id === product.storage_location
         ) ?? null
       : null;
@@ -5200,7 +9438,7 @@ function GoodsInSection({
   const selectedStorageLocationId = movementStorageLocationId;
 
   const selectedStorageLocation =
-    storageLocations.find(
+    receivingStorageLocations.find(
       (location) => String(location.id) === selectedStorageLocationId
     ) ?? null;
 
@@ -5299,8 +9537,8 @@ function GoodsInSection({
         <Card title="Verfügbare Plätze" value={String(freeLocations.length)} />
         <Card
           title="Gesperrte Plätze"
-          value={String(storageLocations.filter((location) => location.is_blocked).length)}
-          danger={storageLocations.some((location) => location.is_blocked)}
+          value={String(receivingStorageLocations.filter((location) => location.is_blocked).length)}
+          danger={receivingStorageLocations.some((location) => location.is_blocked)}
         />
         <Card
           title="Vorschlag"
@@ -5351,7 +9589,7 @@ function GoodsInSection({
 
             <div style={{ marginTop: "8px", lineHeight: 1.6 }}>
               {!movementStorageLocationId && (
-                <div>• Bitte einen Lagerplatz auswählen.</div>
+                <div>• Bitte einen WE-Fläche auswählen.</div>
               )}
 
               {!movementPackagingTypeId && (
@@ -5369,7 +9607,126 @@ function GoodsInSection({
           </div>
         )}
 
+
+      <div
+        style={{
+          marginTop: "18px",
+          marginBottom: "18px",
+          padding: "16px",
+          borderRadius: "16px",
+          border: "1px solid rgba(148, 163, 184, 0.22)",
+          background: "rgba(15, 23, 42, 0.45)",
+        }}
+      >
+        <h3 style={{ margin: "0 0 10px", color: "#e5e7eb" }}>
+          🔎 Wareneingang per QR-/Barcode
+        </h3>
+
+        <p style={{ ...infoStyle, marginTop: 0 }}>
+          Scanne einen Produkt-QR oder Lagerort-QR. Das Feld übernimmt automatisch
+          Produkt und/oder Lagerplatz.
+        </p>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "minmax(0, 1fr) auto",
+            gap: "10px",
+            alignItems: "center",
+          }}
+        >
+          <input
+            value={goodsInScanValue}
+            onChange={(event) => setGoodsInScanValue(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                applyGoodsInScanValue();
+              }
+            }}
+            placeholder="PRODUCT:7|SKU:... oder LOCATION:1|CODE:A-R2-F4 scannen"
+            style={inputStyle}
+            disabled={!hasPermission("lager")}
+          />
+
+          <button
+            type="button"
+            onClick={applyGoodsInScanValue}
+            style={hasPermission("lager") ? secondaryButtonStyle : disabledButtonStyle}
+            disabled={!hasPermission("lager")}
+          >
+            Scan übernehmen
+          </button>
+        </div>
+
+        {goodsInScanFeedback && (
+          <p style={{ ...infoStyle, marginTop: "10px", marginBottom: 0 }}>
+            {goodsInScanFeedback}
+          </p>
+        )}
+      </div>
+
+      {receivingStorageLocations.length === 0 && (
+        <p style={errorStyle}>
+          ⛔ Keine aktiven WE-Flächen vorhanden. Bitte zuerst WE-0001 bis WE-0005 anlegen.
+        </p>
+      )}
+
       <form onSubmit={handleGoodsReceipt} style={formGridStyle}>
+        <select
+          value={selectedPurchaseOrderItemId}
+          onChange={(event) => {
+            const nextItemId = event.target.value;
+            setSelectedPurchaseOrderItemId(nextItemId);
+
+            const selectedPosition = openPurchaseOrderItems.find(
+              ({ item }) => String(item.id) === nextItemId
+            );
+
+            if (!selectedPosition) {
+              return;
+            }
+
+            const { order, item } = selectedPosition;
+
+            setMovementProductId(String(item.product));
+            setMovementQuantity(String(item.open_quantity));
+            setMovementUnitPurchasePrice(item.unit_price ? String(item.unit_price) : "");
+            setMovementReferenceNumber(
+              `WE-${order.order_number ?? `PO-${order.id}`}`
+            );
+            setMovementNote(
+              `Wareneingang aus Bestellung ${order.order_number ?? order.id}, Position ${item.product_name}.`
+            );
+          }}
+          style={{ ...inputStyle, gridColumn: "1 / -1" }}
+          disabled={!hasPermission("lager")}
+        >
+          <option value="">Wareneingang ohne Bestellung buchen</option>
+          {openPurchaseOrderItems.map(({ order, item }) => (
+            <option key={item.id} value={item.id}>
+              {order.order_number ?? `PO-${order.id}`} · {item.product_name} · offen {item.open_quantity} {item.unit || item.product_unit}
+              {order.supplier_name ? ` · ${order.supplier_name}` : ""}
+            </option>
+          ))}
+        </select>
+
+        {selectedPurchaseOrderPosition && (
+          <p style={{ ...infoStyle, gridColumn: "1 / -1", margin: 0 }}>
+            🛒 Bestellung ausgewählt:{" "}
+            <strong>
+              {selectedPurchaseOrderPosition.order.order_number ??
+                `PO-${selectedPurchaseOrderPosition.order.id}`}
+            </strong>{" "}
+            · {selectedPurchaseOrderPosition.item.product_name} · offene Menge{" "}
+            <strong>
+              {selectedPurchaseOrderPosition.item.open_quantity}{" "}
+              {selectedPurchaseOrderPosition.item.unit ||
+                selectedPurchaseOrderPosition.item.product_unit}
+            </strong>
+          </p>
+        )}
+
         <select
           ref={goodsInProductRef}
           value={movementProductId}
@@ -5382,6 +9739,7 @@ function GoodsInSection({
             const nextSuggestedLocation =
               getPreferredLocationForProduct(nextProduct);
 
+            setSelectedPurchaseOrderItemId("");
             setMovementProductId(nextProductId);
             setMovementStorageLocationId(
               nextSuggestedLocation ? String(nextSuggestedLocation.id) : ""
@@ -5423,7 +9781,7 @@ function GoodsInSection({
           style={inputStyle}
           disabled={!hasPermission("lager")}
         >
-          <option value="">Lagerplatz auswählen</option>
+          <option value="">WE-Fläche auswählen</option>
 
           {freeLocations.map((location) => {
             const locationCapacity = getLocationCapacity(location);
@@ -5757,14 +10115,256 @@ function GoodsInSection({
   );
 }
 
+function OutboundOrdersSection({
+  customers,
+  deliveryAddresses,
+  products,
+  orders,
+  items,
+  loading,
+  orderForm,
+  itemForm,
+  orderSaving,
+  itemSaving,
+  transportOrderSavingId,
+  hasPermission,
+  onOrderFormChange,
+  onItemFormChange,
+  onCreateOrder,
+  onCreateItem,
+  onReleaseOrder,
+  onCreateTransportOrder,
+}: {
+  customers: Customer[];
+  deliveryAddresses: DeliveryAddress[];
+  products: Product[];
+  orders: OutboundOrder[];
+  items: OutboundOrderItem[];
+  loading: boolean;
+  orderForm: OutboundOrderForm;
+  itemForm: OutboundOrderItemForm;
+  orderSaving: boolean;
+  itemSaving: boolean;
+  transportOrderSavingId: number | null;
+  hasPermission: (required: PermissionRole) => boolean;
+  onOrderFormChange: (
+    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => void;
+  onItemFormChange: (
+    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => void;
+  onCreateOrder: (event: FormEvent) => void;
+  onCreateItem: (event: FormEvent) => void;
+  onReleaseOrder: (order: OutboundOrder) => Promise<void>;
+  onCreateTransportOrder: (item: OutboundOrderItem) => Promise<void>;
+}) {
+  const activeCustomers = customers.filter((customer) => customer.is_active);
+  const activeProducts = products.filter((product) => product.quantity > 0);
+  const selectableOrders = orders.filter(
+    (order) => !["SHIPPED", "CANCELLED"].includes(order.status)
+  );
+
+  const deliveryAddressesForSelectedCustomer = deliveryAddresses.filter(
+    (address) =>
+      !orderForm.customer ||
+      String(address.customer) === orderForm.customer
+  );
+
+  const itemsByOrder = items.reduce<Record<number, OutboundOrderItem[]>>(
+    (result, item) => {
+      result[item.outbound_order] = result[item.outbound_order] || [];
+      result[item.outbound_order].push(item);
+      return result;
+    },
+    {}
+  );
+
+  const formatDateTime = (value: string) =>
+    new Date(value).toLocaleString("de-DE", {
+      dateStyle: "short",
+      timeStyle: "short",
+    });
+
+  return (
+    <section style={sectionStyle}>
+      <h2 style={sectionTitleStyle}>📦 Versandaufträge</h2>
+
+      <p style={infoStyle}>
+        Hier entsteht der Ablauf vom Kundenauftrag zur Versandposition.
+        Aus einer Position kann automatisch ein Transportauftrag zur WA-Fläche erzeugt werden.
+      </p>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "18px" }}>
+        <form onSubmit={onCreateOrder} style={{ ...formGridStyle, alignContent: "start" }}>
+          <h3 style={{ gridColumn: "1 / -1", margin: 0, color: "#bfdbfe" }}>
+            Neuen Versandauftrag anlegen
+          </h3>
+
+          <select name="customer" value={orderForm.customer} onChange={onOrderFormChange} required style={inputStyle} disabled={!hasPermission("lager")}>
+            <option value="">Kunde auswählen</option>
+            {activeCustomers.map((customer) => (
+              <option key={customer.id} value={customer.id}>
+                {customer.name}{customer.customer_number ? ` · ${customer.customer_number}` : ""}
+              </option>
+            ))}
+          </select>
+
+          <select name="delivery_address" value={orderForm.delivery_address} onChange={onOrderFormChange} style={inputStyle} disabled={!hasPermission("lager") || !orderForm.customer}>
+            <option value="">Lieferadresse optional</option>
+            {deliveryAddressesForSelectedCustomer.map((address) => (
+              <option key={address.id} value={address.id}>
+                {address.label} · {address.city}
+              </option>
+            ))}
+          </select>
+
+          <input name="reference_number" value={orderForm.reference_number} onChange={onOrderFormChange} placeholder="Externe Referenz / Kundenauftrag" style={inputStyle} disabled={!hasPermission("lager")} />
+          <input name="requested_ship_date" value={orderForm.requested_ship_date} onChange={onOrderFormChange} type="date" style={inputStyle} disabled={!hasPermission("lager")} />
+          <textarea name="note" value={orderForm.note} onChange={onOrderFormChange} placeholder="Notiz zum Versandauftrag" style={{ ...inputStyle, minHeight: "74px", gridColumn: "1 / -1" }} disabled={!hasPermission("lager")} />
+
+          <button type="submit" disabled={orderSaving || !hasPermission("lager") || !orderForm.customer} style={orderSaving || !hasPermission("lager") || !orderForm.customer ? disabledButtonStyle : primaryButtonStyle}>
+            {orderSaving ? "Lege an..." : "Versandauftrag anlegen"}
+          </button>
+        </form>
+
+        <form onSubmit={onCreateItem} style={{ ...formGridStyle, alignContent: "start" }}>
+          <h3 style={{ gridColumn: "1 / -1", margin: 0, color: "#bfdbfe" }}>
+            Position hinzufügen
+          </h3>
+
+          <select name="outbound_order" value={itemForm.outbound_order} onChange={onItemFormChange} required style={inputStyle} disabled={!hasPermission("lager") || selectableOrders.length === 0}>
+            <option value="">Versandauftrag auswählen</option>
+            {selectableOrders.map((order) => (
+              <option key={order.id} value={order.id}>
+                {order.order_number} · {order.customer_name}
+              </option>
+            ))}
+          </select>
+
+          <select name="product" value={itemForm.product} onChange={onItemFormChange} required style={inputStyle} disabled={!hasPermission("lager")}>
+            <option value="">Produkt auswählen</option>
+            {activeProducts.map((product) => (
+              <option key={product.id} value={product.id}>
+                {product.name} ({product.sku}) · Bestand {product.quantity}
+              </option>
+            ))}
+          </select>
+
+          <input name="quantity" value={itemForm.quantity} onChange={onItemFormChange} type="number" min="1" step="1" placeholder="Menge" style={inputStyle} disabled={!hasPermission("lager")} />
+          <textarea name="note" value={itemForm.note} onChange={onItemFormChange} placeholder="Notiz zur Position" style={{ ...inputStyle, minHeight: "74px", gridColumn: "1 / -1" }} disabled={!hasPermission("lager")} />
+
+          <button type="submit" disabled={itemSaving || !hasPermission("lager") || !itemForm.outbound_order || !itemForm.product || !itemForm.quantity || Number(itemForm.quantity) <= 0} style={itemSaving || !hasPermission("lager") || !itemForm.outbound_order || !itemForm.product || !itemForm.quantity || Number(itemForm.quantity) <= 0 ? disabledButtonStyle : primaryButtonStyle}>
+            {itemSaving ? "Speichere..." : "Position hinzufügen"}
+          </button>
+        </form>
+      </div>
+
+      <div style={{ marginTop: "24px" }}>
+        <h3 style={{ color: "#e5e7eb" }}>Aktuelle Versandaufträge</h3>
+
+        {loading && <p>Lade Versandaufträge...</p>}
+
+        {!loading && orders.length === 0 && (
+          <p style={infoStyle}>Noch keine Versandaufträge vorhanden.</p>
+        )}
+
+        {!loading && orders.length > 0 && (
+          <div style={{ overflowX: "auto" }}>
+            <table style={tableStyle}>
+              <thead>
+                <tr>
+                  <th style={tableHeadStyle}>Auftrag</th>
+                  <th style={tableHeadStyle}>Kunde</th>
+                  <th style={tableHeadStyle}>Status</th>
+                  <th style={tableHeadStyle}>Referenz</th>
+                  <th style={tableHeadStyle}>Positionen</th>
+                  <th style={tableHeadStyle}>Erstellt</th>
+                  <th style={tableHeadStyle}>Aktion</th>
+                </tr>
+              </thead>
+              <tbody>
+                {orders.map((order) => {
+                  const orderItems = itemsByOrder[order.id] || [];
+
+                  return (
+                    <tr key={order.id}>
+                      <td style={tableCellStyle}>{order.order_number}</td>
+                      <td style={tableCellStyle}>{order.customer_name}</td>
+                      <td style={tableCellStyle}>{order.status_display || order.status}</td>
+                      <td style={tableCellStyle}>{order.reference_number || "—"}</td>
+                      <td style={tableCellStyle}>{orderItems.length}</td>
+                      <td style={tableCellStyle}>{formatDateTime(order.created_at)}</td>
+                      <td style={tableCellStyle}>
+                        <button type="button" onClick={() => void onReleaseOrder(order)} disabled={!hasPermission("lager") || ["SHIPPED", "CANCELLED"].includes(order.status)} style={hasPermission("lager") && !["SHIPPED", "CANCELLED"].includes(order.status) ? secondaryButtonStyle : disabledButtonStyle}>
+                          Freigeben
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <div style={{ marginTop: "24px" }}>
+        <h3 style={{ color: "#e5e7eb" }}>Versandpositionen</h3>
+
+        {items.length === 0 ? (
+          <p style={infoStyle}>Noch keine Positionen vorhanden.</p>
+        ) : (
+          <div style={{ overflowX: "auto" }}>
+            <table style={tableStyle}>
+              <thead>
+                <tr>
+                  <th style={tableHeadStyle}>Auftrag</th>
+                  <th style={tableHeadStyle}>Produkt</th>
+                  <th style={tableHeadStyle}>Menge</th>
+                  <th style={tableHeadStyle}>Transportauftrag</th>
+                  <th style={tableHeadStyle}>Aktion</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((item) => {
+                  const order = orders.find((entry) => entry.id === item.outbound_order);
+
+                  return (
+                    <tr key={item.id}>
+                      <td style={tableCellStyle}>{order?.order_number || item.outbound_order}</td>
+                      <td style={tableCellStyle}>{item.product_name}{item.product_sku ? ` · ${item.product_sku}` : ""}</td>
+                      <td style={tableCellStyle}>{Number(item.quantity).toLocaleString("de-DE")}</td>
+                      <td style={tableCellStyle}>{item.transport_order_number || "Noch kein TA"}</td>
+                      <td style={tableCellStyle}>
+                        <button type="button" onClick={() => void onCreateTransportOrder(item)} disabled={!hasPermission("lager") || Boolean(item.transport_order) || transportOrderSavingId === item.id} style={hasPermission("lager") && !item.transport_order && transportOrderSavingId !== item.id ? primaryButtonStyle : disabledButtonStyle}>
+                          {transportOrderSavingId === item.id ? "Erstelle TA..." : item.transport_order ? "TA vorhanden" : "TA zur WA-Fläche erstellen"}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+
+
 function GoodsOutSection({
   products,
   storageLocations,
+  locationStocks,
   movements,
   packagingTypes,
   goodsOutProductId,
   goodsOutStorageLocationId,
   setGoodsOutStorageLocationId,
+  goodsOutTargetLocationId,
+  setGoodsOutTargetLocationId,
   setGoodsOutProductId,
   goodsOutQuantity,
   setGoodsOutQuantity,
@@ -5773,19 +10373,26 @@ function GoodsOutSection({
   goodsOutNote,
   setGoodsOutNote,
   goodsOutSaving,
+  goodsOutTransportOrderSaving,
+  shippingCompletionSavingId,
   hasPermission,
   handleGoodsIssue,
+  handleCreateGoodsOutTransportOrder,
+  handleCompleteShippingFromWa,
   goodsOutProductRef,
   goodsOutQuantityRef,
   focusNextOnEnter,
 }: {
   products: Product[];
   storageLocations: StorageLocation[];
+  locationStocks: StorageLocationStock[];
   movements: StockMovement[];
   packagingTypes: PackagingType[];
   goodsOutProductId: string;
   goodsOutStorageLocationId: string;
   setGoodsOutStorageLocationId: (value: string) => void;
+  goodsOutTargetLocationId: string;
+  setGoodsOutTargetLocationId: (value: string) => void;
   setGoodsOutProductId: (value: string) => void;
   goodsOutQuantity: string;
   setGoodsOutQuantity: (value: string) => void;
@@ -5794,8 +10401,12 @@ function GoodsOutSection({
   goodsOutNote: string;
   setGoodsOutNote: (value: string) => void;
   goodsOutSaving: boolean;
+  goodsOutTransportOrderSaving: boolean;
+  shippingCompletionSavingId: number | null;
   hasPermission: (required: PermissionRole) => boolean;
   handleGoodsIssue: (event: FormEvent) => void;
+  handleCreateGoodsOutTransportOrder: () => Promise<void>;
+  handleCompleteShippingFromWa: (stock: StorageLocationStock) => Promise<void>;
   goodsOutProductRef: RefObject<HTMLSelectElement | null>;
   goodsOutQuantityRef: RefObject<HTMLInputElement | null>;
   focusNextOnEnter: (
@@ -5808,6 +10419,43 @@ function GoodsOutSection({
 
   const selectedGoodsOutProduct =
     products.find((product) => product.id === selectedProductId) ?? null;
+
+  const waLocationStocks = locationStocks
+    .filter(
+      (stock) =>
+        stock.quantity > 0 &&
+        stock.storage_location_code.toUpperCase().startsWith("WA-") &&
+        (!goodsOutProductId || stock.product === selectedProductId)
+    )
+    .sort((first, second) =>
+      first.storage_location_code.localeCompare(second.storage_location_code)
+    );
+
+  const shippingLocations = useMemo(
+    () =>
+      storageLocations
+        .filter(
+          (location) =>
+            location.is_active &&
+            !location.is_blocked &&
+            (location.location_type === "SHIPPING" ||
+              location.code.toUpperCase().startsWith("WA-"))
+        )
+        .sort((first, second) => first.code.localeCompare(second.code)),
+    [storageLocations]
+  );
+
+  useEffect(() => {
+    if (!goodsOutTargetLocationId) return;
+
+    const selectedTargetStillValid = shippingLocations.some(
+      (location) => String(location.id) === goodsOutTargetLocationId
+    );
+
+    if (!selectedTargetStillValid) {
+      setGoodsOutTargetLocationId("");
+    }
+  }, [goodsOutTargetLocationId, shippingLocations, setGoodsOutTargetLocationId]);
 
   const goodsOutAvailableLocations = storageLocations.filter((location) => {
     if (!location.is_active || location.is_blocked || !selectedGoodsOutProduct) {
@@ -5907,9 +10555,160 @@ function GoodsOutSection({
 
   const goodsOutUsesFallbackStrategy = false;
 
+
+  const [goodsOutScanValue, setGoodsOutScanValue] = useState("");
+  const [goodsOutScanFeedback, setGoodsOutScanFeedback] = useState("");
+
+  const applyGoodsOutScanValue = () => {
+    const rawValue = goodsOutScanValue.trim();
+
+    if (!rawValue) {
+      setGoodsOutScanFeedback("Bitte zuerst einen Produkt- oder Lagerort-Code scannen.");
+      return;
+    }
+
+    const scanParts: Record<string, string> = {};
+
+    rawValue.split("|").forEach((part) => {
+      const separatorIndex = part.indexOf(":");
+
+      if (separatorIndex === -1) {
+        return;
+      }
+
+      const key = part.slice(0, separatorIndex).trim().toUpperCase();
+      const value = part.slice(separatorIndex + 1).trim();
+
+      if (key && value) {
+        scanParts[key] = value;
+      }
+    });
+
+    const isStructuredScan = rawValue.includes("|") || rawValue.includes(":");
+
+    const productId = scanParts.PRODUCT;
+    const sku = scanParts.SKU || (!isStructuredScan ? rawValue : "");
+
+    const locationId = scanParts.LOCATION;
+    const locationCode = scanParts.CODE || (!isStructuredScan ? rawValue : "");
+
+    const scannedProduct = products.find((product) => {
+      const productSku = String(product.sku ?? "").toLowerCase();
+
+      return (
+        (!!productId && String(product.id) === productId) ||
+        (!!sku && productSku === sku.toLowerCase())
+      );
+    });
+
+    const scannedLocation = storageLocations.find((location) => {
+      const code = String(location.code ?? "").toLowerCase();
+
+      return (
+        (!!locationId && String(location.id) === locationId) ||
+        (!!locationCode && code === locationCode.toLowerCase())
+      );
+    });
+
+    const feedbackParts: string[] = [];
+
+    if (scannedProduct) {
+      setGoodsOutProductId(String(scannedProduct.id));
+      feedbackParts.push(`Produkt gesetzt: ${scannedProduct.name}`);
+    }
+
+    if (scannedLocation) {
+      setGoodsOutStorageLocationId(String(scannedLocation.id));
+      feedbackParts.push(`Lagerort gesetzt: ${scannedLocation.code}`);
+    }
+
+    if (feedbackParts.length === 0) {
+      setGoodsOutScanFeedback(
+        `Kein Produkt oder Lagerort für "${rawValue}" gefunden.`
+      );
+      return;
+    }
+
+    setGoodsOutScanValue("");
+    setGoodsOutScanFeedback(`✅ ${feedbackParts.join(" · ")}`);
+  };
+
   return (
     <section style={sectionStyle}>
       <h2 style={sectionTitleStyle}>📤 Warenausgang buchen</h2>
+
+      <div
+        style={{
+          marginTop: "18px",
+          marginBottom: "18px",
+          padding: "16px",
+          borderRadius: "16px",
+          border: "1px solid rgba(34, 197, 94, 0.28)",
+          background: "rgba(20, 83, 45, 0.16)",
+        }}
+      >
+        <h3 style={{ margin: "0 0 10px", color: "#bbf7d0" }}>
+          🚚 Versand aus WA-Fläche abschließen
+        </h3>
+
+        <p style={{ ...infoStyle, marginTop: 0 }}>
+          Hier wird bereitgestellte Ware von einer WA-Fläche final aus dem Bestand ausgebucht.
+          Wenn unten eine Referenznummer eingetragen ist, wird sie für den Versandabschluss verwendet.
+        </p>
+
+        {waLocationStocks.length === 0 ? (
+          <p style={infoStyle}>
+            Keine bereitgestellte Ware auf WA-Flächen für die aktuelle Produktauswahl.
+          </p>
+        ) : (
+          <div style={{ display: "grid", gap: "12px" }}>
+            {waLocationStocks.map((stock) => (
+              <div
+                key={stock.id}
+                style={{
+                  border: "1px solid rgba(148, 163, 184, 0.18)",
+                  borderRadius: "14px",
+                  padding: "14px",
+                  background: "rgba(15, 23, 42, 0.72)",
+                  display: "grid",
+                  gridTemplateColumns: "minmax(0, 1fr) auto",
+                  gap: "12px",
+                  alignItems: "center",
+                }}
+              >
+                <div style={{ color: "#e2e8f0", lineHeight: 1.6 }}>
+                  <strong>{stock.storage_location_code}</strong>
+                  {" · "}
+                  {stock.product_name}
+                  <div style={{ color: "#94a3b8" }}>
+                    Menge: {stock.quantity} {stock.product_unit}
+                    {stock.product_sku ? ` · SKU: ${stock.product_sku}` : ""}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => void handleCompleteShippingFromWa(stock)}
+                  disabled={
+                    !hasPermission("lager") ||
+                    shippingCompletionSavingId === stock.id
+                  }
+                  style={
+                    hasPermission("lager") &&
+                    shippingCompletionSavingId !== stock.id
+                      ? primaryButtonStyle
+                      : disabledButtonStyle
+                  }
+                >
+                  {shippingCompletionSavingId === stock.id
+                    ? "Schließe ab..."
+                    : "Versand abschließen"}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {selectedGoodsOutProduct && (
         <p style={infoStyle}>
@@ -5945,12 +10744,86 @@ function GoodsOutSection({
         </div>
       )}
 
+
+      <div
+        style={{
+          marginTop: "18px",
+          marginBottom: "18px",
+          padding: "16px",
+          borderRadius: "16px",
+          border: "1px solid rgba(148, 163, 184, 0.22)",
+          background: "rgba(15, 23, 42, 0.45)",
+        }}
+      >
+        <h3 style={{ margin: "0 0 10px", color: "#e5e7eb" }}>
+          🔎 Warenausgang per QR-/Barcode
+        </h3>
+
+        <p style={{ ...infoStyle, marginTop: 0 }}>
+          Scanne einen Produkt-QR oder Lagerort-QR. Das Feld übernimmt automatisch
+          Produkt und/oder Lagerplatz.
+        </p>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "minmax(0, 1fr) auto",
+            gap: "10px",
+            alignItems: "center",
+          }}
+        >
+          <input
+            value={goodsOutScanValue}
+            onChange={(event) => setGoodsOutScanValue(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                applyGoodsOutScanValue();
+              }
+            }}
+            placeholder="PRODUCT:7|SKU:... oder LOCATION:1|CODE:A-R2-F4 scannen"
+            style={inputStyle}
+            disabled={!hasPermission("lager")}
+          />
+
+          <button
+            type="button"
+            onClick={applyGoodsOutScanValue}
+            style={hasPermission("lager") ? secondaryButtonStyle : disabledButtonStyle}
+            disabled={!hasPermission("lager")}
+          >
+            Scan übernehmen
+          </button>
+        </div>
+
+        {goodsOutScanFeedback && (
+          <p style={{ ...infoStyle, marginTop: "10px", marginBottom: 0 }}>
+            {goodsOutScanFeedback}
+          </p>
+        )}
+      </div>
+
       <form onSubmit={handleGoodsIssue} style={formGridStyle}>
         <select ref={goodsOutProductRef} value={goodsOutProductId} onChange={(event) => setGoodsOutProductId(event.target.value)} onKeyDown={(event) => focusNextOnEnter(event, goodsOutQuantityRef.current)} required style={inputStyle} disabled={!hasPermission("lager")}>
           <option value="">Produkt auswählen</option>
           {products.map((product) => <option key={product.id} value={product.id}>{product.name} ({product.sku})</option>)}
         </select>
         <input ref={goodsOutQuantityRef} type="number" placeholder="Menge" value={goodsOutQuantity} onChange={(event) => setGoodsOutQuantity(event.target.value)} required min="1" style={inputStyle} disabled={!hasPermission("lager")} />
+        <select
+          value={goodsOutTargetLocationId}
+          onChange={(event) => setGoodsOutTargetLocationId(event.target.value)}
+          required
+          style={inputStyle}
+          disabled={!hasPermission("lager") || shippingLocations.length === 0}
+        >
+          <option value="">WA-Fläche für Transportauftrag auswählen</option>
+          {shippingLocations.map((location) => (
+            <option key={location.id} value={location.id}>
+              {location.code} - {location.name}
+            </option>
+          ))}
+        </select>
+
         <select
           value={goodsOutStorageLocationId}
           onChange={(event) => setGoodsOutStorageLocationId(event.target.value)}
@@ -6051,9 +10924,55 @@ function GoodsOutSection({
           </div>
         )}
 
-        <div style={{ gridColumn: "1 / -1" }}>
-          <button type="submit" disabled={goodsOutSaving || !hasPermission("lager")} style={hasPermission("lager") ? primaryButtonStyle : disabledButtonStyle}>
-            {goodsOutSaving ? "Buche..." : "Warenausgang buchen"}
+        {shippingLocations.length === 0 && (
+          <p style={{ ...errorStyle, gridColumn: "1 / -1" }}>
+            ⛔ Keine aktiven WA-Flächen vorhanden. Bitte zuerst WA-0001 bis WA-0005 anlegen.
+          </p>
+        )}
+
+        <div
+          style={{
+            gridColumn: "1 / -1",
+            display: "flex",
+            gap: "10px",
+            flexWrap: "wrap",
+          }}
+        >
+          <button
+            type="submit"
+            disabled={goodsOutSaving || !hasPermission("lager")}
+            style={hasPermission("lager") ? primaryButtonStyle : disabledButtonStyle}
+          >
+            {goodsOutSaving ? "Buche..." : "Warenausgang direkt buchen"}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => void handleCreateGoodsOutTransportOrder()}
+            disabled={
+              goodsOutTransportOrderSaving ||
+              !hasPermission("lager") ||
+              !goodsOutProductId ||
+              !goodsOutQuantity ||
+              Number(goodsOutQuantity) <= 0 ||
+              !goodsOutTargetLocationId ||
+              shippingLocations.length === 0
+            }
+            style={
+              goodsOutTransportOrderSaving ||
+              !hasPermission("lager") ||
+              !goodsOutProductId ||
+              !goodsOutQuantity ||
+              Number(goodsOutQuantity) <= 0 ||
+              !goodsOutTargetLocationId ||
+              shippingLocations.length === 0
+                ? disabledButtonStyle
+                : secondaryButtonStyle
+            }
+          >
+            {goodsOutTransportOrderSaving
+              ? "Erstelle TA..."
+              : "TA zur WA-Fläche erstellen"}
           </button>
         </div>
       </form>
@@ -6077,6 +10996,7 @@ function InventorySection({
   selectedInventorySession,
   handleCompleteInventorySession,
   handleExportInventoryExcel,
+  handleExportInventoryPdf,
   inventoryProductId,
   setInventoryProductId,
   inventoryProductRef,
@@ -6110,6 +11030,7 @@ function InventorySection({
   selectedInventorySession: InventorySession | null;
   handleCompleteInventorySession: () => Promise<void>;
   handleExportInventoryExcel: () => Promise<void>;
+  handleExportInventoryPdf: () => Promise<void>;
   inventoryProductId: string;
   setInventoryProductId: (value: string) => void;
   inventoryProductRef: RefObject<HTMLSelectElement | null>;
@@ -6131,53 +11052,324 @@ function InventorySection({
   inventoryCorrectionSavingId: number | null;
   handleApplyInventoryCorrection: (count: InventoryCount) => void;
 }) {
+  const [selectedInventoryExportType, setSelectedInventoryExportType] =
+    useState<"" | "excel" | "pdf">("");
+
+  const handleInventoryReportExport = () => {
+    if (selectedInventoryExportType === "excel") {
+      void handleExportInventoryExcel();
+      return;
+    }
+
+    if (selectedInventoryExportType === "pdf") {
+      void handleExportInventoryPdf();
+    }
+  };
+
+  const inventoryPanelStyle: CSSProperties = {
+    background: "rgba(15, 23, 42, 0.78)",
+    border: "1px solid rgba(148, 163, 184, 0.18)",
+    borderRadius: "18px",
+    padding: "18px",
+    boxShadow: "0 18px 36px rgba(0,0,0,0.18)",
+  };
+
+  const inventoryPanelTitleStyle: CSSProperties = {
+    margin: "0 0 14px 0",
+    color: "#bfdbfe",
+    fontSize: "1rem",
+  };
+
+  const inventorySummaryGridStyle: CSSProperties = {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+    gap: "12px",
+    marginTop: "18px",
+  };
+
+  const inventorySummaryItemStyle: CSSProperties = {
+    background: "rgba(30, 41, 59, 0.62)",
+    border: "1px solid rgba(148, 163, 184, 0.14)",
+    borderRadius: "14px",
+    padding: "14px 16px",
+    textAlign: "center",
+  };
+
+  const inventorySummaryLabelStyle: CSSProperties = {
+    color: "#94a3b8",
+    fontSize: "0.82rem",
+    marginBottom: "6px",
+  };
+
+  const inventorySummaryValueStyle: CSSProperties = {
+    color: "#f8fafc",
+    fontSize: "1.45rem",
+    fontWeight: 800,
+  };
+
+  const inventoryTwoColumnStyle: CSSProperties = {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))",
+    gap: "16px",
+    marginTop: "18px",
+  };
+
+  const inventoryFormCompactStyle: CSSProperties = {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+    gap: "10px",
+  };
+
+  const inventoryExportGridStyle: CSSProperties = {
+    display: "grid",
+    gridTemplateColumns: "1fr auto",
+    gap: "10px",
+    alignItems: "center",
+  };
+
   return (
     <section style={sectionStyle}>
       <h2 style={sectionTitleStyle}>🧾 Inventur-Modus</h2>
-      <div style={dashboardGridStyle}>
-        <Card title="Positionen" value={String(inventorySummary.total)} />
-        <Card title="Gezählt" value={String(inventorySummary.done)} />
-        <Card title="Differenzen" value={String(inventorySummary.differences)} danger={inventorySummary.differences > 0} />
-        <Card title="Korrigiert" value={String(inventorySummary.corrected)} />
+
+      <p style={infoStyle}>
+        Inventuren starten, Zählungen erfassen, Abweichungen prüfen und Berichte exportieren.
+      </p>
+
+      <div style={inventorySummaryGridStyle}>
+        <div style={inventorySummaryItemStyle}>
+          <div style={inventorySummaryLabelStyle}>Positionen</div>
+          <div style={inventorySummaryValueStyle}>{inventorySummary.total}</div>
+        </div>
+
+        <div style={inventorySummaryItemStyle}>
+          <div style={inventorySummaryLabelStyle}>Gezählt</div>
+          <div style={inventorySummaryValueStyle}>{inventorySummary.done}</div>
+        </div>
+
+        <div style={inventorySummaryItemStyle}>
+          <div style={inventorySummaryLabelStyle}>Differenzen</div>
+          <div
+            style={{
+              ...inventorySummaryValueStyle,
+              color: inventorySummary.differences > 0 ? "#fecaca" : "#f8fafc",
+            }}
+          >
+            {inventorySummary.differences}
+          </div>
+        </div>
+
+        <div style={inventorySummaryItemStyle}>
+          <div style={inventorySummaryLabelStyle}>Korrigiert</div>
+          <div style={inventorySummaryValueStyle}>{inventorySummary.corrected}</div>
+        </div>
       </div>
-      <form onSubmit={handleCreateInventorySession} style={{ ...formGridStyle, marginTop: "22px", marginBottom: "24px" }}>
-        <input type="text" placeholder="Titel der Inventur" value={inventoryTitle} onChange={(event) => setInventoryTitle(event.target.value)} style={inputStyle} disabled={!hasPermission("lager")} />
-        <input type="text" placeholder="Notiz zur Inventur" value={inventoryNote} onChange={(event) => setInventoryNote(event.target.value)} style={inputStyle} disabled={!hasPermission("lager")} />
-        <button type="submit" disabled={inventorySaving || !hasPermission("lager")} style={hasPermission("lager") ? primaryButtonStyle : disabledButtonStyle}>
-          {inventorySaving ? "Erstelle..." : "Neue Inventur starten"}
-        </button>
-      </form>
-      <div style={formGridStyle}>
-        <select value={selectedInventorySessionId} onChange={(event) => setSelectedInventorySessionId(event.target.value)} style={inputStyle}>
-          <option value="">Inventur auswählen</option>
-          {inventorySessions.map((session) => (
-            <option key={session.id} value={session.id}>#{session.id} {session.title} ({session.status === "OPEN" ? "Offen" : "Abgeschlossen"})</option>
-          ))}
-        </select>
-        <button type="button" onClick={() => void loadInventoryCounts(selectedInventorySessionId)} style={secondaryButtonStyle} disabled={!selectedInventorySessionId}>Inventur laden</button>
-        <button type="button" onClick={() => void handleCompleteInventorySession()} style={secondaryButtonStyle} disabled={!selectedInventorySession || selectedInventorySession.status === "COMPLETED" || !hasPermission("lager")}>Inventur abschließen</button>
-        <button type="button" onClick={() => void handleExportInventoryExcel()} style={secondaryButtonStyle} disabled={!selectedInventorySessionId}>📤 Excel-Bericht exportieren</button>
+
+      <div style={inventoryTwoColumnStyle}>
+        <div style={inventoryPanelStyle}>
+          <h3 style={inventoryPanelTitleStyle}>➕ Neue Inventur</h3>
+
+          <form onSubmit={handleCreateInventorySession} style={inventoryFormCompactStyle}>
+            <input
+              type="text"
+              placeholder="Titel der Inventur"
+              value={inventoryTitle}
+              onChange={(event) => setInventoryTitle(event.target.value)}
+              style={inputStyle}
+              disabled={!hasPermission("lager")}
+            />
+
+            <input
+              type="text"
+              placeholder="Notiz zur Inventur"
+              value={inventoryNote}
+              onChange={(event) => setInventoryNote(event.target.value)}
+              style={inputStyle}
+              disabled={!hasPermission("lager")}
+            />
+
+            <button
+              type="submit"
+              disabled={inventorySaving || !hasPermission("lager")}
+              style={hasPermission("lager") ? primaryButtonStyle : disabledButtonStyle}
+            >
+              {inventorySaving ? "Erstelle..." : "Neue Inventur starten"}
+            </button>
+          </form>
+        </div>
+
+        <div style={inventoryPanelStyle}>
+          <h3 style={inventoryPanelTitleStyle}>📂 Inventur laden & Bericht</h3>
+
+          <div style={inventoryFormCompactStyle}>
+            <select
+              value={selectedInventorySessionId}
+              onChange={(event) => setSelectedInventorySessionId(event.target.value)}
+              style={inputStyle}
+            >
+              <option value="">Inventur auswählen</option>
+              {inventorySessions.map((session) => (
+                <option key={session.id} value={session.id}>
+                  #{session.id} {session.title} ({session.status === "OPEN" ? "Offen" : "Abgeschlossen"})
+                </option>
+              ))}
+            </select>
+
+            <button
+              type="button"
+              onClick={() => void loadInventoryCounts(selectedInventorySessionId)}
+              style={secondaryButtonStyle}
+              disabled={!selectedInventorySessionId}
+            >
+              Inventur laden
+            </button>
+
+            <button
+              type="button"
+              onClick={() => void handleCompleteInventorySession()}
+              style={secondaryButtonStyle}
+              disabled={
+                !selectedInventorySession ||
+                selectedInventorySession.status === "COMPLETED" ||
+                !hasPermission("lager")
+              }
+            >
+              Inventur abschließen
+            </button>
+
+            <div style={inventoryExportGridStyle}>
+              <select
+                value={selectedInventoryExportType}
+                onChange={(event) =>
+                  setSelectedInventoryExportType(event.target.value as "" | "excel" | "pdf")
+                }
+                style={inputStyle}
+                disabled={!selectedInventorySessionId}
+              >
+                <option value="">Bericht auswählen</option>
+                <option value="excel">📤 Excel-Bericht (.xlsx)</option>
+                <option value="pdf">📄 PDF-Bericht (.pdf)</option>
+              </select>
+
+              <button
+                type="button"
+                onClick={handleInventoryReportExport}
+                style={secondaryButtonStyle}
+                disabled={!selectedInventorySessionId || !selectedInventoryExportType}
+              >
+                Exportieren
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
+
       {selectedInventorySession && (
-        <p style={infoStyle}>Aktive Inventur: <strong>{selectedInventorySession.title}</strong> | Status: <strong>{selectedInventorySession.status === "OPEN" ? "Offen" : "Abgeschlossen"}</strong></p>
+        <p style={{ ...infoStyle, marginTop: "18px" }}>
+          Aktive Inventur: <strong>{selectedInventorySession.title}</strong> | Status:{" "}
+          <strong>
+            {selectedInventorySession.status === "OPEN" ? "Offen" : "Abgeschlossen"}
+          </strong>
+        </p>
       )}
-      <form onSubmit={handleAddInventoryCount} style={{ ...formGridStyle, margin: "22px 0" }}>
-        <select ref={inventoryProductRef} value={inventoryProductId} onChange={(event) => setInventoryProductId(event.target.value)} onKeyDown={(event) => focusNextOnEnter(event, inventoryCountedQuantityRef.current)} style={inputStyle} disabled={!hasPermission("lager") || !selectedInventorySessionId || selectedInventorySession?.status === "COMPLETED"}>
-          <option value="">Produkt auswählen</option>
-          {products.filter((product) => !countedProductIds.has(product.id)).map((product) => (
-            <option key={product.id} value={product.id}>{product.name} ({product.sku}) - Soll: {product.quantity} {product.unit}</option>
-          ))}
-        </select>
-        <input ref={inventoryCountedQuantityRef} type="number" placeholder="Gezählte Menge" value={inventoryCountedQuantity} onChange={(event) => setInventoryCountedQuantity(event.target.value)} min="0" style={inputStyle} disabled={!hasPermission("lager") || !selectedInventorySessionId || selectedInventorySession?.status === "COMPLETED"} />
-        <input type="text" placeholder="Notiz zur Zählung" value={inventoryCountNote} onChange={(event) => setInventoryCountNote(event.target.value)} style={inputStyle} disabled={!hasPermission("lager") || !selectedInventorySessionId || selectedInventorySession?.status === "COMPLETED"} />
-        <button type="submit" disabled={inventorySaving || !hasPermission("lager") || !selectedInventorySessionId || selectedInventorySession?.status === "COMPLETED"} style={hasPermission("lager") ? primaryButtonStyle : disabledButtonStyle}>{inventorySaving ? "Speichere..." : "Zählung speichern"}</button>
-      </form>
-      {selectedInventoryProduct && (
-        <p style={{ ...infoStyle, background: "rgba(30, 41, 59, 0.75)" }}>Ausgewähltes Produkt: <strong>{selectedInventoryProduct.name}</strong> | Systembestand: <strong>{selectedInventoryProduct.quantity} {selectedInventoryProduct.unit}</strong></p>
-      )}
-      {inventoryLoading && <p>Lade Inventur...</p>}
-      {!inventoryLoading && inventoryCounts.length > 0 && <InventoryCountTable inventoryCounts={inventoryCounts} selectedInventorySession={selectedInventorySession} inventoryCorrectionSavingId={inventoryCorrectionSavingId} hasPermission={hasPermission} handleApplyInventoryCorrection={handleApplyInventoryCorrection} />}
-      {!inventoryLoading && selectedInventorySessionId && inventoryCounts.length === 0 && <p>Noch keine Inventurpositionen vorhanden.</p>}
+
+      <div style={{ ...inventoryPanelStyle, marginTop: "18px" }}>
+        <h3 style={inventoryPanelTitleStyle}>🧮 Zählung erfassen</h3>
+
+        <form onSubmit={handleAddInventoryCount} style={inventoryFormCompactStyle}>
+          <select
+            ref={inventoryProductRef}
+            value={inventoryProductId}
+            onChange={(event) => setInventoryProductId(event.target.value)}
+            onKeyDown={(event) =>
+              focusNextOnEnter(event, inventoryCountedQuantityRef.current)
+            }
+            style={inputStyle}
+            disabled={
+              !hasPermission("lager") ||
+              !selectedInventorySessionId ||
+              selectedInventorySession?.status === "COMPLETED"
+            }
+          >
+            <option value="">Produkt auswählen</option>
+            {products
+              .filter((product) => !countedProductIds.has(product.id))
+              .map((product) => (
+                <option key={product.id} value={product.id}>
+                  {product.name} ({product.sku}) - Soll: {product.quantity} {product.unit}
+                </option>
+              ))}
+          </select>
+
+          <input
+            ref={inventoryCountedQuantityRef}
+            type="number"
+            placeholder="Gezählte Menge"
+            value={inventoryCountedQuantity}
+            onChange={(event) => setInventoryCountedQuantity(event.target.value)}
+            min="0"
+            style={inputStyle}
+            disabled={
+              !hasPermission("lager") ||
+              !selectedInventorySessionId ||
+              selectedInventorySession?.status === "COMPLETED"
+            }
+          />
+
+          <input
+            type="text"
+            placeholder="Notiz zur Zählung"
+            value={inventoryCountNote}
+            onChange={(event) => setInventoryCountNote(event.target.value)}
+            style={inputStyle}
+            disabled={
+              !hasPermission("lager") ||
+              !selectedInventorySessionId ||
+              selectedInventorySession?.status === "COMPLETED"
+            }
+          />
+
+          <button
+            type="submit"
+            disabled={
+              inventorySaving ||
+              !hasPermission("lager") ||
+              !selectedInventorySessionId ||
+              selectedInventorySession?.status === "COMPLETED"
+            }
+            style={hasPermission("lager") ? primaryButtonStyle : disabledButtonStyle}
+          >
+            {inventorySaving ? "Speichere..." : "Zählung speichern"}
+          </button>
+        </form>
+
+        {selectedInventoryProduct && (
+          <p style={{ ...infoStyle, background: "rgba(30, 41, 59, 0.75)" }}>
+            Ausgewähltes Produkt: <strong>{selectedInventoryProduct.name}</strong> |
+            Systembestand:{" "}
+            <strong>
+              {selectedInventoryProduct.quantity} {selectedInventoryProduct.unit}
+            </strong>
+          </p>
+        )}
+      </div>
+
+      <div style={{ marginTop: "18px" }}>
+        {inventoryLoading && <p>Lade Inventur...</p>}
+
+        {!inventoryLoading && inventoryCounts.length > 0 && (
+          <InventoryCountTable
+            inventoryCounts={inventoryCounts}
+            selectedInventorySession={selectedInventorySession}
+            inventoryCorrectionSavingId={inventoryCorrectionSavingId}
+            hasPermission={hasPermission}
+            handleApplyInventoryCorrection={handleApplyInventoryCorrection}
+          />
+        )}
+
+        {!inventoryLoading && selectedInventorySessionId && inventoryCounts.length === 0 && (
+          <p>Noch keine Inventurpositionen vorhanden.</p>
+        )}
+      </div>
     </section>
   );
 }
@@ -6186,10 +11378,12 @@ function LocationStockOverview({
   locationStocks,
   loading,
   search,
+  exportLocationStocksToExcel,
 }: {
   locationStocks: StorageLocationStock[];
   loading: boolean;
   search: string;
+  exportLocationStocksToExcel: () => Promise<void>;
 }) {
   const normalizedSearch = search.trim().toLowerCase();
 
@@ -6226,7 +11420,26 @@ function LocationStockOverview({
 
   return (
     <section style={sectionStyle}>
-      <h3 style={{ marginTop: 0 }}>📦 Lagerplatzbestand</h3>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: "12px",
+          flexWrap: "wrap",
+          marginBottom: "18px",
+        }}
+      >
+        <h3 style={{ marginTop: 0, marginBottom: 0 }}>📦 Lagerplatzbestand</h3>
+
+        <button
+          type="button"
+          onClick={() => void exportLocationStocksToExcel()}
+          style={secondaryButtonStyle}
+        >
+          📤 Lagerplatzbestand als Excel exportieren
+        </button>
+      </div>
 
       <div style={dashboardGridStyle}>
         <Card title="Positionen" value={String(filteredLocationStocks.length)} />
@@ -6309,10 +11522,14 @@ function ProductGrid({
   products,
   hasPermission,
   handleEdit,
+  onShowProductQrCode,
+  onDownloadProductQrCode,
 }: {
   products: Product[];
   hasPermission: (required: PermissionRole) => boolean;
   handleEdit: (product: Product) => void;
+  onShowProductQrCode: (product: Product) => void;
+  onDownloadProductQrCode: (product: Product) => void;
 }) {
   return (
     <div style={productGridStyle}>
@@ -6384,6 +11601,32 @@ function ProductGrid({
                 Bearbeiten
               </button>
             </div>
+
+            <div
+              style={{
+                display: "flex",
+                gap: "8px",
+                flexWrap: "wrap",
+                marginTop: "16px",
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => onShowProductQrCode(product)}
+                style={secondaryButtonStyle}
+              >
+                Produkt-QR anzeigen
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onDownloadProductQrCode(product)}
+                style={secondaryButtonStyle}
+              >
+                Produkt-QR herunterladen
+              </button>
+            </div>
+
           </article>
         );
       })}
@@ -6651,6 +11894,68 @@ function HistorySection({
       );
       }
 
+const dashboardChartCardStyle: CSSProperties = {
+  background: "rgba(15, 23, 42, 0.78)",
+  border: "1px solid rgba(148, 163, 184, 0.16)",
+  borderRadius: "16px",
+  padding: "12px",
+  boxShadow: "0 12px 26px rgba(0,0,0,0.18)",
+};
+
+const dashboardChartTitleStyle: CSSProperties = {
+  margin: "0 0 10px 0",
+  color: "#bfdbfe",
+  fontSize: "0.92rem",
+};
+
+const dashboardChartLabelRowStyle: CSSProperties = {
+  display: "flex",
+  justifyContent: "space-between",
+  gap: "12px",
+  color: "#e2e8f0",
+  fontSize: "0.9rem",
+  marginBottom: "6px",
+};
+
+const dashboardBarTrackStyle: CSSProperties = {
+  width: "100%",
+  height: "10px",
+  borderRadius: "999px",
+  background: "rgba(51, 65, 85, 0.75)",
+  overflow: "hidden",
+};
+
+const dashboardBarStyle: CSSProperties = {
+  height: "100%",
+  borderRadius: "999px",
+  background: "linear-gradient(90deg, #38bdf8, #2563eb)",
+};
+
+const dashboardDangerBarStyle: CSSProperties = {
+  height: "100%",
+  borderRadius: "999px",
+  background: "linear-gradient(90deg, #fb7185, #dc2626)",
+};
+
+const dashboardWarningBarStyle: CSSProperties = {
+  height: "100%",
+  borderRadius: "999px",
+  background: "linear-gradient(90deg, #fbbf24, #f97316)",
+};
+
+const dashboardMiniBarRowStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "34px 1fr",
+  alignItems: "center",
+  gap: "8px",
+  marginTop: "5px",
+};
+
+const dashboardMiniBarLabelStyle: CSSProperties = {
+  color: "#94a3b8",
+  fontSize: "0.75rem",
+};
+
 function Card({
   title,
   value,
@@ -6668,9 +11973,9 @@ function Card({
           ? "1px solid rgba(248, 113, 113, 0.25)"
           : "1px solid rgba(148, 163, 184, 0.2)",
         borderRadius: "18px",
-        padding: "20px",
+        padding: "12px",
         boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
-        minHeight: "96px",
+        minHeight: "74px",
         display: "flex",
         flexDirection: "column",
         justifyContent: "center",
@@ -6681,9 +11986,9 @@ function Card({
       <div
         style={{
           color: danger ? "#fca5a5" : "#94a3b8",
-          marginBottom: "8px",
+          marginBottom: "4px",
           textAlign: "center",
-          fontSize: "0.95rem",
+          fontSize: "0.82rem",
         }}
       >
         {title}
@@ -6691,7 +11996,7 @@ function Card({
 
       <div
         style={{
-          fontSize: "2rem",
+          fontSize: "1.55rem",
           fontWeight: 700,
           color: danger ? "#fecaca" : "#f8fafc",
           textAlign: "center",
@@ -6793,8 +12098,8 @@ const headerStyle: CSSProperties = {
   display: "flex",
   justifyContent: "space-between",
   alignItems: "flex-start",
-  gap: "16px",
-  marginBottom: "28px",
+  gap: "14px",
+  marginBottom: "18px",
   width: "100%",
   flexWrap: "wrap",
   boxSizing: "border-box",
@@ -6810,30 +12115,25 @@ const eyebrowStyle: CSSProperties = {
 
 const mainTitleStyle: CSSProperties = {
   margin: 0,
-  fontSize: "2.5rem",
-  lineHeight: 1.1,
+  fontSize: "2.15rem",
+  lineHeight: 1.05,
   color: "#f5f7fa",
 };
 
 const subtitleStyle: CSSProperties = {
-  marginTop: "12px",
+  marginTop: "8px",
   color: "#cbd5e1",
   maxWidth: "760px",
+  fontSize: "0.94rem",
 };
 
-const topStatsGridStyle: CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-  gap: "16px",
-  marginBottom: "28px",
-  width: "100%",
-};
+
 
 const dashboardGridStyle: CSSProperties = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-  gap: "16px",
-  marginTop: "20px",
+  gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+  gap: "10px",
+  marginTop: "12px",
   width: "100%",
 };
 
@@ -6945,6 +12245,12 @@ const tableHeaderRowStyle: CSSProperties = {
   textAlign: "left",
 };
 
+const tableStyle: CSSProperties = {
+  width: "100%",
+  borderCollapse: "collapse",
+  minWidth: "760px",
+};
+
 const tableHeadStyle: CSSProperties = {
   padding: "12px 14px",
   color: "#ededee",
@@ -6962,9 +12268,9 @@ const sectionStyle: CSSProperties = {
   background: "rgba(15, 23, 42, 0.8)",
   border: "1px solid rgba(148, 163, 184, 0.2)",
   borderRadius: "18px",
-  padding: "20px",
-  boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
-  marginBottom: "28px",
+  padding: "16px",
+  boxShadow: "0 10px 30px rgba(0,0,0,0.22)",
+  marginBottom: "18px",
   width: "100%",
   boxSizing: "border-box",
 };
@@ -7014,15 +12320,17 @@ const disabledButtonStyle: CSSProperties = {
   cursor: "not-allowed",
 };
 
-const errorStyle: CSSProperties = {
-  color: "#f87474",
-  background: "rgba(127, 29, 29, 0.18)",
-  border: "1px solid rgba(248, 113, 113, 0.25)",
-  borderRadius: "10px",
-  padding: "10px 12px",
-  marginBottom: "16px",
-};
 
+
+const errorStyle: CSSProperties = {
+  margin: "14px 0",
+  padding: "12px 16px",
+  borderRadius: "14px",
+  border: "1px solid rgba(248, 113, 113, 0.45)",
+  background: "rgba(127, 29, 29, 0.22)",
+  color: "#fecaca",
+};
+ 
 const successStyle: CSSProperties = {
   color: "#86efac",
   background: "rgba(22, 101, 52, 0.18)",
