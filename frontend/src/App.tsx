@@ -434,6 +434,73 @@ type TransportOrder = {
   updated_at: string;
 };
 
+
+type OutboundOrder = {
+  id: number;
+  order_number: string | null;
+  customer: number;
+  customer_name: string;
+  delivery_address: number | null;
+  delivery_address_label: string | null;
+  status: string;
+  status_display: string;
+  reference_number: string;
+  requested_ship_date: string | null;
+  note: string;
+  item_count: number;
+  total_quantity: number | string;
+  items: OutboundOrderItem[];
+  created_by: number | null;
+  created_by_username: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type OutboundOrderItem = {
+  id: number;
+  outbound_order: number;
+  product: number;
+  product_name: string;
+  product_sku: string;
+  quantity: number | string;
+  transport_order: number | null;
+  transport_order_number: string | null;
+  note: string;
+  created_at: string;
+  updated_at: string;
+};
+
+type OutboundOrderForm = {
+  customer: string;
+  delivery_address: string;
+  reference_number: string;
+  requested_ship_date: string;
+  note: string;
+};
+
+type OutboundOrderItemForm = {
+  outbound_order: string;
+  product: string;
+  quantity: string;
+  note: string;
+};
+
+const initialOutboundOrderForm: OutboundOrderForm = {
+  customer: "",
+  delivery_address: "",
+  reference_number: "",
+  requested_ship_date: "",
+  note: "",
+};
+
+const initialOutboundOrderItemForm: OutboundOrderItemForm = {
+  outbound_order: "",
+  product: "",
+  quantity: "1",
+  note: "",
+};
+
+
 type ActiveSection =
   | "dashboard"
   | "orders"
@@ -445,6 +512,7 @@ type ActiveSection =
   | "inventory"
   | "goods-in"
   | "goods-out"
+  | "outbound-orders"
   | "forklift-terminal"
   | "transport-report"
   | "history"
@@ -686,6 +754,7 @@ const sidebarMenus: SidebarMenu[] = [
     items: [
       { id: "goods-in", label: "Wareneingang" },
       { id: "goods-out", label: "Warenausgang" },
+      { id: "outbound-orders", label: "Versandaufträge" },
       { id: "forklift-terminal", label: "Stapler-Terminal" },
       { id: "transport-report", label: "Transport-Dashboard" },
       { id: "history", label: "Bewegungshistorie" },
@@ -835,6 +904,19 @@ const [loggedIn, setLoggedIn] = useState(isLoggedIn());
     useState<DeliveryAddressForm>(initialDeliveryAddressForm);
   const [customerNoteForm, setCustomerNoteForm] =
     useState<CustomerNoteForm>(initialCustomerNoteForm);
+
+
+  const [outboundOrders, setOutboundOrders] = useState<OutboundOrder[]>([]);
+  const [outboundOrderItems, setOutboundOrderItems] = useState<OutboundOrderItem[]>([]);
+  const [outboundOrdersLoading, setOutboundOrdersLoading] = useState(false);
+  const [outboundOrderSaving, setOutboundOrderSaving] = useState(false);
+  const [outboundOrderItemSaving, setOutboundOrderItemSaving] = useState(false);
+  const [outboundTransportOrderSavingId, setOutboundTransportOrderSavingId] =
+    useState<number | null>(null);
+  const [outboundOrderForm, setOutboundOrderForm] =
+    useState<OutboundOrderForm>(initialOutboundOrderForm);
+  const [outboundOrderItemForm, setOutboundOrderItemForm] =
+    useState<OutboundOrderItemForm>(initialOutboundOrderItemForm);
 
 const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [suppliersLoading, setSuppliersLoading] = useState(false);
@@ -1502,6 +1584,45 @@ if (role === "einkauf") {
   };
 
 
+
+  const loadOutboundOrders = async () => {
+    try {
+      setOutboundOrdersLoading(true);
+      const response = await apiFetch("/inventory-api/outbound-orders/");
+
+      if (!response.ok) {
+        throw new Error("Versandaufträge konnten nicht geladen werden.");
+      }
+
+      const data = (await response.json()) as OutboundOrder[];
+      setOutboundOrders(data);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Fehler beim Laden der Versandaufträge.";
+      setError(message);
+    } finally {
+      setOutboundOrdersLoading(false);
+    }
+  };
+
+  const loadOutboundOrderItems = async () => {
+    try {
+      const response = await apiFetch("/inventory-api/outbound-order-items/");
+
+      if (!response.ok) {
+        throw new Error("Versandauftragspositionen konnten nicht geladen werden.");
+      }
+
+      const data = (await response.json()) as OutboundOrderItem[];
+      setOutboundOrderItems(data);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Fehler beim Laden der Versandauftragspositionen.";
+      setError(message);
+    }
+  };
+
+
   const loadCustomers = async () => {
     try {
       setCustomersLoading(true);
@@ -1689,6 +1810,18 @@ if (role === "einkauf") {
       void loadTransportOrderReport();
     }
   }, [loggedIn, activeSection]);
+
+  useEffect(() => {
+    if (loggedIn && activeSection === "outbound-orders") {
+      void loadOutboundOrders();
+      void loadOutboundOrderItems();
+      void loadCustomers();
+      void loadDeliveryAddresses();
+      void loadProducts();
+      void loadStorageLocations();
+    }
+  }, [loggedIn, activeSection]);
+
 
   const lowStockProducts = useMemo(
     () => products.filter((product) => product.quantity <= product.min_stock),
@@ -2036,6 +2169,202 @@ if (role === "einkauf") {
     const { name, value } = event.target;
     setCustomerForm((current) => ({ ...current, [name]: value }));
   };
+
+
+  const handleOutboundOrderFormChange = (
+    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = event.target;
+
+    setOutboundOrderForm((current) => ({
+      ...current,
+      [name]: value,
+      ...(name === "customer" ? { delivery_address: "" } : {}),
+    }));
+  };
+
+  const handleOutboundOrderItemFormChange = (
+    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = event.target;
+
+    setOutboundOrderItemForm((current) => ({
+      ...current,
+      [name]: value,
+    }));
+  };
+
+  const handleCreateOutboundOrder = async (event: FormEvent) => {
+    event.preventDefault();
+
+    if (!hasPermission("lager")) {
+      setError("Nur Lager oder Admin dürfen Versandaufträge anlegen.");
+      return;
+    }
+
+    if (!outboundOrderForm.customer) {
+      setError("Bitte einen Kunden für den Versandauftrag auswählen.");
+      return;
+    }
+
+    try {
+      setOutboundOrderSaving(true);
+      setError("");
+      setSuccess("");
+
+      const response = await apiFetch("/inventory-api/outbound-orders/", {
+        method: "POST",
+        body: JSON.stringify({
+          customer: Number(outboundOrderForm.customer),
+          delivery_address: outboundOrderForm.delivery_address
+            ? Number(outboundOrderForm.delivery_address)
+            : null,
+          reference_number: outboundOrderForm.reference_number.trim(),
+          requested_ship_date: outboundOrderForm.requested_ship_date || null,
+          note: outboundOrderForm.note.trim(),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || JSON.stringify(data));
+      }
+
+      setOutboundOrderForm(initialOutboundOrderForm);
+      setOutboundOrderItemForm((current) => ({
+        ...current,
+        outbound_order: String(data.id),
+      }));
+
+      await loadOutboundOrders();
+      await loadOutboundOrderItems();
+
+      setSuccess(`📦 Versandauftrag ${data.order_number} wurde angelegt.`);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Fehler beim Anlegen des Versandauftrags.";
+      setError(message);
+    } finally {
+      setOutboundOrderSaving(false);
+    }
+  };
+
+  const handleCreateOutboundOrderItem = async (event: FormEvent) => {
+    event.preventDefault();
+
+    if (!hasPermission("lager")) {
+      setError("Nur Lager oder Admin dürfen Versandauftragspositionen anlegen.");
+      return;
+    }
+
+    if (!outboundOrderItemForm.outbound_order || !outboundOrderItemForm.product) {
+      setError("Bitte Versandauftrag und Produkt auswählen.");
+      return;
+    }
+
+    if (!outboundOrderItemForm.quantity || Number(outboundOrderItemForm.quantity) <= 0) {
+      setError("Bitte eine gültige Menge größer 0 eintragen.");
+      return;
+    }
+
+    try {
+      setOutboundOrderItemSaving(true);
+      setError("");
+      setSuccess("");
+
+      const response = await apiFetch("/inventory-api/outbound-order-items/", {
+        method: "POST",
+        body: JSON.stringify({
+          outbound_order: Number(outboundOrderItemForm.outbound_order),
+          product: Number(outboundOrderItemForm.product),
+          quantity: outboundOrderItemForm.quantity,
+          note: outboundOrderItemForm.note.trim(),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || JSON.stringify(data));
+      }
+
+      setOutboundOrderItemForm((current) => ({
+        ...initialOutboundOrderItemForm,
+        outbound_order: current.outbound_order,
+      }));
+
+      await loadOutboundOrders();
+      await loadOutboundOrderItems();
+
+      setSuccess(`✅ Position für ${data.product_name} wurde hinzugefügt.`);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Fehler beim Anlegen der Versandauftragsposition.";
+      setError(message);
+    } finally {
+      setOutboundOrderItemSaving(false);
+    }
+  };
+
+  const handleReleaseOutboundOrder = async (order: OutboundOrder) => {
+    try {
+      setError("");
+      setSuccess("");
+
+      const response = await apiFetch(`/inventory-api/outbound-orders/${order.id}/release/`, {
+        method: "POST",
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || JSON.stringify(data));
+      }
+
+      await loadOutboundOrders();
+      setSuccess(data.detail || `Versandauftrag ${order.order_number} wurde freigegeben.`);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Fehler beim Freigeben des Versandauftrags.";
+      setError(message);
+    }
+  };
+
+  const handleCreateTransportOrderFromOutboundItem = async (item: OutboundOrderItem) => {
+    try {
+      setOutboundTransportOrderSavingId(item.id);
+      setError("");
+      setSuccess("");
+
+      const response = await apiFetch(
+        `/inventory-api/outbound-order-items/${item.id}/create-transport-order/`,
+        {
+          method: "POST",
+          body: JSON.stringify({}),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || JSON.stringify(data));
+      }
+
+      await loadOutboundOrders();
+      await loadOutboundOrderItems();
+      await loadTransportOrders();
+
+      setSuccess(data.detail || "Transportauftrag wurde aus der Versandposition erstellt.");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Fehler beim Erstellen des Transportauftrags.";
+      setError(message);
+    } finally {
+      setOutboundTransportOrderSavingId(null);
+    }
+  };
+
 
   const handleCreateCustomer = async (event: FormEvent) => {
     event.preventDefault();
@@ -4652,6 +4981,30 @@ const exportMovementsToCsv = async () => {
                 focusNextOnEnter={focusNextOnEnter}
               />
             )}
+
+            {activeSection === "outbound-orders" && (
+              <OutboundOrdersSection
+                customers={customers}
+                deliveryAddresses={deliveryAddresses}
+                products={products}
+                orders={outboundOrders}
+                items={outboundOrderItems}
+                loading={outboundOrdersLoading}
+                orderForm={outboundOrderForm}
+                itemForm={outboundOrderItemForm}
+                orderSaving={outboundOrderSaving}
+                itemSaving={outboundOrderItemSaving}
+                transportOrderSavingId={outboundTransportOrderSavingId}
+                hasPermission={hasPermission}
+                onOrderFormChange={handleOutboundOrderFormChange}
+                onItemFormChange={handleOutboundOrderItemFormChange}
+                onCreateOrder={handleCreateOutboundOrder}
+                onCreateItem={handleCreateOutboundOrderItem}
+                onReleaseOrder={handleReleaseOutboundOrder}
+                onCreateTransportOrder={handleCreateTransportOrderFromOutboundItem}
+              />
+            )}
+
 
             {activeSection === "transport-report" && (
               <TransportReportSection
@@ -9762,6 +10115,245 @@ function GoodsInSection({
   );
 }
 
+function OutboundOrdersSection({
+  customers,
+  deliveryAddresses,
+  products,
+  orders,
+  items,
+  loading,
+  orderForm,
+  itemForm,
+  orderSaving,
+  itemSaving,
+  transportOrderSavingId,
+  hasPermission,
+  onOrderFormChange,
+  onItemFormChange,
+  onCreateOrder,
+  onCreateItem,
+  onReleaseOrder,
+  onCreateTransportOrder,
+}: {
+  customers: Customer[];
+  deliveryAddresses: DeliveryAddress[];
+  products: Product[];
+  orders: OutboundOrder[];
+  items: OutboundOrderItem[];
+  loading: boolean;
+  orderForm: OutboundOrderForm;
+  itemForm: OutboundOrderItemForm;
+  orderSaving: boolean;
+  itemSaving: boolean;
+  transportOrderSavingId: number | null;
+  hasPermission: (required: PermissionRole) => boolean;
+  onOrderFormChange: (
+    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => void;
+  onItemFormChange: (
+    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => void;
+  onCreateOrder: (event: FormEvent) => void;
+  onCreateItem: (event: FormEvent) => void;
+  onReleaseOrder: (order: OutboundOrder) => Promise<void>;
+  onCreateTransportOrder: (item: OutboundOrderItem) => Promise<void>;
+}) {
+  const activeCustomers = customers.filter((customer) => customer.is_active);
+  const activeProducts = products.filter((product) => product.quantity > 0);
+  const selectableOrders = orders.filter(
+    (order) => !["SHIPPED", "CANCELLED"].includes(order.status)
+  );
+
+  const deliveryAddressesForSelectedCustomer = deliveryAddresses.filter(
+    (address) =>
+      !orderForm.customer ||
+      String(address.customer) === orderForm.customer
+  );
+
+  const itemsByOrder = items.reduce<Record<number, OutboundOrderItem[]>>(
+    (result, item) => {
+      result[item.outbound_order] = result[item.outbound_order] || [];
+      result[item.outbound_order].push(item);
+      return result;
+    },
+    {}
+  );
+
+  const formatDateTime = (value: string) =>
+    new Date(value).toLocaleString("de-DE", {
+      dateStyle: "short",
+      timeStyle: "short",
+    });
+
+  return (
+    <section style={sectionStyle}>
+      <h2 style={sectionTitleStyle}>📦 Versandaufträge</h2>
+
+      <p style={infoStyle}>
+        Hier entsteht der Ablauf vom Kundenauftrag zur Versandposition.
+        Aus einer Position kann automatisch ein Transportauftrag zur WA-Fläche erzeugt werden.
+      </p>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "18px" }}>
+        <form onSubmit={onCreateOrder} style={{ ...formGridStyle, alignContent: "start" }}>
+          <h3 style={{ gridColumn: "1 / -1", margin: 0, color: "#bfdbfe" }}>
+            Neuen Versandauftrag anlegen
+          </h3>
+
+          <select name="customer" value={orderForm.customer} onChange={onOrderFormChange} required style={inputStyle} disabled={!hasPermission("lager")}>
+            <option value="">Kunde auswählen</option>
+            {activeCustomers.map((customer) => (
+              <option key={customer.id} value={customer.id}>
+                {customer.name}{customer.customer_number ? ` · ${customer.customer_number}` : ""}
+              </option>
+            ))}
+          </select>
+
+          <select name="delivery_address" value={orderForm.delivery_address} onChange={onOrderFormChange} style={inputStyle} disabled={!hasPermission("lager") || !orderForm.customer}>
+            <option value="">Lieferadresse optional</option>
+            {deliveryAddressesForSelectedCustomer.map((address) => (
+              <option key={address.id} value={address.id}>
+                {address.label} · {address.city}
+              </option>
+            ))}
+          </select>
+
+          <input name="reference_number" value={orderForm.reference_number} onChange={onOrderFormChange} placeholder="Externe Referenz / Kundenauftrag" style={inputStyle} disabled={!hasPermission("lager")} />
+          <input name="requested_ship_date" value={orderForm.requested_ship_date} onChange={onOrderFormChange} type="date" style={inputStyle} disabled={!hasPermission("lager")} />
+          <textarea name="note" value={orderForm.note} onChange={onOrderFormChange} placeholder="Notiz zum Versandauftrag" style={{ ...inputStyle, minHeight: "74px", gridColumn: "1 / -1" }} disabled={!hasPermission("lager")} />
+
+          <button type="submit" disabled={orderSaving || !hasPermission("lager") || !orderForm.customer} style={orderSaving || !hasPermission("lager") || !orderForm.customer ? disabledButtonStyle : primaryButtonStyle}>
+            {orderSaving ? "Lege an..." : "Versandauftrag anlegen"}
+          </button>
+        </form>
+
+        <form onSubmit={onCreateItem} style={{ ...formGridStyle, alignContent: "start" }}>
+          <h3 style={{ gridColumn: "1 / -1", margin: 0, color: "#bfdbfe" }}>
+            Position hinzufügen
+          </h3>
+
+          <select name="outbound_order" value={itemForm.outbound_order} onChange={onItemFormChange} required style={inputStyle} disabled={!hasPermission("lager") || selectableOrders.length === 0}>
+            <option value="">Versandauftrag auswählen</option>
+            {selectableOrders.map((order) => (
+              <option key={order.id} value={order.id}>
+                {order.order_number} · {order.customer_name}
+              </option>
+            ))}
+          </select>
+
+          <select name="product" value={itemForm.product} onChange={onItemFormChange} required style={inputStyle} disabled={!hasPermission("lager")}>
+            <option value="">Produkt auswählen</option>
+            {activeProducts.map((product) => (
+              <option key={product.id} value={product.id}>
+                {product.name} ({product.sku}) · Bestand {product.quantity}
+              </option>
+            ))}
+          </select>
+
+          <input name="quantity" value={itemForm.quantity} onChange={onItemFormChange} type="number" min="1" step="1" placeholder="Menge" style={inputStyle} disabled={!hasPermission("lager")} />
+          <textarea name="note" value={itemForm.note} onChange={onItemFormChange} placeholder="Notiz zur Position" style={{ ...inputStyle, minHeight: "74px", gridColumn: "1 / -1" }} disabled={!hasPermission("lager")} />
+
+          <button type="submit" disabled={itemSaving || !hasPermission("lager") || !itemForm.outbound_order || !itemForm.product || !itemForm.quantity || Number(itemForm.quantity) <= 0} style={itemSaving || !hasPermission("lager") || !itemForm.outbound_order || !itemForm.product || !itemForm.quantity || Number(itemForm.quantity) <= 0 ? disabledButtonStyle : primaryButtonStyle}>
+            {itemSaving ? "Speichere..." : "Position hinzufügen"}
+          </button>
+        </form>
+      </div>
+
+      <div style={{ marginTop: "24px" }}>
+        <h3 style={{ color: "#e5e7eb" }}>Aktuelle Versandaufträge</h3>
+
+        {loading && <p>Lade Versandaufträge...</p>}
+
+        {!loading && orders.length === 0 && (
+          <p style={infoStyle}>Noch keine Versandaufträge vorhanden.</p>
+        )}
+
+        {!loading && orders.length > 0 && (
+          <div style={{ overflowX: "auto" }}>
+            <table style={tableStyle}>
+              <thead>
+                <tr>
+                  <th style={tableHeadStyle}>Auftrag</th>
+                  <th style={tableHeadStyle}>Kunde</th>
+                  <th style={tableHeadStyle}>Status</th>
+                  <th style={tableHeadStyle}>Referenz</th>
+                  <th style={tableHeadStyle}>Positionen</th>
+                  <th style={tableHeadStyle}>Erstellt</th>
+                  <th style={tableHeadStyle}>Aktion</th>
+                </tr>
+              </thead>
+              <tbody>
+                {orders.map((order) => {
+                  const orderItems = itemsByOrder[order.id] || [];
+
+                  return (
+                    <tr key={order.id}>
+                      <td style={tableCellStyle}>{order.order_number}</td>
+                      <td style={tableCellStyle}>{order.customer_name}</td>
+                      <td style={tableCellStyle}>{order.status_display || order.status}</td>
+                      <td style={tableCellStyle}>{order.reference_number || "—"}</td>
+                      <td style={tableCellStyle}>{orderItems.length}</td>
+                      <td style={tableCellStyle}>{formatDateTime(order.created_at)}</td>
+                      <td style={tableCellStyle}>
+                        <button type="button" onClick={() => void onReleaseOrder(order)} disabled={!hasPermission("lager") || ["SHIPPED", "CANCELLED"].includes(order.status)} style={hasPermission("lager") && !["SHIPPED", "CANCELLED"].includes(order.status) ? secondaryButtonStyle : disabledButtonStyle}>
+                          Freigeben
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <div style={{ marginTop: "24px" }}>
+        <h3 style={{ color: "#e5e7eb" }}>Versandpositionen</h3>
+
+        {items.length === 0 ? (
+          <p style={infoStyle}>Noch keine Positionen vorhanden.</p>
+        ) : (
+          <div style={{ overflowX: "auto" }}>
+            <table style={tableStyle}>
+              <thead>
+                <tr>
+                  <th style={tableHeadStyle}>Auftrag</th>
+                  <th style={tableHeadStyle}>Produkt</th>
+                  <th style={tableHeadStyle}>Menge</th>
+                  <th style={tableHeadStyle}>Transportauftrag</th>
+                  <th style={tableHeadStyle}>Aktion</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((item) => {
+                  const order = orders.find((entry) => entry.id === item.outbound_order);
+
+                  return (
+                    <tr key={item.id}>
+                      <td style={tableCellStyle}>{order?.order_number || item.outbound_order}</td>
+                      <td style={tableCellStyle}>{item.product_name}{item.product_sku ? ` · ${item.product_sku}` : ""}</td>
+                      <td style={tableCellStyle}>{Number(item.quantity).toLocaleString("de-DE")}</td>
+                      <td style={tableCellStyle}>{item.transport_order_number || "Noch kein TA"}</td>
+                      <td style={tableCellStyle}>
+                        <button type="button" onClick={() => void onCreateTransportOrder(item)} disabled={!hasPermission("lager") || Boolean(item.transport_order) || transportOrderSavingId === item.id} style={hasPermission("lager") && !item.transport_order && transportOrderSavingId !== item.id ? primaryButtonStyle : disabledButtonStyle}>
+                          {transportOrderSavingId === item.id ? "Erstelle TA..." : item.transport_order ? "TA vorhanden" : "TA zur WA-Fläche erstellen"}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+
+
 function GoodsOutSection({
   products,
   storageLocations,
@@ -11651,6 +12243,12 @@ const dataTableStyle: CSSProperties = {
 const tableHeaderRowStyle: CSSProperties = {
   background: "rgba(30, 41, 59, 0.7)",
   textAlign: "left",
+};
+
+const tableStyle: CSSProperties = {
+  width: "100%",
+  borderCollapse: "collapse",
+  minWidth: "760px",
 };
 
 const tableHeadStyle: CSSProperties = {
