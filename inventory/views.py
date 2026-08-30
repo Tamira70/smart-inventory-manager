@@ -437,6 +437,107 @@ class OutboundOrderViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
 
+    def _calculate_workflow_status(self, outbound_order):
+        """
+        Ermittelt den fachlichen Status eines Versandauftrags anhand seiner Positionen
+        und der zugehörigen Transportaufträge.
+        """
+        if outbound_order.status in [
+            OutboundOrder.Status.SHIPPED,
+            OutboundOrder.Status.CANCELLED,
+        ]:
+            return outbound_order.status
+
+        items = list(
+            outbound_order.items.select_related("transport_order").all()
+        )
+
+        if not items:
+            return outbound_order.status
+
+        transport_orders = [
+            item.transport_order
+            for item in items
+            if item.transport_order_id and item.transport_order
+        ]
+
+        if len(transport_orders) == len(items) and all(
+            transport_order.status == TransportOrder.Status.COMPLETED
+            for transport_order in transport_orders
+        ):
+            return OutboundOrder.Status.READY_FOR_SHIPPING
+
+        if transport_orders:
+            return OutboundOrder.Status.IN_PICKING
+
+        return outbound_order.status
+
+    def _refresh_workflow_status(self, outbound_order):
+        new_status = self._calculate_workflow_status(outbound_order)
+
+        if outbound_order.status != new_status:
+            outbound_order.status = new_status
+            outbound_order.save(update_fields=["status", "updated_at"])
+
+        return outbound_order
+
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="refresh-status",
+        permission_classes=[IsLagerOrAdmin],
+    )
+    def refresh_status(self, request, pk=None):
+        outbound_order = self.get_object()
+        outbound_order = self._refresh_workflow_status(outbound_order)
+
+        return Response(
+            {
+                "detail": (
+                    f"Status von Versandauftrag {outbound_order.order_number} "
+                    f"wurde aktualisiert."
+                ),
+                "order": self.get_serializer(outbound_order).data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="mark-shipped",
+        permission_classes=[IsLagerOrAdmin],
+    )
+    def mark_shipped(self, request, pk=None):
+        outbound_order = self.get_object()
+        outbound_order = self._refresh_workflow_status(outbound_order)
+
+        if outbound_order.status != OutboundOrder.Status.READY_FOR_SHIPPING:
+            return Response(
+                {
+                    "detail": (
+                        "Versandauftrag kann erst als versendet markiert werden, "
+                        "wenn alle Positionen bereitgestellt sind."
+                    ),
+                    "current_status": outbound_order.status,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        outbound_order.status = OutboundOrder.Status.SHIPPED
+        outbound_order.save(update_fields=["status", "updated_at"])
+
+        return Response(
+            {
+                "detail": (
+                    f"Versandauftrag {outbound_order.order_number} "
+                    "wurde als versendet markiert."
+                ),
+                "order": self.get_serializer(outbound_order).data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
     @action(
         detail=True,
         methods=["post"],

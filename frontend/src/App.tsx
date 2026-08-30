@@ -913,6 +913,10 @@ const [loggedIn, setLoggedIn] = useState(isLoggedIn());
   const [outboundOrderItemSaving, setOutboundOrderItemSaving] = useState(false);
   const [outboundTransportOrderSavingId, setOutboundTransportOrderSavingId] =
     useState<number | null>(null);
+  const [outboundStatusSavingId, setOutboundStatusSavingId] =
+    useState<number | null>(null);
+  const [outboundShipSavingId, setOutboundShipSavingId] =
+    useState<number | null>(null);
   const [outboundOrderForm, setOutboundOrderForm] =
     useState<OutboundOrderForm>(initialOutboundOrderForm);
   const [outboundOrderItemForm, setOutboundOrderItemForm] =
@@ -2328,6 +2332,80 @@ if (role === "einkauf") {
       const message =
         err instanceof Error ? err.message : "Fehler beim Freigeben des Versandauftrags.";
       setError(message);
+    }
+  };
+
+  const handleRefreshOutboundOrderStatus = async (order: OutboundOrder) => {
+    try {
+      setOutboundStatusSavingId(order.id);
+      setError("");
+      setSuccess("");
+
+      const response = await apiFetch(
+        `/inventory-api/outbound-orders/${order.id}/refresh-status/`,
+        {
+          method: "POST",
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || JSON.stringify(data));
+      }
+
+      await loadOutboundOrders();
+      await loadOutboundOrderItems();
+
+      setSuccess(data.detail || `Status von ${order.order_number} wurde aktualisiert.`);
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Fehler beim Aktualisieren des Versandauftrag-Status.";
+      setError(message);
+    } finally {
+      setOutboundStatusSavingId(null);
+    }
+  };
+
+  const handleMarkOutboundOrderShipped = async (order: OutboundOrder) => {
+    const confirmed = window.confirm(
+      `Versandauftrag ${order.order_number} wirklich als versendet markieren?`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setOutboundShipSavingId(order.id);
+      setError("");
+      setSuccess("");
+
+      const response = await apiFetch(
+        `/inventory-api/outbound-orders/${order.id}/mark-shipped/`,
+        {
+          method: "POST",
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || JSON.stringify(data));
+      }
+
+      await loadOutboundOrders();
+      await loadOutboundOrderItems();
+
+      setSuccess(data.detail || `Versandauftrag ${order.order_number} wurde als versendet markiert.`);
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Fehler beim Markieren als versendet.";
+      setError(message);
+    } finally {
+      setOutboundShipSavingId(null);
     }
   };
 
@@ -4995,12 +5073,16 @@ const exportMovementsToCsv = async () => {
                 orderSaving={outboundOrderSaving}
                 itemSaving={outboundOrderItemSaving}
                 transportOrderSavingId={outboundTransportOrderSavingId}
+                statusSavingId={outboundStatusSavingId}
+                shipSavingId={outboundShipSavingId}
                 hasPermission={hasPermission}
                 onOrderFormChange={handleOutboundOrderFormChange}
                 onItemFormChange={handleOutboundOrderItemFormChange}
                 onCreateOrder={handleCreateOutboundOrder}
                 onCreateItem={handleCreateOutboundOrderItem}
                 onReleaseOrder={handleReleaseOutboundOrder}
+                onRefreshStatus={handleRefreshOutboundOrderStatus}
+                onMarkShipped={handleMarkOutboundOrderShipped}
                 onCreateTransportOrder={handleCreateTransportOrderFromOutboundItem}
               />
             )}
@@ -10127,12 +10209,16 @@ function OutboundOrdersSection({
   orderSaving,
   itemSaving,
   transportOrderSavingId,
+  statusSavingId,
+  shipSavingId,
   hasPermission,
   onOrderFormChange,
   onItemFormChange,
   onCreateOrder,
   onCreateItem,
   onReleaseOrder,
+  onRefreshStatus,
+  onMarkShipped,
   onCreateTransportOrder,
 }: {
   customers: Customer[];
@@ -10146,6 +10232,8 @@ function OutboundOrdersSection({
   orderSaving: boolean;
   itemSaving: boolean;
   transportOrderSavingId: number | null;
+  statusSavingId: number | null;
+  shipSavingId: number | null;
   hasPermission: (required: PermissionRole) => boolean;
   onOrderFormChange: (
     event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -10156,6 +10244,8 @@ function OutboundOrdersSection({
   onCreateOrder: (event: FormEvent) => void;
   onCreateItem: (event: FormEvent) => void;
   onReleaseOrder: (order: OutboundOrder) => Promise<void>;
+  onRefreshStatus: (order: OutboundOrder) => Promise<void>;
+  onMarkShipped: (order: OutboundOrder) => Promise<void>;
   onCreateTransportOrder: (item: OutboundOrderItem) => Promise<void>;
 }) {
   const activeCustomers = customers.filter((customer) => customer.is_active);
@@ -10295,9 +10385,66 @@ function OutboundOrdersSection({
                       <td style={tableCellStyle}>{orderItems.length}</td>
                       <td style={tableCellStyle}>{formatDateTime(order.created_at)}</td>
                       <td style={tableCellStyle}>
-                        <button type="button" onClick={() => void onReleaseOrder(order)} disabled={!hasPermission("lager") || ["SHIPPED", "CANCELLED"].includes(order.status)} style={hasPermission("lager") && !["SHIPPED", "CANCELLED"].includes(order.status) ? secondaryButtonStyle : disabledButtonStyle}>
-                          Freigeben
-                        </button>
+                        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                          <button
+                            type="button"
+                            onClick={() => void onReleaseOrder(order)}
+                            disabled={
+                              !hasPermission("lager") ||
+                              ["SHIPPED", "CANCELLED"].includes(order.status)
+                            }
+                            style={
+                              hasPermission("lager") &&
+                              !["SHIPPED", "CANCELLED"].includes(order.status)
+                                ? secondaryButtonStyle
+                                : disabledButtonStyle
+                            }
+                          >
+                            Freigeben
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => void onRefreshStatus(order)}
+                            disabled={
+                              !hasPermission("lager") ||
+                              statusSavingId === order.id ||
+                              ["SHIPPED", "CANCELLED"].includes(order.status)
+                            }
+                            style={
+                              hasPermission("lager") &&
+                              statusSavingId !== order.id &&
+                              !["SHIPPED", "CANCELLED"].includes(order.status)
+                                ? secondaryButtonStyle
+                                : disabledButtonStyle
+                            }
+                          >
+                            {statusSavingId === order.id
+                              ? "Aktualisiere..."
+                              : "Status aktualisieren"}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => void onMarkShipped(order)}
+                            disabled={
+                              !hasPermission("lager") ||
+                              shipSavingId === order.id ||
+                              order.status !== "READY_FOR_SHIPPING"
+                            }
+                            style={
+                              hasPermission("lager") &&
+                              shipSavingId !== order.id &&
+                              order.status === "READY_FOR_SHIPPING"
+                                ? primaryButtonStyle
+                                : disabledButtonStyle
+                            }
+                          >
+                            {shipSavingId === order.id
+                              ? "Markiere..."
+                              : "Als versendet markieren"}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );

@@ -349,3 +349,138 @@ class OutboundOrderWorkflowApiTests(TestCase):
         self.assertFalse(
             OutboundOrder.objects.filter(reference_number="VIEWER-DARF-NICHT").exists()
         )
+
+class OutboundOrderStatusWorkflowTests(TestCase):
+    def make_user_with_role(self, role):
+        user = User.objects.create_user(
+            username=f"outbound-status-{role}-user",
+            password="testpass123",
+        )
+        profile, _created = UserProfile.objects.get_or_create(user=user)
+        profile.role = role
+        profile.save(update_fields=["role"])
+
+        return User.objects.select_related("userprofile").get(pk=user.pk)
+
+    def setUp(self):
+        self.client = APIClient()
+
+        self.lager_user = self.make_user_with_role("lager")
+        self.client.force_authenticate(user=self.lager_user)
+
+        self.customer = Customer.objects.create(
+            customer_number="KD-STATUS-0001",
+            name="Statuskunde Versand",
+            email="status@example.test",
+            city="Crimmitschau",
+        )
+
+        self.product = Product.objects.create(
+            name="Filament PAL Status Test",
+            sku="PAL-STATUS-TEST",
+            quantity=10,
+            min_stock=0,
+            unit="Stück",
+        )
+
+        self.storage_location = StorageLocation.objects.create(
+            code="A-STATUS-TEST-01",
+            name="Status Quellplatz Test",
+            location_type=StorageLocation.LocationType.STORAGE,
+            is_active=True,
+            is_empty=False,
+        )
+
+        self.shipping_location = StorageLocation.objects.create(
+            code="WA-STATUS-TEST-01",
+            name="Status WA-Fläche Test",
+            location_type=StorageLocation.LocationType.SHIPPING,
+            is_active=True,
+            is_empty=True,
+        )
+
+        StorageLocationStock.objects.create(
+            product=self.product,
+            storage_location=self.storage_location,
+            quantity=5,
+        )
+
+    def create_order(self):
+        return OutboundOrder.objects.create(
+            customer=self.customer,
+            reference_number="STATUS-AUFTRAG-0001",
+            created_by=self.lager_user,
+        )
+
+    def create_item(self, order, quantity="2.00"):
+        return OutboundOrderItem.objects.create(
+            outbound_order=order,
+            product=self.product,
+            quantity=quantity,
+        )
+
+    def create_transport_order_for_item(self, item):
+        response = self.client.post(
+            reverse("outbound-order-item-create-transport-order", args=[item.id]),
+            {
+                "target_location": self.shipping_location.id,
+                "priority": 90,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+
+        item.refresh_from_db()
+        self.assertIsNotNone(item.transport_order)
+
+        return item.transport_order
+
+    def test_refresh_status_marks_order_ready_for_shipping_when_transport_completed(self):
+        order = self.create_order()
+        item = self.create_item(order)
+
+        transport_order = self.create_transport_order_for_item(item)
+        transport_order.status = TransportOrder.Status.COMPLETED
+        transport_order.save(update_fields=["status"])
+
+        response = self.client.post(
+            reverse("outbound-order-refresh-status", args=[order.id]),
+            {},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+
+        order.refresh_from_db()
+        self.assertEqual(order.status, OutboundOrder.Status.READY_FOR_SHIPPING)
+
+    def test_mark_shipped_sets_ready_order_to_shipped(self):
+        order = self.create_order()
+        order.status = OutboundOrder.Status.READY_FOR_SHIPPING
+        order.save(update_fields=["status"])
+
+        response = self.client.post(
+            reverse("outbound-order-mark-shipped", args=[order.id]),
+            {},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+
+        order.refresh_from_db()
+        self.assertEqual(order.status, OutboundOrder.Status.SHIPPED)
+
+    def test_mark_shipped_is_blocked_before_order_is_ready(self):
+        order = self.create_order()
+
+        response = self.client.post(
+            reverse("outbound-order-mark-shipped", args=[order.id]),
+            {},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        order.refresh_from_db()
+        self.assertEqual(order.status, OutboundOrder.Status.DRAFT)
