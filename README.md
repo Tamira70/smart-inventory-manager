@@ -1,332 +1,100 @@
-# Smart Inventory Manager
+# 📦 Smart Inventory Manager
 
-**Praxisnahes WMS-/Lager-IT-Projekt mit Wareneingang, Lagerplatzverwaltung, Transportaufträgen, Warenausgangsflächen, Stapler-Terminal, Versandabschluss und Transport-Dashboard.**
+## Portfolio-Zusammenfassung
 
-<!-- PORTFOLIO-INTRO-END -->
+Der **Smart Inventory Manager** ist eine selbst entwickelte Full-Stack-Webanwendung zur digitalen Lagerverwaltung mit Fokus auf Lagerplatzlogik, Bestandsführung und WMS-/ERP-nahe Prozesse.
 
-## Projektüberblick
-
-Der **Smart Inventory Manager** ist ein selbst entwickeltes Full-Stack-Projekt für digitale Lager- und WMS-Prozesse. Es bildet typische Abläufe aus der Logistik ab: Wareneingang, Lagerplatzsteuerung, interne Transportaufträge, scannergeführte Staplerprozesse, Warenausgangsflächen und eine nachvollziehbare Bestandsführung.
-
-Das Projekt verbindet praktische Logistik-Erfahrung mit IT-naher Prozessoptimierung. Es zeigt, wie operative Lagerabläufe technisch strukturiert, digitalisiert und für Anwender übersichtlich bedienbar gemacht werden können.
-
-## Portfolio-Kernbotschaft
-
-Der Smart Inventory Manager ist kein reines Übungsprojekt, sondern ein praxisnahes Beispiel für digitale Lagerprozesssteuerung. Besonders relevant ist das Projekt für Tätigkeiten in den Bereichen:
-
-- ERP-/SAP-Anwendungssupport
-- WMS-/Lager-IT
-- Application Support
-- Stammdaten- und Prozessmanagement
-- IT-nahe Logistikkoordination
-- Digitalisierung und Prozessoptimierung
-
-## Fachlicher Gesamtprozess
-
-Der aktuelle Stand bildet einen vollständigen WMS-Demoablauf ab:
+Das Projekt bildet praxisnahe Abläufe aus Lager, Materialwirtschaft und Logistik-IT ab:
 
 ```text
 Wareneingang
 → WE-Fläche
-→ Transportauftrag
-→ Lagerplatz
-→ Warenausgangsauftrag
-→ WA-Fläche
+→ Lagerplatzbestand
+→ Versandauftrag / Kundenauftrag
+→ Versandposition
+→ Transportauftrag zur WA-Fläche
+→ Stapler-Terminal mit Quelle-/Ziel-Scan
+→ Bestand auf WA-Fläche
 → Versandabschluss
-→ finale Bestandsausbuchung
+→ Versandauftrag wird als versendet markiert
+→ Bewegungshistorie / Dashboard / Auswertung
 ```
 
-Damit kann ein kompletter Lagerprozess gezeigt werden:
+Das Projekt zeigt meine Verbindung aus operativer Logistikpraxis, SAP-/ERP-Verständnis, Prozessdenken und technischer Umsetzung.
 
-1. Ware kommt im Wareneingang an.
-2. Die Ware wird auf einer WE-Fläche erfasst.
-3. Das System erzeugt einen Transportauftrag zur Einlagerung.
-4. Das Stapler-Terminal führt den Transport per Quell-/Zielscan aus.
-5. Aus dem Lagerbestand wird ein Warenausgangs-Transportauftrag zur WA-Fläche erzeugt.
-6. Die Ware wird per Stapler-Terminal zur Bereitstellung bewegt.
-7. Der Versandabschluss bucht den Bestand final aus.
+---
 
-## Aktueller Funktionsumfang
+## ✅ Aktueller Stand
 
-### Wareneingang
+Der Smart Inventory Manager unterstützt inzwischen einen vollständigen WMS-nahen Lagerprozess:
 
-- Erfassung von Wareneingängen
-- Nutzung von WE-Flächen als Zwischenziel
-- automatische oder manuelle Weiterleitung Richtung Lagerplatz
-- nachvollziehbare Bestandsbewegungen
-- Wareneingang aus Einkaufsbestellungen
+- Produkt- und Artikelstammdaten
+- Lagerorte mit Zone, Gang, Regal und Fach
+- Wareneingang über WE-Flächen
+- Lagerplatzbestände je Lagerort
+- Verpackungen, Ladungsträger und Packmengen
+- Kapazitätsprüfung über Maße, Volumen und Gewicht
+- Ein- und Auslagerstrategien
+- Transportaufträge und Transportscheine
+- Stapler-Terminal mit Quelle-/Ziel-Scan
+- Warenausgang über WA-Flächen
+- finaler Versandabschluss von WA-Flächen
+- Versandauftrag / Kundenauftrag mit Positionen
+- automatischer Transportauftrag aus Versandposition
+- Status-Workflow bis „Versendet“
+- Bewegungshistorie
+- Transport-Dashboard
+- Excel-Export
+- Rollen- und Rechtekonzept
+- JWT-Authentifizierung
+- automatisierte Backend-Tests für kritische Prozesse
 
-### Lagerplatzverwaltung
+---
 
-- Lagerorte mit Codes, Zonen, Gang, Regal und Fach
-- Lagerplatztypen wie WE, Lagerplatz, WA, Prüfung und Sperrfläche
-- aktive und blockierte Lagerplätze
-- Anzeige von Beständen je Lagerplatz
-- Frei-/Belegt-Synchronisierung
-- Unterstützung für feste und freie Lagerplatzlogik
-- Kapazitätsprüfung nach Volumen und Gewicht
+## 🧠 Fachlicher Schwerpunkt
 
-### Verpackung, Ladungsträger und Strategien
+Ein besonderer Schwerpunkt liegt auf praxisnaher Lager- und WMS-Logik.
 
-- Verpackungsarten und Ladungsträger
-- Packmengen
-- Einstandspreise für HIFO/LOFO
-- MHD/Ablaufdatum für FEFO
-- Auslagerstrategien FIFO, LIFO, FEFO, HIFO und LOFO
+Umgesetzt sind unter anderem:
 
-### Transportaufträge
+- **Festplatzstrategie** zur gezielten Einlagerung auf definierte Lagerplätze
+- **Freiplatz-/Leerplatzlogik** zur Auswahl geeigneter Lagerplätze
+- **Zulagerung** zu bestehenden Produktbeständen
+- **FIFO** und **LIFO** für zeitbasierte Auslagerung
+- **FEFO** mit MHD-/Ablaufdatum für chargennahe Warenflüsse
+- **HIFO** und **LOFO** auf Basis von Einstandspreisen
+- automatische Frei-/Belegt-Synchronisierung von Lagerplätzen
+- Bestandsführung auf Lagerplatzebene
+- automatische Statusführung bei Versandaufträgen
 
-- Transportaufträge von WE-Fläche zu Lagerplatz
-- Transportaufträge von Lagerplatz zu WA-Fläche
-- automatische TA-Nummer und TS-Nummer
-- Statuslogik: erstellt, zugewiesen, in Transport, abgeschlossen, storniert, Fehler
-- Benutzerzuweisung
-- Scanner-Workflow
-- Schutz vor doppelten offenen Transportaufträgen für denselben Bestand
+---
 
-### Stapler-Terminal
+## 🚚 WMS-/Outbound-Prozess
 
-- reduzierte Oberfläche für Stapler-/Lagerrolle
-- Anzeige aktiver Transportaufträge
-- Quelle scannen
-- Ziel scannen
-- automatische Bestandsumbuchung beim Abschluss
-- klare Fehlermeldungen bei falschem Scan oder ungültigem Ablauf
-
-### Warenausgang
-
-- Erstellung von Transportaufträgen zur WA-Fläche
-- Zielauswahl nur über WA-/Bereitstellflächen
-- Anzeige bereitgestellter WA-Bestände
-- Versandabschluss direkt aus der WA-Fläche
-- finale Ausbuchung aus dem Bestand
-
-### Transport-Dashboard
-
-- Übersicht über Transportaufträge
-- Filter nach Zeitraum, Schicht, Benutzer, Status und Transportart
-- Kennzahlen zu offenen, laufenden, abgeschlossenen und fehlerhaften Transporten
-- Auswertung nach Benutzer
-- Anzeige letzter abgeschlossener Transporte
-- professioneller Excel-Export als `.xlsx`
-
-### Exporte
-
-- Excel-Export für Bewegungshistorie
-- Excel-Export für Inventurberichte
-- Excel-Export für Lagerplatzbestände
-- Excel-Export für Transport-Dashboard
-
-## Warenausgang und Versandabschluss
-
-Der Warenausgang unterstützt einen vollständigen WMS-Ablauf:
-
-1. Transportauftrag aus dem Lagerbestand erstellen
-2. Ware per Stapler-Terminal vom Lagerplatz zur WA-Fläche bewegen
-3. Bestand auf der WA-Fläche prüfen
-4. Versand über den Button **„Versand abschließen“** final ausbuchen
-
-Der Versandabschluss läuft über einen eigenen Backend-Endpunkt:
+Der aktuelle WMS-Prozess verbindet Lagerbewegungen, Transportaufträge, Staplerführung und Versandabschluss.
 
 ```text
-POST /inventory-api/location-stocks/<id>/complete-shipping/
+1. Wareneingang buchen
+2. Bestand wird auf einem Lagerplatz geführt
+3. Versandauftrag / Kundenauftrag anlegen
+4. Versandposition mit Produkt und Menge erfassen
+5. Transportauftrag zur WA-Fläche erzeugen
+6. Stapler-Terminal öffnet den Auftrag
+7. Quellplatz scannen
+8. Zielplatz / WA-Fläche scannen
+9. Bestand wird automatisch zur WA-Fläche umgebucht
+10. Versandabschluss bucht Ware final aus
+11. Versandauftrag wird als versendet markiert
+12. Bewegungshistorie dokumentiert den Vorgang
 ```
 
-Der Endpunkt prüft:
+---
 
-- Versand nur von WA-Flächen
-- ausreichenden Bestand auf der WA-Fläche
-- aktive und nicht gesperrte WA-Fläche
-- Berechtigung für Lager/Admin
+## 📦 Versandauftrag / Kundenauftrag Workflow
 
-Automatischer Testlauf:
+Der Smart Inventory Manager unterstützt einen kundenauftragsnahen Warenausgang.
 
-```bash
-python manage.py test inventory.tests.WaShippingCompletionEndpointTests -v 2
-```
-
-Abgesicherte Testfälle:
-
-- Lager/Admin darf Versand von WA-Bestand abschließen
-- normaler Lagerplatz wird für Versandabschluss blockiert
-- zu hohe Versandmenge wird abgelehnt
-- Viewer darf den Versandabschluss nicht durchführen
-- erfolgreicher Versand erzeugt eine OUT-Bewegung
-
-## WMS-Demo-Manager
-
-Für eine saubere Vorführung des WMS-Prozesses gibt es einen eigenen Django-Management-Befehl:
-
-```bash
-python manage.py prepare_wms_demo
-```
-
-Der Befehl bereitet einen stabilen Demo-Zustand vor:
-
-- offene alte Demo-Transportaufträge stornieren
-- WA-Flächen sicherstellen
-- Demo-Bestand am Quelllagerplatz prüfen
-- optional fehlenden Demo-Bestand anlegen
-- frischen Transportauftrag für den Stapler-Test erzeugen
-
-### Vorabprüfung ohne Änderungen
-
-```bash
-python manage.py prepare_wms_demo --dry-run
-```
-
-### Demo-Zustand vorbereiten
-
-```bash
-python manage.py prepare_wms_demo --ensure-stock
-```
-
-Standardmäßig wird folgender Demo-Ablauf vorbereitet:
-
-```text
-Filament PAL Blau
-A-R2-F4 → WA-0001
-Menge: 1
-```
-
-Der vorbereitete Transportauftrag kann anschließend im Stapler-Terminal durchgescannt werden:
-
-```text
-1. Quelle scannen: A-R2-F4
-2. Ziel scannen: WA-0001
-3. Transportauftrag wird abgeschlossen
-4. Bestand liegt auf der WA-Fläche
-5. Versandabschluss kann im Warenausgang durchgeführt werden
-```
-
-Nützliche Optionen:
-
-```bash
-python manage.py prepare_wms_demo --product-name "Filament PAL Blau"
-python manage.py prepare_wms_demo --source-code A-R2-F4
-python manage.py prepare_wms_demo --target-code WA-0001
-python manage.py prepare_wms_demo --quantity 1
-python manage.py prepare_wms_demo --skip-cancel-open
-python manage.py prepare_wms_demo --skip-create-order
-```
-
-## Technischer Aufbau
-
-| Bereich | Technologie |
-|---|---|
-| Backend | Django REST Framework |
-| Frontend | React mit TypeScript |
-| Authentifizierung | JWT |
-| Datenbank | SQLite im aktuellen Projektstand |
-| Exporte | openpyxl für Excel-Dateien |
-| Serverbetrieb | Gunicorn und Apache Reverse Proxy |
-| Deployment | eigener Linux-Server |
-| Versionsverwaltung | Git und GitHub |
-
-## Rollen und Berechtigungen
-
-| Rolle | Zweck |
-|---|---|
-| Admin | Verwaltung, Stammdaten, Benutzer, alle Funktionen |
-| Lager | Wareneingang, Warenausgang, Lagerbewegungen, Versandabschluss |
-| Stapler | reduzierte Scanner-Oberfläche für Transportaufträge |
-| Einkauf | Einkaufs- und Bestellprozesse |
-| Dispo | dispositive Übersicht und Prozesskontrolle |
-| Viewer | Lesender Zugriff |
-
-## Lokale Entwicklung
-
-Backend starten:
-
-```bash
-cd "$HOME/Dokumente/web app/smart-inventory-manager"
-source "/home/tamira/Dokumente/web app/smart-inventory-manager/venv/bin/activate"
-python manage.py runserver
-```
-
-Frontend starten:
-
-```bash
-cd "$HOME/Dokumente/web app/smart-inventory-manager/frontend"
-npm run dev
-```
-
-Lokale Anwendung öffnen:
-
-```text
-http://localhost:5173/inventory/
-```
-
-## Qualitätssicherung
-
-Django-Systemcheck:
-
-```bash
-python manage.py check
-```
-
-Tests für den WA-Versandabschluss:
-
-```bash
-python manage.py test inventory.tests.WaShippingCompletionEndpointTests -v 2
-```
-
-Frontend-Build:
-
-```bash
-cd frontend
-npm run build
-cd ..
-```
-
-## API-Auszug
-
-| Bereich | Endpunkt |
-|---|---|
-| Produkte | `/inventory-api/products/` |
-| Lagerorte | `/inventory-api/storage-locations/` |
-| Lagerplatzbestände | `/inventory-api/location-stocks/` |
-| Lagerbewegungen | `/inventory-api/stock-movements/` |
-| Transportaufträge | `/inventory-api/transport-orders/` |
-| Aktive Transportaufträge | `/inventory-api/transport-orders/active/` |
-| TA aus Warenausgang erzeugen | `/inventory-api/transport-orders/create-from-outbound/` |
-| Versandabschluss | `/inventory-api/location-stocks/<id>/complete-shipping/` |
-| Transport-Dashboard Excel | `/inventory-api/transport-orders/export-excel/` |
-
-## Screenshots – Bestellprozess
-
-Der Bestellprozess zeigt den Ablauf von der Einkaufsbestellung bis zur automatischen Lagerbewegung im Wareneingang.
-
-| Neue Bestellung | Status: Entwurf |
-|---|---|
-| ![Neue Bestellung](docs/screenshots/bestellprozess/01-neue-bestellung.png) | ![Bestellstatus Entwurf](docs/screenshots/bestellprozess/02-bestellstatus-entwurf.png) |
-
-| Status: Freigegeben | Status: Geliefert |
-|---|---|
-| ![Bestellstatus Freigegeben](docs/screenshots/bestellprozess/03-bestellstatus-freigegeben.png) | ![Bestellstatus Geliefert](docs/screenshots/bestellprozess/04-bestellstatus-geliefert.png) |
-
-| Wareneingang aus Bestellung | Automatische Lagerbewegung |
-|---|---|
-| ![Wareneingang aus Bestellung](docs/screenshots/bestellprozess/05-wareneingang-aus-bestellung.png) | ![Lagerbewegung WE-PO](docs/screenshots/bestellprozess/06-lagerbewegung-we-po.png) |
-
-## Geplante nächste Ausbaustufen
-
-- Status „bereitgestellt“ für Ware auf WA-Flächen
-- Kundenauftrag / Kommissionierbedarf als Auslöser für Warenausgangs-Transportaufträge
-- Erweiterung für Palette, NVE oder SSCC
-- weitere Scanner-Optimierung für mobile Geräte
-- PostgreSQL-Vorbereitung für produktionsnähere Umgebung
-- zusätzliche automatische Tests für Transportauftrag-Scanlogik
-
-## Status
-
-Der aktuelle Branch dient der Weiterentwicklung der Lager-IT- und WMS-Funktionen. Die wichtigsten Lagerplatz-, Transport-, Warenausgangs- und Versandabschlussprozesse sind lokal getestet und für eine Portfolio-Demonstration dokumentiert.
-
-## Versandauftrag / Kundenauftrag Workflow
-
-Der Smart Inventory Manager unterstützt zusätzlich einen Versandauftrag-Workflow.
-
-Der Ablauf bildet einen kundenauftragsnahen Warenausgang ab:
+### Ablauf
 
 ```text
 Versandauftrag / Kundenauftrag
@@ -337,6 +105,7 @@ Versandauftrag / Kundenauftrag
 → Bestand auf WA-Fläche
 → Versandabschluss
 → finale Bestandsausbuchung
+→ Status „Versendet“
 ```
 
 ### Umgesetzte Funktionen
@@ -348,23 +117,397 @@ Versandauftrag / Kundenauftrag
 - Ziel ist eine aktive WA-Fläche
 - Schutz vor doppelten Transportaufträgen je Versandposition
 - Statuswechsel des Versandauftrags in Richtung Kommissionierung
+- Statusaktualisierung auf „Versandbereit“
+- Markierung als „Versendet“
 - Frontend-Bereich „Versandaufträge“ unter Lager
 - automatische Tests für den kompletten Outbound-Workflow
 
-### API-Auszug
+---
 
-```text
-GET  /inventory-api/outbound-orders/
-POST /inventory-api/outbound-orders/
-GET  /inventory-api/outbound-order-items/
-POST /inventory-api/outbound-order-items/
-POST /inventory-api/outbound-order-items/<id>/create-transport-order/
-```
+## 🏭 Lagerfunktionen
 
-### Tests
+### Wareneingang
+
+- Produkt auswählen
+- Menge buchen
+- WE-Fläche auswählen
+- Verpackung und Ladungsträger erfassen
+- Packmenge erfassen
+- Einstandspreis und MHD erfassen
+- Referenznummer / Lieferschein erfassen
+- Lagerplatzvorschlag anzeigen
+- Bestand automatisch erhöhen
+- Lagerplatzbestand aktualisieren
+
+### Warenausgang
+
+- Produkt auswählen
+- Menge buchen
+- Quell-Lagerplatz auswählen
+- WA-Fläche als Ziel auswählen
+- Transportauftrag zur WA-Fläche erstellen
+- Versandabschluss von WA-Fläche buchen
+- Bestand automatisch reduzieren
+- Bewegungshistorie aktualisieren
+
+### Stapler-Terminal
+
+- offene Transportaufträge anzeigen
+- Auftrag übernehmen
+- Quellplatz scannen
+- Zielplatz scannen
+- falsche Scans blockieren
+- Transportauftrag abschließen
+- Bestand automatisch umbuchen
+
+### Lagerplatzbestand
+
+- Bestand je Lagerplatz
+- Produkt
+- SKU
+- Menge
+- Verpackung
+- Ladungsträger
+- Packmenge
+- Einstandspreis
+- MHD
+- letzte Aktualisierung
+- Excel-Export
+
+---
+
+## 📊 Dashboard und Auswertung
+
+Das operative Lager-Cockpit zeigt:
+
+- Artikelstamm
+- Bestandseinheiten
+- kritische Bestände
+- Inventurabweichungen
+- Wareneingänge heute
+- Warenausgänge heute
+- Top-Lagerplätze nach Bestand
+- Bewegungsanalyse
+- WE-/WA-Flächen
+- Bestandsrisiken
+
+Das Transport-Dashboard zeigt:
+
+- Transportaufträge im Zeitraum
+- offene Transportaufträge
+- abgeschlossene Transportaufträge
+- Fehler
+- Transportarten
+- TA je Benutzer
+- aktivster Benutzer
+- letzter Abschluss
+- Excel-Export
+
+---
+
+## 🔐 Rollenmodell
+
+| Rolle | Zugriff |
+|---|---|
+| Admin | Voller Zugriff auf alle Module, Benutzer, Rollen und Systemprotokoll |
+| Lager | Wareneingang, Warenausgang, Versandaufträge, Stapler-Terminal, Lagerorte, Lagerkorrekturen, Bewegungshistorie |
+| Einkauf | Einkauf, Lieferanten, Kundenstamm, Lagerkorrekturen lesend |
+| Dispo | Dispo, Bestände, Mindestbestände, Nachbestellvorschläge, Inventuransicht |
+| Viewer / Recruiter | Lesender Zugriff ohne Buchungsrechte |
+| Stapler | Stapler-Terminal und Transportaufträge |
+
+---
+
+## 🧪 Automatische Tests
+
+Für zentrale Prozesse gibt es Backend-Tests.
 
 ```bash
+python manage.py test inventory.tests.WaShippingCompletionEndpointTests -v 2
 python manage.py test inventory.tests.OutboundOrderWorkflowApiTests -v 2
+python manage.py test inventory.tests.OutboundOrderStatusWorkflowTests -v 2
 ```
 
-Damit ist der Warenausgang nicht mehr nur eine direkte Buchung, sondern ein vollständiger Prozess vom Kundenauftrag bis zum Versandabschluss.
+Gesamttest der wichtigsten WMS-/Outbound-Prozesse:
+
+```bash
+python manage.py test inventory.tests.WaShippingCompletionEndpointTests inventory.tests.OutboundOrderWorkflowApiTests inventory.tests.OutboundOrderStatusWorkflowTests -v 2
+```
+
+Abgedeckt werden unter anderem:
+
+- Versandabschluss nur von WA-Flächen
+- blockierter Versandabschluss von normalen Lagerplätzen
+- Mengenprüfung beim Versandabschluss
+- Rollenprüfung für Lager/Admin
+- Versandauftrag per API anlegen
+- Versandposition anlegen
+- Transportauftrag aus Versandposition erzeugen
+- doppelte Transportaufträge verhindern
+- fehlenden Bestand ablehnen
+- Status „Versandbereit“ nach abgeschlossenem Transport
+- Markierung als „Versendet“
+- Sperre gegen zu frühes „Versendet“
+
+---
+
+## 🔗 API-Auszug
+
+### Authentifizierung
+
+| Methode | Endpoint | Beschreibung |
+|---|---|---|
+| POST | `/api/login/` | JWT Login |
+| POST | `/api/token/refresh/` | Access Token erneuern |
+
+### Produkte und Lager
+
+| Methode | Endpoint | Beschreibung |
+|---|---|---|
+| GET | `/api/products/` | Produkte abrufen |
+| POST | `/api/products/` | Produkt anlegen |
+| GET | `/api/storage-locations/` | Lagerorte abrufen |
+| POST | `/api/storage-locations/` | Lagerort anlegen |
+| GET | `/api/location-stocks/` | Lagerplatzbestände abrufen |
+| GET | `/api/stock-movements/` | Bewegungen abrufen |
+| POST | `/api/stock-movements/` | Wareneingang / Warenausgang / Korrektur buchen |
+
+### Transport und WMS
+
+| Methode | Endpoint | Beschreibung |
+|---|---|---|
+| GET | `/api/transport-orders/` | Transportaufträge abrufen |
+| GET | `/api/transport-orders/active/` | aktive Transportaufträge abrufen |
+| POST | `/api/transport-orders/create-from-outbound/` | TA aus Warenausgang erzeugen |
+| POST | `/api/transport-orders/<id>/assign-to-me/` | TA übernehmen |
+| POST | `/api/transport-orders/<id>/scan/` | Quell-/Zielscan verarbeiten |
+
+### Versandabschluss
+
+| Methode | Endpoint | Beschreibung |
+|---|---|---|
+| POST | `/api/location-stocks/<id>/complete-shipping/` | WA-Bestand final ausbuchen |
+
+### Versandauftrag / Kundenauftrag
+
+| Methode | Endpoint | Beschreibung |
+|---|---|---|
+| GET | `/api/outbound-orders/` | Versandaufträge abrufen |
+| POST | `/api/outbound-orders/` | Versandauftrag anlegen |
+| POST | `/api/outbound-orders/<id>/release/` | Versandauftrag freigeben |
+| POST | `/api/outbound-orders/<id>/refresh-status/` | Status aktualisieren |
+| POST | `/api/outbound-orders/<id>/mark-shipped/` | als versendet markieren |
+| GET | `/api/outbound-order-items/` | Versandpositionen abrufen |
+| POST | `/api/outbound-order-items/` | Versandposition anlegen |
+| POST | `/api/outbound-order-items/<id>/create-transport-order/` | Transportauftrag aus Position erstellen |
+
+### Kundenstamm
+
+| Methode | Endpoint | Beschreibung |
+|---|---|---|
+| GET | `/api/customers/` | Kunden abrufen |
+| POST | `/api/customers/` | Kunde anlegen |
+| GET | `/api/customer-contacts/` | Ansprechpartner abrufen |
+| POST | `/api/customer-contacts/` | Ansprechpartner anlegen |
+| GET | `/api/delivery-addresses/` | Lieferadressen abrufen |
+| POST | `/api/delivery-addresses/` | Lieferadresse anlegen |
+| GET | `/api/customer-notes/` | Kundennotizen abrufen |
+| POST | `/api/customer-notes/` | Kundennotiz anlegen |
+
+---
+
+## 🛠️ Technologien
+
+### Frontend
+
+| Technologie | Einsatz |
+|---|---|
+| React | Benutzeroberfläche |
+| TypeScript | typisierte Frontend-Entwicklung |
+| Vite | Entwicklungs- und Build-Tool |
+| CSS-in-JS / Inline Styles | UI-Struktur und responsives Layout |
+
+### Backend
+
+| Technologie | Einsatz |
+|---|---|
+| Python | Backend-Programmiersprache |
+| Django | Webframework |
+| Django REST Framework | REST API |
+| SimpleJWT | JWT-Authentifizierung |
+| SQLite | lokale Entwicklungsdatenbank |
+| openpyxl | Excel-Export |
+
+### Infrastruktur
+
+| Technologie | Einsatz |
+|---|---|
+| Linux Server | Self-hosted Deployment |
+| Apache | Reverse Proxy und Frontend-Auslieferung |
+| Gunicorn | Django Application Server |
+| systemd | Backend-Service |
+| HTTPS | sichere Verbindung über Domain |
+| Proxmox | virtualisierte Infrastruktur |
+
+---
+
+## 🏗️ Architektur
+
+```text
+Browser
+  ↓
+React Frontend
+  ↓
+Vite Proxy lokal / Apache Reverse Proxy produktiv
+  ↓
+Django REST API
+  ↓
+SQLite Datenbank
+```
+
+Deployment-Struktur:
+
+```text
+Frontend Build:
+    /var/www/html/inventory/
+
+Backend:
+    /opt/smart-inventory-manager/
+
+Service:
+    smart-inventory.service
+
+API Proxy:
+    /inventory-api/ → Django Backend /api/
+```
+
+---
+
+## 💻 Lokale Entwicklung
+
+Repository klonen:
+
+```bash
+git clone https://github.com/Tamira70/smart-inventory-manager.git
+cd smart-inventory-manager
+```
+
+Backend einrichten:
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+python manage.py migrate
+python manage.py createsuperuser
+python manage.py runserver
+```
+
+Frontend starten:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Frontend lokal:
+
+```text
+http://localhost:5173/inventory/
+```
+
+Django Admin lokal:
+
+```text
+http://127.0.0.1:8000/admin/
+```
+
+---
+
+## 📸 Screenshots
+
+Screenshots können im Ordner `screenshots/` abgelegt werden.
+
+Empfohlene Screenshots für die Portfolio-Dokumentation:
+
+- Dashboard / Lager-Cockpit
+- Wareneingang
+- Warenausgang
+- Versandaufträge
+- Stapler-Terminal
+- Transport-Dashboard
+- Bewegungshistorie
+- Bestandsübersicht
+- Kundenstamm
+- Rollen & Rechte
+
+---
+
+## 🧠 Roadmap
+
+### Bereits umgesetzt
+
+- Dashboard mit Lagerkennzahlen
+- Einkauf und Bestellwesen
+- Lieferantenverwaltung
+- Kundenstamm
+- Lagerorte
+- Lagerplatzbestände
+- WE-/WA-Flächen
+- Verpackungen und Ladungsträger
+- Kapazitätsprüfung
+- Auslagerungsstrategien FIFO, LIFO, FEFO, HIFO und LOFO
+- Transportaufträge
+- Stapler-Terminal
+- Versandabschluss
+- Versandauftrag / Kundenauftrag
+- Outbound-Status-Workflow bis „Versendet“
+- Bewegungshistorie
+- Excel-Export
+- Rollenmodell
+- Systemprotokoll
+- automatisierte Tests
+
+### Noch geplant
+
+- Migration von SQLite auf PostgreSQL
+- weitere Barcode-/Scanner-Erkennung
+- weitere Auswertungen für Transport- und Lagerkennzahlen
+- mobile Optimierung für Scanner-/Staplergeräte
+
+---
+
+## 🎯 Projektziel
+
+Dieses Projekt demonstriert:
+
+- Full-Stack-Webentwicklung mit Django und React
+- REST API Design
+- JWT-Authentifizierung
+- Rollen- und Berechtigungskonzept
+- Digitalisierung realer Logistikprozesse
+- WMS-nahe Lagerprozesse
+- ERP-/SAP-nahes Prozessverständnis
+- Transportaufträge und Staplerlogik
+- Kundenauftragsnaher Warenausgang
+- automatische Statusführung
+- Bewegungshistorie und Auswertung
+- Deployment auf eigener Linux-Infrastruktur
+- Verbindung von Logistikpraxis und IT-Umsetzung
+
+---
+
+## 👩‍💻 Autorin
+
+**Tamira Morgner**  
+SAP Key User | Logistik | IT | Webentwicklung
+
+GitHub: [Tamira70](https://github.com/Tamira70)
+
+---
+
+## 📜 Lizenz
+
+Dieses Projekt dient als Portfolio-Projekt.
